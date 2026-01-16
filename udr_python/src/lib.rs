@@ -1,6 +1,10 @@
 use pyo3::prelude::*;
 use pyo3::exceptions::{PyIOError, PyValueError};
-use udr_core::{ChunkStore, ChunkStoreError, FileCatalog, CatalogError, TableVersion};
+use udr_core::{
+    ChunkStore, ChunkStoreError,
+    FileCatalog, CatalogError, TableVersion,
+    Branch, BranchDiff, BranchError, BranchManager,
+};
 use std::collections::HashMap;
 
 /// Convert ChunkStoreError to appropriate Python exception
@@ -30,6 +34,35 @@ fn catalog_err_to_py(e: CatalogError) -> PyErr {
         }
         CatalogError::Io(e) => PyIOError::new_err(e.to_string()),
         CatalogError::Json(e) => PyValueError::new_err(format!("JSON error: {}", e)),
+    }
+}
+
+/// Convert BranchError to appropriate Python exception
+fn branch_err_to_py(e: BranchError) -> PyErr {
+    match e {
+        BranchError::BranchNotFound(name) => {
+            PyIOError::new_err(format!("Branch not found: {}", name))
+        }
+        BranchError::BranchAlreadyExists(name) => {
+            PyValueError::new_err(format!("Branch already exists: {}", name))
+        }
+        BranchError::CannotDeleteDefault(name) => {
+            PyValueError::new_err(format!("Cannot delete default branch: {}", name))
+        }
+        BranchError::InvalidBranchName(msg) => {
+            PyValueError::new_err(format!("Invalid branch name: {}", msg))
+        }
+        BranchError::MergeConflict(tables) => {
+            PyValueError::new_err(format!("Merge conflict on tables: {:?}", tables))
+        }
+        BranchError::CannotFastForward { source_branch, target_branch } => {
+            PyValueError::new_err(format!(
+                "Cannot fast-forward: {} is not ahead of {}",
+                source_branch, target_branch
+            ))
+        }
+        BranchError::Io(e) => PyIOError::new_err(e.to_string()),
+        BranchError::Json(e) => PyValueError::new_err(format!("JSON error: {}", e)),
     }
 }
 
@@ -169,10 +202,167 @@ impl PyCatalog {
     }
 }
 
+// ============================================================================
+// Branch Classes
+// ============================================================================
+
+#[pyclass]
+#[derive(Clone)]
+struct PyBranch {
+    #[pyo3(get)]
+    name: String,
+    #[pyo3(get)]
+    head: HashMap<String, u64>,
+    #[pyo3(get)]
+    created_at: i64,
+    #[pyo3(get)]
+    parent_branch: Option<String>,
+    #[pyo3(get)]
+    description: Option<String>,
+}
+
+impl From<Branch> for PyBranch {
+    fn from(b: Branch) -> Self {
+        Self {
+            name: b.name,
+            head: b.head,
+            created_at: b.created_at,
+            parent_branch: b.parent_branch,
+            description: b.description,
+        }
+    }
+}
+
+#[pyclass]
+#[derive(Clone)]
+struct PyBranchDiff {
+    #[pyo3(get)]
+    source_branch: String,
+    #[pyo3(get)]
+    target_branch: String,
+    #[pyo3(get)]
+    unchanged: Vec<String>,
+    #[pyo3(get)]
+    modified: Vec<(String, u64, u64)>,
+    #[pyo3(get)]
+    added_in_source: Vec<(String, u64)>,
+    #[pyo3(get)]
+    added_in_target: Vec<(String, u64)>,
+    #[pyo3(get)]
+    has_conflicts: bool,
+}
+
+impl From<BranchDiff> for PyBranchDiff {
+    fn from(d: BranchDiff) -> Self {
+        Self {
+            source_branch: d.source_branch,
+            target_branch: d.target_branch,
+            unchanged: d.unchanged,
+            modified: d.modified,
+            added_in_source: d.added_in_source,
+            added_in_target: d.added_in_target,
+            has_conflicts: d.has_conflicts,
+        }
+    }
+}
+
+#[pyclass]
+struct PyBranchManager {
+    inner: BranchManager,
+}
+
+#[pymethods]
+impl PyBranchManager {
+    #[new]
+    fn new(path: &str) -> PyResult<Self> {
+        let inner = BranchManager::new(path).map_err(branch_err_to_py)?;
+        Ok(Self { inner })
+    }
+
+    /// Create a new branch from an existing branch.
+    /// If from_branch is None, creates from the default branch (main).
+    #[pyo3(signature = (name, from_branch=None, description=None))]
+    fn create(
+        &self,
+        name: &str,
+        from_branch: Option<&str>,
+        description: Option<&str>,
+    ) -> PyResult<PyBranch> {
+        self.inner
+            .create(name, from_branch, description)
+            .map(|b| b.into())
+            .map_err(branch_err_to_py)
+    }
+
+    /// Get a branch by name.
+    fn get(&self, name: &str) -> PyResult<PyBranch> {
+        self.inner.get(name).map(|b| b.into()).map_err(branch_err_to_py)
+    }
+
+    /// List all branch names.
+    fn list(&self) -> PyResult<Vec<String>> {
+        self.inner.list().map_err(branch_err_to_py)
+    }
+
+    /// Delete a branch. Cannot delete the default branch.
+    fn delete(&self, name: &str) -> PyResult<()> {
+        self.inner.delete(name).map_err(branch_err_to_py)
+    }
+
+    /// Update the head pointer for a table on a branch.
+    fn update_head(&self, branch_name: &str, table_name: &str, version: u64) -> PyResult<()> {
+        self.inner
+            .update_head(branch_name, table_name, version)
+            .map_err(branch_err_to_py)
+    }
+
+    /// Get the version of a table on a branch.
+    fn get_table_version(&self, branch_name: &str, table_name: &str) -> PyResult<Option<u64>> {
+        self.inner
+            .get_table_version(branch_name, table_name)
+            .map_err(branch_err_to_py)
+    }
+
+    /// Compare two branches.
+    fn diff(&self, source: &str, target: &str) -> PyResult<PyBranchDiff> {
+        self.inner
+            .diff(source, target)
+            .map(|d| d.into())
+            .map_err(branch_err_to_py)
+    }
+
+    /// Check if a fast-forward merge is possible.
+    fn can_fast_forward(&self, source: &str, target: &str) -> PyResult<bool> {
+        self.inner
+            .can_fast_forward(source, target)
+            .map_err(branch_err_to_py)
+    }
+
+    /// Merge source branch into target branch (fast-forward only).
+    fn merge(&self, source: &str, into: &str) -> PyResult<()> {
+        self.inner
+            .merge_fast_forward(source, into)
+            .map_err(branch_err_to_py)
+    }
+
+    /// Get the default branch name.
+    fn get_default(&self) -> PyResult<Option<String>> {
+        self.inner.get_default().map_err(branch_err_to_py)
+    }
+
+    /// Set the default branch.
+    fn set_default(&self, name: &str) -> PyResult<()> {
+        self.inner.set_default(name).map_err(branch_err_to_py)
+    }
+}
+
 #[pymodule]
 fn udr(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyChunkStore>()?;
     m.add_class::<PyTableVersion>()?;
     m.add_class::<PyCatalog>()?;
+    m.add_class::<PyBranch>()?;
+    m.add_class::<PyBranchDiff>()?;
+    m.add_class::<PyBranchManager>()?;
     Ok(())
 }

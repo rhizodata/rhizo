@@ -4,7 +4,7 @@
 
 UDR is building the next generation of data infrastructure—one system that replaces the fragmented landscape of transactional databases, data warehouses, streaming platforms, and feature stores. This is not incremental improvement; it's architectural unification.
 
-**Current Progress:** Phases 1-3 complete. We have a working proof-of-concept with content-addressable storage, versioned catalogs, time travel queries, and DuckDB integration.
+**Current Progress:** Phases 1-3 complete, Phase 4 in progress. We have a working proof-of-concept with content-addressable storage, versioned catalogs, time travel queries, DuckDB integration, and Git-like branching (core complete, QueryEngine integration pending).
 
 **Tech Stack:**
 - **Core:** Rust (performance, safety, concurrency)
@@ -23,7 +23,7 @@ UDR is building the next generation of data infrastructure—one system that rep
 | Phase 1: Chunk Store | ✅ Complete | Content-addressable storage with deduplication |
 | Phase 2: Catalog | ✅ Complete | Versioned tables with time travel |
 | Phase 3: Query Layer | ✅ Complete | DuckDB + SQL + time travel queries |
-| Phase 4: Branching | 🔄 Next | Git-like branches for data |
+| Phase 4: Branching | 🔄 In Progress | Git-like branches (core complete, QueryEngine integration pending) |
 | Phase 5: Transactions | ⏳ Planned | Cross-table ACID |
 | Phase 6: Changelog | ⏳ Planned | Unified batch/stream |
 | Phase 7: Production | ⏳ Planned | Real workload migration |
@@ -105,9 +105,11 @@ UDR is building the next generation of data infrastructure—one system that rep
 
 ---
 
-## 🔄 NEXT PHASE
+## 🔄 IN PROGRESS
 
 ### Phase 4: Branching
+
+**Status:** Core implementation complete, QueryEngine integration pending
 
 **Goal:** Git-like branching for data development workflows
 
@@ -124,74 +126,77 @@ Branch:
   - head: HashMap<String, u64>  # table_name → version
   - created_at: Timestamp
   - parent_branch: Option<String>
+  - description: Option<String>
 ```
 
-**Action Items:**
+**Completed:**
 
-- [ ] **4.1** Define `Branch` struct in Rust
-  ```rust
-  #[derive(Debug, Clone, Serialize, Deserialize)]
-  pub struct Branch {
-      pub name: String,
-      pub head: HashMap<String, u64>,
-      pub created_at: i64,
-      pub parent_branch: Option<String>,
-  }
-  ```
+- [x] **4.1** Define `Branch` struct in Rust
+  - `udr_core/src/branch/branch.rs`
+  - Includes `BranchDiff` for comparing branches
 
-- [ ] **4.2** Implement `BranchManager`
-  ```rust
-  impl BranchManager {
-      pub fn create(&self, name: &str, from: Option<&str>) -> Result<Branch>;
-      pub fn get(&self, name: &str) -> Result<Branch>;
-      pub fn update_head(&self, name: &str, table: &str, version: u64) -> Result<()>;
-      pub fn list(&self) -> Result<Vec<String>>;
-      pub fn delete(&self, name: &str) -> Result<()>;
-  }
-  ```
+- [x] **4.2** Implement `BranchManager`
+  - `udr_core/src/branch/manager.rs`
+  - Full CRUD: create, get, list, delete
+  - Head operations: update_head, get_table_version
+  - Default branch management
 
-- [ ] **4.3** Implement branch-aware catalog
-  - Wrap `FileCatalog` with branch context
-  - `get_version()` resolves via branch head
-  - `commit()` updates branch head
+- [x] **4.3** Implement branch diff
+  - Compare head pointers
+  - Report: unchanged, modified, added_in_source, added_in_target
+  - Conflict detection
 
-- [ ] **4.4** Zero-copy branch creation
-  - Copy only head pointers, not data
-  - Verify no storage increase
-
-- [ ] **4.5** Implement branch diff
-  ```rust
-  pub fn diff(branch_a: &str, branch_b: &str) -> BranchDiff {
-      // Compare head pointers
-      // Report: same, different, added, removed tables
-  }
-  ```
-
-- [ ] **4.6** Implement fast-forward merge
+- [x] **4.4** Implement fast-forward merge
   - If target is ancestor of source: update pointers
-  - If diverged: report conflict
+  - If diverged: `BranchError::MergeConflict` with table list
 
-- [ ] **4.7** Add Python bindings
+- [x] **4.5** Zero-copy branch creation
+  - Verified: 50 branches created in < 1 second
+  - Branch metadata < 1KB per branch
+
+- [x] **4.6** Add Python bindings
   ```python
-  manager.create_branch("feature/new-scoring")
-  manager.list_branches()
-  manager.checkout("feature/new-scoring")
-  manager.diff("main", "feature/new-scoring")
+  manager = udr.PyBranchManager("./data/branches")
+  manager.create("feature/new-scoring", from_branch="main")
+  manager.list()
+  manager.get("feature/new-scoring")
+  manager.diff("feature/new-scoring", "main")
   manager.merge("feature/new-scoring", into="main")
   ```
 
-- [ ] **4.8** Write tests
-  - Create branch, modify, verify isolation
-  - Branch storage overhead = 0
-  - Diff shows correct changes
-  - Merge updates target
+- [x] **4.7** Write tests (20 Python tests)
+  - Branch creation and isolation
+  - Head operations
+  - Diff and merge
+  - Zero-copy verification
+  - Branch name validation
+
+**Pending:**
+
+- [ ] **4.8** QueryEngine integration
+  - Add `branch_manager` parameter to `QueryEngine.__init__`
+  - Add `current_branch` state (default: "main")
+  - Add `checkout(branch_name)` method
+  - Update `_ensure_registered()` to resolve via branch heads
+  - Update `write_table()` to update branch heads
+  - Add `branch` parameter to `query()` method
+
+**Merge Strategy Evolution:**
+
+| Phase | Strategy | Capability |
+|-------|----------|------------|
+| Phase 4 (now) | Fast-forward + conflict detection | Simple merges work; diverged branches report conflict |
+| Phase 4.5 (future) | Three-way merge | Full merge with ancestor tracking |
+| Phase 5+ | Transactional merge | Atomic cross-table merge with MVCC |
 
 **Milestone Checkpoint:**
-- [ ] Create branch from main
-- [ ] Modify data on branch
-- [ ] Query both branches, see different results
-- [ ] Merge back to main
-- [ ] Storage increase ≈ 0 until actual changes
+- [x] Create branch from main
+- [x] Modify head pointers on branch
+- [x] Verify branch isolation
+- [x] Diff branches
+- [x] Merge back to main (fast-forward)
+- [x] Storage increase ≈ 0 (verified)
+- [ ] Query via branch-aware QueryEngine
 
 ---
 
@@ -288,9 +293,9 @@ subscriber.subscribe(on_change)
 ### Horizontal Scaling Path
 
 ```
-Phase 1-3: Single-node POC ← WE ARE HERE
+Phase 1-3: Single-node POC (Complete)
     ↓
-Phase 4-6: Single-node with full features
+Phase 4-6: Single-node with full features ← WE ARE HERE
     ↓
 Phase 7: Production validation
     ↓
@@ -352,6 +357,17 @@ From the whitepaper verification:
 
 ## Decision Log
 
+### 2026-01-16: Phase 4 Branching Design
+**Decision:** Git-style branch names with slashes, implicit "main" branch, fast-forward merge with evolution to three-way merge
+**Rationale:**
+- Slash-based names (e.g., `feature/scoring-v2`) are familiar to developers
+- Implicit "main" branch ensures backward compatibility with branchless code
+- Fast-forward merge is simple and sufficient for POC; three-way merge added after proving viability
+**Alternatives:**
+- Hyphen-only names (rejected for familiarity)
+- Explicit branch required (rejected for backward compatibility)
+- Full three-way merge now (rejected for complexity)
+
 ### 2026-01-16: Phase 3 Architecture
 **Decision:** Build query layer in Python with DuckDB, not Rust
 **Rationale:** Faster iteration, better ecosystem integration, DuckDB handles heavy lifting
@@ -391,8 +407,8 @@ from udr_query import TableWriter, TableReader, QueryEngine
 ```
 
 **Test Counts:**
-- Rust: 22 tests
-- Python: 46 tests (20 core + 26 query layer)
+- Rust: 39 tests (22 core + 17 branch)
+- Python: 66 tests (20 core + 26 query layer + 20 branching)
 
 ---
 

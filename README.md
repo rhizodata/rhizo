@@ -2,8 +2,8 @@
 
 **A next-generation data infrastructure that unifies transactional, analytical, and streaming workloads through content-addressable storage, cross-table ACID transactions, and Git-like versioning.**
 
-[![Rust Tests](https://img.shields.io/badge/tests-22%20passed-brightgreen)]()
-[![Python Tests](https://img.shields.io/badge/python%20tests-46%20passed-brightgreen)]()
+[![Rust Tests](https://img.shields.io/badge/tests-39%20passed-brightgreen)]()
+[![Python Tests](https://img.shields.io/badge/python%20tests-66%20passed-brightgreen)]()
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)]()
 
 ## Why UDR?
@@ -33,7 +33,7 @@ UDR eliminates this fragmentation through five foundational innovations:
 | Phase 1: Storage | ✅ Complete | Content-addressable chunk store with BLAKE3 hashing |
 | Phase 2: Catalog | ✅ Complete | Versioned file catalog with time travel |
 | Phase 3: Query | ✅ Complete | DuckDB integration with SQL + time travel |
-| Phase 4: Branching | 🔄 Next | Git-like branching for data development |
+| Phase 4: Branching | 🔄 In Progress | Git-like branching (core complete, QueryEngine integration pending) |
 | Phase 5: Transactions | ⏳ Planned | Cross-table ACID with MVCC |
 | Phase 6: Changelog | ⏳ Planned | Unified batch/stream via subscriptions |
 
@@ -149,6 +149,44 @@ print(f"Rows added: {diff['rows_added']}")
 print(f"Rows removed: {diff['rows_removed']}")
 ```
 
+### Branching (Phase 4)
+
+```python
+import udr
+
+# Create a branch manager
+branches = udr.PyBranchManager("./data/branches")
+
+# Add tables to main branch
+branches.update_head("main", "users", 1)
+branches.update_head("main", "orders", 1)
+
+# Create a feature branch (zero-copy - instant!)
+feature = branches.create(
+    "feature/new-scoring",
+    from_branch="main",
+    description="Testing new scoring algorithm"
+)
+print(f"Created branch: {feature.name}")
+print(f"Head pointers: {feature.head}")  # {"users": 1, "orders": 1}
+
+# Make changes on the feature branch
+branches.update_head("feature/new-scoring", "users", 2)
+
+# Main branch is unaffected (isolation)
+main_version = branches.get_table_version("main", "users")  # Still 1
+feat_version = branches.get_table_version("feature/new-scoring", "users")  # Now 2
+
+# Compare branches
+diff = branches.diff("feature/new-scoring", "main")
+print(f"Modified tables: {diff.modified}")  # [("users", 2, 1)]
+print(f"Has conflicts: {diff.has_conflicts}")
+
+# Merge when ready (fast-forward)
+if branches.can_fast_forward("feature/new-scoring", "main"):
+    branches.merge("feature/new-scoring", into="main")
+```
+
 ### Low-Level API (Rust Core)
 
 ```python
@@ -178,10 +216,10 @@ latest = catalog.get_version("users")  # Gets latest
 ## Testing
 
 ```bash
-# Run all Rust tests (22 tests)
+# Run all Rust tests (39 tests)
 cargo test --all
 
-# Run Python tests (46 tests)
+# Run Python tests (66 tests)
 pytest tests/ -v
 ```
 
@@ -200,10 +238,14 @@ unifieddataruntime/
 │       ├── chunk_store/         # Content-addressable storage
 │       │   ├── store.rs         # ChunkStore (BLAKE3, atomic writes)
 │       │   └── error.rs         # ChunkStoreError, HashMismatch
-│       └── catalog/             # Versioned catalog
-│           ├── file_catalog.rs  # FileCatalog implementation
-│           ├── version.rs       # TableVersion struct
-│           └── error.rs         # CatalogError types
+│       ├── catalog/             # Versioned catalog
+│       │   ├── file_catalog.rs  # FileCatalog implementation
+│       │   ├── version.rs       # TableVersion struct
+│       │   └── error.rs         # CatalogError types
+│       └── branch/              # Git-like branching (Phase 4)
+│           ├── branch.rs        # Branch, BranchDiff structs
+│           ├── manager.rs       # BranchManager (create, merge, diff)
+│           └── error.rs         # BranchError types
 │
 ├── udr_python/                   # PyO3 bindings
 │   └── src/lib.rs               # Python interface
@@ -217,7 +259,8 @@ unifieddataruntime/
 │
 ├── tests/                        # Test suites
 │   ├── test_udr.py              # Core Rust binding tests
-│   └── test_query_layer.py      # Query layer tests (26 tests)
+│   ├── test_query_layer.py      # Query layer tests
+│   └── test_branching.py        # Branching tests (20 tests)
 │
 └── examples/
     └── time_travel_demo.py      # Interactive demo
@@ -228,8 +271,9 @@ unifieddataruntime/
 1. **Immutability**: All data is immutable once written. Updates create new versions.
 2. **Content Addressing**: Data identified by BLAKE3 hash enables automatic deduplication.
 3. **Atomic Operations**: Write-to-temp-rename pattern prevents corruption.
-4. **Layered Architecture**: ChunkStore and FileCatalog are independent and composable.
+4. **Layered Architecture**: ChunkStore, FileCatalog, and BranchManager are independent and composable.
 5. **Time Travel by Default**: Every version is preserved and queryable.
+6. **Zero-Copy Branching**: Branches are pointers to table versions, not data copies.
 
 ## Performance Characteristics
 
