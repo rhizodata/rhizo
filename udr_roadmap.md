@@ -4,7 +4,7 @@
 
 UDR is building the next generation of data infrastructure—one system that replaces the fragmented landscape of transactional databases, data warehouses, streaming platforms, and feature stores. This is not incremental improvement; it's architectural unification.
 
-**Current Progress:** Phases 1-3 complete, Phase 4 in progress. We have a working proof-of-concept with content-addressable storage, versioned catalogs, time travel queries, DuckDB integration, and Git-like branching (core complete, QueryEngine integration pending).
+**Current Progress:** Phases 1-4 complete. We have a working proof-of-concept with content-addressable storage, versioned catalogs, time travel queries, DuckDB integration, and Git-like branching with zero-copy semantics.
 
 **Tech Stack:**
 - **Core:** Rust (performance, safety, concurrency)
@@ -23,7 +23,7 @@ UDR is building the next generation of data infrastructure—one system that rep
 | Phase 1: Chunk Store | ✅ Complete | Content-addressable storage with deduplication |
 | Phase 2: Catalog | ✅ Complete | Versioned tables with time travel |
 | Phase 3: Query Layer | ✅ Complete | DuckDB + SQL + time travel queries |
-| Phase 4: Branching | 🔄 In Progress | Git-like branches (core complete, QueryEngine integration pending) |
+| Phase 4: Branching | ✅ Complete | Git-like branches with zero-copy semantics |
 | Phase 5: Transactions | ⏳ Planned | Cross-table ACID |
 | Phase 6: Changelog | ⏳ Planned | Unified batch/stream |
 | Phase 7: Production | ⏳ Planned | Real workload migration |
@@ -105,11 +105,11 @@ UDR is building the next generation of data infrastructure—one system that rep
 
 ---
 
-## 🔄 IN PROGRESS
+## ✅ RECENTLY COMPLETED
 
 ### Phase 4: Branching
 
-**Status:** Core implementation complete, QueryEngine integration pending
+**Status:** Complete
 
 **Goal:** Git-like branching for data development workflows
 
@@ -171,15 +171,14 @@ Branch:
   - Zero-copy verification
   - Branch name validation
 
-**Pending:**
-
-- [ ] **4.8** QueryEngine integration
+- [x] **4.8** QueryEngine integration (15 new tests)
   - Add `branch_manager` parameter to `QueryEngine.__init__`
   - Add `current_branch` state (default: "main")
   - Add `checkout(branch_name)` method
   - Update `_ensure_registered()` to resolve via branch heads
   - Update `write_table()` to update branch heads
   - Add `branch` parameter to `query()` method
+  - Backward compatible (works without branch_manager)
 
 **Merge Strategy Evolution:**
 
@@ -196,7 +195,7 @@ Branch:
 - [x] Diff branches
 - [x] Merge back to main (fast-forward)
 - [x] Storage increase ≈ 0 (verified)
-- [ ] Query via branch-aware QueryEngine
+- [x] Query via branch-aware QueryEngine
 
 ---
 
@@ -408,7 +407,7 @@ from udr_query import TableWriter, TableReader, QueryEngine
 
 **Test Counts:**
 - Rust: 39 tests (22 core + 17 branch)
-- Python: 66 tests (20 core + 26 query layer + 20 branching)
+- Python: 81 tests (20 core + 26 query layer + 20 branching + 15 branch-query integration)
 
 ---
 

@@ -1,11 +1,12 @@
 """
-QueryEngine - SQL queries over versioned data with time travel.
+QueryEngine - SQL queries over versioned data with time travel and branching.
 
 The engine provides:
 1. SQL interface via DuckDB
 2. Time travel - query any historical version
-3. Table registration caching for performance
-4. Multiple result formats (Arrow, pandas, dict)
+3. Git-like branching - isolated workspaces for data development
+4. Table registration caching for performance
+5. Multiple result formats (Arrow, pandas, dict)
 """
 
 from __future__ import annotations
@@ -54,35 +55,46 @@ class QueryResult:
 
 class QueryEngine:
     """
-    SQL query engine with time travel support.
+    SQL query engine with time travel and branching support.
 
     Provides a DuckDB-based SQL interface over versioned UDR tables.
     Tables are loaded on-demand and cached for performance.
 
     Example:
-        >>> from udr import PyChunkStore, PyCatalog
+        >>> from udr import PyChunkStore, PyCatalog, PyBranchManager
         >>> from udr_query import QueryEngine
         >>>
         >>> store = PyChunkStore("./data/chunks")
         >>> catalog = PyCatalog("./data/catalog")
-        >>> engine = QueryEngine(store, catalog)
+        >>> branches = PyBranchManager("./data/branches")
+        >>> engine = QueryEngine(store, catalog, branch_manager=branches)
         >>>
-        >>> # Query latest version
+        >>> # Query latest version on current branch (main by default)
         >>> result = engine.query("SELECT * FROM users WHERE age > 21")
         >>> df = result.to_pandas()
         >>>
-        >>> # Time travel - query version 5 of users table
+        >>> # Switch to a feature branch
+        >>> engine.checkout("feature/new-scoring")
+        >>>
+        >>> # Query on a specific branch without switching
+        >>> result = engine.query(
+        ...     "SELECT * FROM users",
+        ...     branch="feature/experiment"
+        ... )
+        >>>
+        >>> # Time travel - query version 5 of users table (overrides branch)
         >>> result = engine.query(
         ...     "SELECT * FROM users WHERE age > 21",
         ...     versions={"users": 5}
         ... )
-        >>>
-        >>> # Compare two versions
-        >>> v1 = engine.query("SELECT COUNT(*) as cnt FROM users", versions={"users": 1})
-        >>> v2 = engine.query("SELECT COUNT(*) as cnt FROM users", versions={"users": 2})
 
     Note:
         Table names in queries are case-insensitive but stored lowercase.
+
+    Version Resolution Order:
+        1. Explicit version in `versions` dict (highest priority)
+        2. Branch head pointer (from `branch` param or current_branch)
+        3. Catalog latest (fallback for backward compatibility)
     """
 
     def __init__(
@@ -90,6 +102,7 @@ class QueryEngine:
         store,  # PyChunkStore
         catalog,  # PyCatalog
         verify_integrity: bool = False,
+        branch_manager=None,  # Optional PyBranchManager
     ):
         """
         Initialize the QueryEngine.
@@ -98,11 +111,17 @@ class QueryEngine:
             store: PyChunkStore instance for content-addressable storage
             catalog: PyCatalog instance for version metadata
             verify_integrity: If True, verify chunk hashes on read
+            branch_manager: Optional PyBranchManager for branch-aware queries.
+                           If None, operates in branchless mode (backward compatible).
         """
         self.store = store
         self.catalog = catalog
         self.reader = TableReader(store, catalog, verify_integrity)
         self.writer = TableWriter(store, catalog)
+        self.branch_manager = branch_manager
+
+        # Current branch (only used if branch_manager is provided)
+        self._current_branch: str = "main"
 
         # DuckDB connection (in-memory)
         self._conn = duckdb.connect(":memory:")
@@ -115,15 +134,18 @@ class QueryEngine:
         sql: str,
         versions: Optional[Dict[str, int]] = None,
         params: Optional[List[Any]] = None,
+        branch: Optional[str] = None,
     ) -> QueryResult:
         """
-        Execute a SQL query with optional time travel.
+        Execute a SQL query with optional time travel and branching.
 
         Args:
             sql: SQL query string
             versions: Dict mapping table names to specific versions.
-                      If a table is not in this dict, latest version is used.
+                      If a table is not in this dict, branch head or latest is used.
             params: Optional query parameters for prepared statements
+            branch: Branch to query from. If None, uses current_branch.
+                   Only used if branch_manager is configured.
 
         Returns:
             QueryResult with Arrow table and metadata
@@ -133,10 +155,13 @@ class QueryEngine:
             duckdb.Error: If SQL is invalid
 
         Example:
-            >>> # Query latest
+            >>> # Query latest on current branch
             >>> engine.query("SELECT * FROM users")
             >>>
-            >>> # Time travel
+            >>> # Query on specific branch
+            >>> engine.query("SELECT * FROM users", branch="feature/test")
+            >>>
+            >>> # Time travel (overrides branch)
             >>> engine.query("SELECT * FROM users", versions={"users": 5})
             >>>
             >>> # Multiple tables at different versions
@@ -146,14 +171,15 @@ class QueryEngine:
             ... )
         """
         versions = versions or {}
+        effective_branch = branch or self._current_branch
 
         # Extract table names from query
         table_names = self._extract_table_names(sql)
 
         # Register each table with the appropriate version
         for table_name in table_names:
-            version = versions.get(table_name)  # None means latest
-            self._ensure_registered(table_name, version)
+            version = versions.get(table_name)  # None means resolve via branch/latest
+            self._ensure_registered(table_name, version, effective_branch)
 
         # Execute query
         if params:
@@ -174,39 +200,50 @@ class QueryEngine:
         sql: str,
         versions: Optional[Dict[str, int]] = None,
         params: Optional[List[Any]] = None,
+        branch: Optional[str] = None,
     ) -> "pd.DataFrame":
         """Execute query and return pandas DataFrame."""
-        return self.query(sql, versions, params).to_pandas()
+        return self.query(sql, versions, params, branch).to_pandas()
 
     def query_arrow(
         self,
         sql: str,
         versions: Optional[Dict[str, int]] = None,
         params: Optional[List[Any]] = None,
+        branch: Optional[str] = None,
     ) -> pa.Table:
         """Execute query and return Arrow Table."""
-        return self.query(sql, versions, params).to_arrow()
+        return self.query(sql, versions, params, branch).to_arrow()
 
     def write_table(
         self,
         table_name: str,
         data: Union["pd.DataFrame", pa.Table],
         metadata: Optional[Dict[str, str]] = None,
+        branch: Optional[str] = None,
     ) -> WriteResult:
         """
         Write data as a new version of a table.
 
-        Convenience method that wraps TableWriter.
+        Convenience method that wraps TableWriter. If a branch_manager is
+        configured, also updates the branch head pointer.
 
         Args:
             table_name: Name of the table
             data: DataFrame or Arrow Table to write
             metadata: Optional metadata for this version
+            branch: Branch to update. If None, uses current_branch.
+                   Only used if branch_manager is configured.
 
         Returns:
             WriteResult with version info
         """
         result = self.writer.write(table_name, data, metadata)
+
+        # Update branch head if branch_manager is configured
+        if self.branch_manager is not None:
+            effective_branch = branch or self._current_branch
+            self.branch_manager.update_head(effective_branch, table_name, result.version)
 
         # Invalidate cache for this table (force reload on next query)
         self._invalidate_cache(table_name)
@@ -220,6 +257,135 @@ class QueryEngine:
     def list_versions(self, table_name: str) -> List[int]:
         """List all versions of a table."""
         return self.reader.list_versions(table_name)
+
+    # =========================================================================
+    # Branch Operations
+    # =========================================================================
+
+    @property
+    def current_branch(self) -> str:
+        """Get the current branch name."""
+        return self._current_branch
+
+    def checkout(self, branch_name: str) -> None:
+        """
+        Switch to a different branch.
+
+        Args:
+            branch_name: Name of the branch to switch to
+
+        Raises:
+            IOError: If branch doesn't exist
+            RuntimeError: If branch_manager is not configured
+        """
+        if self.branch_manager is None:
+            raise RuntimeError("Cannot checkout: branch_manager not configured")
+
+        # Verify branch exists (will raise if not found)
+        self.branch_manager.get(branch_name)
+
+        self._current_branch = branch_name
+
+        # Invalidate all cached tables (versions may differ on new branch)
+        self._registered.clear()
+
+    def create_branch(
+        self,
+        name: str,
+        from_branch: Optional[str] = None,
+        description: Optional[str] = None,
+    ) -> Any:
+        """
+        Create a new branch.
+
+        Args:
+            name: Name of the new branch
+            from_branch: Branch to create from (default: current branch)
+            description: Optional description for the branch
+
+        Returns:
+            The created branch object
+
+        Raises:
+            RuntimeError: If branch_manager is not configured
+            ValueError: If branch already exists
+        """
+        if self.branch_manager is None:
+            raise RuntimeError("Cannot create branch: branch_manager not configured")
+
+        source = from_branch or self._current_branch
+        return self.branch_manager.create(name, from_branch=source, description=description)
+
+    def list_branches(self) -> List[str]:
+        """
+        List all branch names.
+
+        Returns:
+            List of branch names
+
+        Raises:
+            RuntimeError: If branch_manager is not configured
+        """
+        if self.branch_manager is None:
+            raise RuntimeError("Cannot list branches: branch_manager not configured")
+
+        return self.branch_manager.list()
+
+    def diff_branches(self, source: str, target: str) -> Dict[str, Any]:
+        """
+        Compare two branches.
+
+        Args:
+            source: Source branch name
+            target: Target branch name
+
+        Returns:
+            Dict with comparison results including:
+            - unchanged: Tables with same version on both branches
+            - modified: Tables with different versions (table, source_ver, target_ver)
+            - added_in_source: Tables only in source branch
+            - added_in_target: Tables only in target branch
+            - has_conflicts: True if branches have diverged
+
+        Raises:
+            RuntimeError: If branch_manager is not configured
+        """
+        if self.branch_manager is None:
+            raise RuntimeError("Cannot diff branches: branch_manager not configured")
+
+        diff = self.branch_manager.diff(source, target)
+
+        return {
+            "source_branch": diff.source_branch,
+            "target_branch": diff.target_branch,
+            "unchanged": diff.unchanged,
+            "modified": diff.modified,
+            "added_in_source": diff.added_in_source,
+            "added_in_target": diff.added_in_target,
+            "has_conflicts": diff.has_conflicts,
+        }
+
+    def merge_branch(self, source: str, into: Optional[str] = None) -> None:
+        """
+        Merge source branch into target branch (fast-forward only).
+
+        Args:
+            source: Branch to merge from
+            into: Branch to merge into (default: current branch)
+
+        Raises:
+            RuntimeError: If branch_manager is not configured
+            ValueError: If merge conflict (branches have diverged)
+        """
+        if self.branch_manager is None:
+            raise RuntimeError("Cannot merge: branch_manager not configured")
+
+        target = into or self._current_branch
+        self.branch_manager.merge(source, into=target)
+
+        # Invalidate cache if we merged into current branch
+        if target == self._current_branch:
+            self._registered.clear()
 
     def get_table_info(self, table_name: str, version: Optional[int] = None) -> Dict[str, Any]:
         """
@@ -318,12 +484,30 @@ class QueryEngine:
 
         return result
 
-    def _ensure_registered(self, table_name: str, version: Optional[int] = None) -> None:
-        """Ensure a table is registered with DuckDB at the specified version."""
+    def _ensure_registered(
+        self,
+        table_name: str,
+        version: Optional[int] = None,
+        branch: Optional[str] = None,
+    ) -> None:
+        """
+        Ensure a table is registered with DuckDB at the specified version.
+
+        Version resolution order:
+        1. Explicit version parameter (highest priority)
+        2. Branch head pointer (if branch_manager configured)
+        3. Catalog latest (fallback)
+        """
         # Resolve version
         if version is None:
-            metadata = self.reader.get_metadata(table_name)
-            version = metadata.version
+            # Try to resolve via branch head
+            if self.branch_manager is not None and branch is not None:
+                version = self.branch_manager.get_table_version(branch, table_name)
+
+            # Fallback to catalog latest if branch doesn't have this table
+            if version is None:
+                metadata = self.reader.get_metadata(table_name)
+                version = metadata.version
 
         cache_key = (table_name.lower(), version)
 

@@ -3,7 +3,7 @@
 **A next-generation data infrastructure that unifies transactional, analytical, and streaming workloads through content-addressable storage, cross-table ACID transactions, and Git-like versioning.**
 
 [![Rust Tests](https://img.shields.io/badge/tests-39%20passed-brightgreen)]()
-[![Python Tests](https://img.shields.io/badge/python%20tests-66%20passed-brightgreen)]()
+[![Python Tests](https://img.shields.io/badge/python%20tests-81%20passed-brightgreen)]()
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)]()
 
 ## Why UDR?
@@ -33,7 +33,7 @@ UDR eliminates this fragmentation through five foundational innovations:
 | Phase 1: Storage | ✅ Complete | Content-addressable chunk store with BLAKE3 hashing |
 | Phase 2: Catalog | ✅ Complete | Versioned file catalog with time travel |
 | Phase 3: Query | ✅ Complete | DuckDB integration with SQL + time travel |
-| Phase 4: Branching | 🔄 In Progress | Git-like branching (core complete, QueryEngine integration pending) |
+| Phase 4: Branching | ✅ Complete | Git-like branching with zero-copy semantics |
 | Phase 5: Transactions | ⏳ Planned | Cross-table ACID with MVCC |
 | Phase 6: Changelog | ⏳ Planned | Unified batch/stream via subscriptions |
 
@@ -153,38 +153,43 @@ print(f"Rows removed: {diff['rows_removed']}")
 
 ```python
 import udr
+from udr_query import QueryEngine
+import pandas as pd
 
-# Create a branch manager
+# Initialize with branch support
+store = udr.PyChunkStore("./data/chunks")
+catalog = udr.PyCatalog("./data/catalog")
 branches = udr.PyBranchManager("./data/branches")
+engine = QueryEngine(store, catalog, branch_manager=branches)
 
-# Add tables to main branch
-branches.update_head("main", "users", 1)
-branches.update_head("main", "orders", 1)
+# Write initial data to main branch
+df = pd.DataFrame({"id": [1, 2], "score": [80, 90]})
+engine.write_table("scores", df)  # Automatically updates main branch head
 
 # Create a feature branch (zero-copy - instant!)
-feature = branches.create(
-    "feature/new-scoring",
-    from_branch="main",
-    description="Testing new scoring algorithm"
-)
-print(f"Created branch: {feature.name}")
-print(f"Head pointers: {feature.head}")  # {"users": 1, "orders": 1}
+engine.create_branch("feature/new-scoring", description="Testing new algorithm")
 
-# Make changes on the feature branch
-branches.update_head("feature/new-scoring", "users", 2)
+# Switch to feature branch
+engine.checkout("feature/new-scoring")
+print(f"Current branch: {engine.current_branch}")
 
-# Main branch is unaffected (isolation)
-main_version = branches.get_table_version("main", "users")  # Still 1
-feat_version = branches.get_table_version("feature/new-scoring", "users")  # Now 2
+# Modify data on feature branch
+df_updated = pd.DataFrame({"id": [1, 2], "score": [85, 95]})
+engine.write_table("scores", df_updated)
+
+# Query both branches - see different results!
+main_avg = engine.query("SELECT AVG(score) as avg FROM scores", branch="main")
+feat_avg = engine.query("SELECT AVG(score) as avg FROM scores", branch="feature/new-scoring")
+print(f"Main avg: {main_avg.to_pandas()['avg'].iloc[0]}")      # 85.0
+print(f"Feature avg: {feat_avg.to_pandas()['avg'].iloc[0]}")   # 90.0
 
 # Compare branches
-diff = branches.diff("feature/new-scoring", "main")
-print(f"Modified tables: {diff.modified}")  # [("users", 2, 1)]
-print(f"Has conflicts: {diff.has_conflicts}")
+diff = engine.diff_branches("feature/new-scoring", "main")
+print(f"Modified tables: {diff['modified']}")  # [("scores", 2, 1)]
 
-# Merge when ready (fast-forward)
-if branches.can_fast_forward("feature/new-scoring", "main"):
-    branches.merge("feature/new-scoring", into="main")
+# Merge when ready
+engine.checkout("main")
+engine.merge_branch("feature/new-scoring", into="main")
 ```
 
 ### Low-Level API (Rust Core)
@@ -258,9 +263,10 @@ unifieddataruntime/
 │       └── engine.py            # QueryEngine (DuckDB + time travel)
 │
 ├── tests/                        # Test suites
-│   ├── test_udr.py              # Core Rust binding tests
-│   ├── test_query_layer.py      # Query layer tests
-│   └── test_branching.py        # Branching tests (20 tests)
+│   ├── test_udr.py              # Core Rust binding tests (20 tests)
+│   ├── test_query_layer.py      # Query layer tests (26 tests)
+│   ├── test_branching.py        # Branching tests (20 tests)
+│   └── test_branch_query_integration.py  # Branch+Query integration (15 tests)
 │
 └── examples/
     └── time_travel_demo.py      # Interactive demo
