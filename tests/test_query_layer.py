@@ -15,21 +15,9 @@ import pytest
 import pyarrow as pa
 import pandas as pd
 
-# Try to import - will fail if dependencies aren't installed
-# Note: conftest.py adds python/ to sys.path
-try:
-    import udr
-    from udr_query import TableWriter, TableReader, QueryEngine
-    DEPS_AVAILABLE = True
-except ImportError as e:
-    DEPS_AVAILABLE = False
-    IMPORT_ERROR = str(e)
-
-
-pytestmark = pytest.mark.skipif(
-    not DEPS_AVAILABLE,
-    reason=f"Dependencies not available: {IMPORT_ERROR if not DEPS_AVAILABLE else ''}"
-)
+# Import UDR components - conftest.py adds python/ to sys.path
+import udr
+from udr_query import TableWriter, TableReader, QueryEngine
 
 
 @pytest.fixture
