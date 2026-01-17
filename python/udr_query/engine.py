@@ -5,15 +5,17 @@ The engine provides:
 1. SQL interface via DuckDB
 2. Time travel - query any historical version
 3. Git-like branching - isolated workspaces for data development
-4. Table registration caching for performance
-5. Multiple result formats (Arrow, pandas, dict)
+4. Cross-table ACID transactions with snapshot isolation
+5. Table registration caching for performance
+6. Multiple result formats (Arrow, pandas, dict)
 """
 
 from __future__ import annotations
 
 import re
+from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Optional, Dict, List, Any, Union
+from typing import TYPE_CHECKING, Optional, Dict, List, Any, Union, Generator
 
 import duckdb
 import pyarrow as pa
@@ -23,6 +25,7 @@ from .writer import TableWriter, WriteResult
 
 if TYPE_CHECKING:
     import pandas as pd
+    import udr
 
 
 @dataclass
@@ -99,10 +102,11 @@ class QueryEngine:
 
     def __init__(
         self,
-        store,  # PyChunkStore
-        catalog,  # PyCatalog
+        store: "udr.PyChunkStore",
+        catalog: "udr.PyCatalog",
         verify_integrity: bool = False,
-        branch_manager=None,  # Optional PyBranchManager
+        branch_manager: Optional["udr.PyBranchManager"] = None,
+        transaction_manager: Optional["udr.PyTransactionManager"] = None,
     ):
         """
         Initialize the QueryEngine.
@@ -113,12 +117,15 @@ class QueryEngine:
             verify_integrity: If True, verify chunk hashes on read
             branch_manager: Optional PyBranchManager for branch-aware queries.
                            If None, operates in branchless mode (backward compatible).
+            transaction_manager: Optional PyTransactionManager for ACID transactions.
+                                If None, transaction() will raise RuntimeError.
         """
         self.store = store
         self.catalog = catalog
         self.reader = TableReader(store, catalog, verify_integrity)
         self.writer = TableWriter(store, catalog)
         self.branch_manager = branch_manager
+        self.transaction_manager = transaction_manager
 
         # Current branch (only used if branch_manager is provided)
         self._current_branch: str = "main"
@@ -128,6 +135,9 @@ class QueryEngine:
 
         # Cache of registered tables: (table_name, version) -> RegisteredTable
         self._registered: Dict[tuple, RegisteredTable] = {}
+
+        # Active transaction tracking (for nested transaction prevention)
+        self._active_tx: Optional[int] = None
 
     def query(
         self,
@@ -257,6 +267,131 @@ class QueryEngine:
     def list_versions(self, table_name: str) -> List[int]:
         """List all versions of a table."""
         return self.reader.list_versions(table_name)
+
+    # =========================================================================
+    # Transaction Operations
+    # =========================================================================
+
+    @contextmanager
+    def transaction(
+        self,
+        branch: Optional[str] = None,
+    ) -> Generator["TransactionContext", None, None]:
+        """
+        Create a transaction context for atomic multi-table operations.
+
+        Provides ACID guarantees across multiple table writes:
+        - Atomicity: All writes commit together or none do
+        - Consistency: Conflict detection prevents inconsistent states
+        - Isolation: Snapshot isolation - reads see consistent point-in-time
+        - Durability: Committed changes are persisted
+
+        Args:
+            branch: Branch to operate on. If None, uses current_branch.
+
+        Yields:
+            TransactionContext for read/write operations
+
+        Raises:
+            RuntimeError: If transaction_manager is not configured
+            RuntimeError: If a transaction is already active (no nesting)
+
+        Example:
+            >>> with engine.transaction() as tx:
+            ...     # Read data (sees snapshot at transaction start)
+            ...     users = tx.query("SELECT * FROM users")
+            ...
+            ...     # Buffer writes (not visible outside transaction)
+            ...     tx.write_table("users", updated_df)
+            ...     tx.write_table("audit_log", audit_df)
+            ...
+            ...     # Read-your-writes: query sees buffered data
+            ...     result = tx.query("SELECT COUNT(*) FROM users")
+            ...
+            ...     # Auto-commits on successful exit
+            ... # Auto-rollback if exception raised
+
+        Note:
+            Nested transactions are not supported. Attempting to start
+            a transaction while one is active will raise RuntimeError.
+
+        Future Extensions:
+            - Savepoints for partial rollback
+            - Distributed transactions
+            - Custom isolation levels
+        """
+        # Import here to avoid circular import
+        from .transaction import TransactionContext
+
+        if self.transaction_manager is None:
+            raise RuntimeError(
+                "Cannot start transaction: transaction_manager not configured. "
+                "Initialize QueryEngine with a PyTransactionManager."
+            )
+
+        if self._active_tx is not None:
+            raise RuntimeError(
+                "Nested transactions are not supported. "
+                f"Transaction {self._active_tx} is already active."
+            )
+
+        effective_branch = branch or self._current_branch
+
+        # Begin transaction through the Rust manager
+        tx_id = self.transaction_manager.begin(effective_branch)
+        self._active_tx = tx_id
+
+        # Capture read snapshot (current versions of all known tables)
+        snapshot = self._capture_snapshot(effective_branch)
+
+        # Create the transaction context
+        ctx = TransactionContext(self, tx_id, effective_branch, snapshot)
+
+        try:
+            yield ctx
+            # Commit on successful exit (if not already committed/aborted)
+            if ctx.is_active:
+                ctx.commit()
+        except Exception as e:
+            # Rollback on exception (if not already committed/aborted)
+            if ctx.is_active:
+                ctx.abort(f"Exception: {e}")
+            raise
+        finally:
+            self._active_tx = None
+            # Invalidate cache - versions may have changed
+            self._registered.clear()
+
+    def _capture_snapshot(self, branch: str) -> Dict[str, int]:
+        """
+        Capture the current version snapshot for a transaction.
+
+        Returns a mapping of table names to their current versions
+        on the specified branch (or catalog latest if branchless).
+        """
+        snapshot: Dict[str, int] = {}
+
+        # Get all tables from catalog
+        tables = self.catalog.list_tables()
+
+        for table_name in tables:
+            version = None
+
+            # Try branch head first
+            if self.branch_manager is not None:
+                version = self.branch_manager.get_table_version(branch, table_name)
+
+            # Fall back to catalog latest
+            if version is None:
+                try:
+                    metadata = self.reader.get_metadata(table_name)
+                    version = metadata.version
+                except Exception:
+                    continue  # Table doesn't exist yet
+
+            snapshot[table_name.lower()] = version
+
+        return snapshot
 
     # =========================================================================
     # Branch Operations

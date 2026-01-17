@@ -238,29 +238,52 @@ Branch:
 
 **Test Count:** 71 new Rust tests (110 total)
 
-#### Phase 5.1: QueryEngine Integration (Next)
+#### Phase 5.1: QueryEngine Integration ✅ COMPLETE
 
 **Goal:** Seamless Python API with context manager
 
-**Planned:**
-- [ ] `engine.transaction()` context manager
-- [ ] Read-your-writes within transaction
-- [ ] Rollback on exception
-- [ ] Branch head auto-updates
+**What We Built:**
+- [x] `engine.transaction()` context manager
+- [x] `TransactionContext` class with query/write_table methods
+- [x] Read-your-writes within transaction (buffered writes visible to queries)
+- [x] Automatic rollback on exception
+- [x] Branch head auto-updates on commit
+- [x] Snapshot conflict detection
+
+**Key Files:**
+- `python/udr_query/transaction.py` - TransactionContext class
+- `python/udr_query/engine.py` - Added transaction() method
+- `python/udr_query/writer.py` - Added write_chunks_only() for transactions
+- `tests/test_transactions.py` - 28 integration tests
+
+**Test Count:** 28 new Python tests (109 total Python, 219 total)
 
 **Example API:**
 ```python
 with engine.transaction() as tx:
-    parcels = tx.read_table("parcels")
-    scores = tx.read_table("scores")
+    # Query data (sees snapshot at transaction start)
+    users = tx.query("SELECT * FROM users")
 
-    # Modify
-    tx.write_table("parcels", new_parcels)
-    tx.write_table("scores", new_scores)
+    # Buffer writes (not visible outside transaction)
+    tx.write_table("users", updated_df)
+    tx.write_table("audit_log", log_df)
+
+    # Read-your-writes: see buffered data
+    count = tx.query("SELECT COUNT(*) FROM users")
 
     # Commits atomically on exit
 # Rolls back on exception
 ```
+
+#### Phase 5.2: Recovery & Robustness (Next)
+
+**Goal:** Production-grade crash recovery
+
+**Planned:**
+- [ ] Python-level recovery integration
+- [ ] Crash during write phase recovery
+- [ ] Crash during commit phase recovery
+- [ ] Epoch recovery tests
 
 ---
 
@@ -438,7 +461,7 @@ from udr_query import TableWriter, TableReader, QueryEngine
 
 **Test Counts:**
 - Rust: 110 tests (22 core + 17 branch + 71 transaction)
-- Python: 81 tests (20 core + 26 query layer + 20 branching + 15 branch-query integration)
+- Python: 109 tests (20 core + 26 query layer + 20 branching + 15 branch-query + 28 transactions)
 
 ---
 

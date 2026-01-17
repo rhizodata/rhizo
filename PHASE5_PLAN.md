@@ -1532,22 +1532,26 @@ class TransactionContext:
 - Epoch management ✅
 - Snapshot isolation ✅
 
-### Phase 5.1: QueryEngine Integration (Week 2-3)
+### Phase 5.1: QueryEngine Integration ✅ COMPLETE
 
 **Goal:** Seamless Python API
 
-**Files to create:**
-1. `python/udr_query/transaction.py` - Transaction context
-2. `tests/test_transactions.py` - Transaction tests
+**Files created:**
+1. `python/udr_query/transaction.py` - TransactionContext class ✅
+2. `tests/test_transactions.py` - 28 integration tests ✅
 
-**Files to modify:**
-1. `python/udr_query/engine.py` - Add transaction support
-2. `python/udr.pyi` - Type stubs
+**Files modified:**
+1. `python/udr_query/engine.py` - Added transaction() context manager ✅
+2. `python/udr_query/writer.py` - Added write_chunks_only() for transactions ✅
+3. `python/udr_query/__init__.py` - Export TransactionContext ✅
 
-**Tests:**
-- Context manager API
-- Read-your-writes within transaction
-- Rollback on exception
+**Tests:** 28 new tests passing
+- Context manager API ✅
+- Read-your-writes within transaction ✅
+- Rollback on exception ✅
+- Cross-table atomic commit ✅
+- Snapshot conflict detection ✅
+- Branch integration ✅
 
 ### Phase 5.2: Recovery & Robustness (Week 3)
 

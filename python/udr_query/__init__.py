@@ -5,11 +5,13 @@ This module provides:
 - TableWriter: Write DataFrames as chunked Parquet files
 - TableReader: Read and assemble tables from chunks
 - QueryEngine: SQL interface with time travel support
+- TransactionContext: ACID transactions across multiple tables
 """
 
 from .writer import TableWriter
 from .reader import TableReader
 from .engine import QueryEngine
+from .transaction import TransactionContext
 
 __version__ = "0.1.0"
-__all__ = ["TableWriter", "TableReader", "QueryEngine"]
+__all__ = ["TableWriter", "TableReader", "QueryEngine", "TransactionContext"]

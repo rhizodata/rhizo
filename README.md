@@ -3,7 +3,7 @@
 **A next-generation data infrastructure that unifies transactional, analytical, and streaming workloads through content-addressable storage, cross-table ACID transactions, and Git-like versioning.**
 
 [![Rust Tests](https://img.shields.io/badge/tests-110%20passed-brightgreen)]()
-[![Python Tests](https://img.shields.io/badge/python%20tests-81%20passed-brightgreen)]()
+[![Python Tests](https://img.shields.io/badge/python%20tests-109%20passed-brightgreen)]()
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)]()
 
 ## Why UDR?
@@ -34,7 +34,7 @@ UDR eliminates this fragmentation through five foundational innovations:
 | Phase 2: Catalog | ✅ Complete | Versioned file catalog with time travel |
 | Phase 3: Query | ✅ Complete | DuckDB integration with SQL + time travel |
 | Phase 4: Branching | ✅ Complete | Git-like branching with zero-copy semantics |
-| Phase 5: Transactions | 🚧 In Progress | Cross-table ACID with MVCC (Core complete, QueryEngine integration pending) |
+| Phase 5: Transactions | 🚧 In Progress | Cross-table ACID with MVCC (Phase 5.0-5.1 complete, Recovery remaining) |
 | Phase 6: Changelog | ⏳ Planned | Unified batch/stream via subscriptions |
 
 ## Architecture
@@ -190,6 +190,49 @@ print(f"Modified tables: {diff['modified']}")  # [("scores", 2, 1)]
 # Merge when ready
 engine.checkout("main")
 engine.merge_branch("feature/new-scoring", into="main")
+```
+
+### Transactions (Phase 5)
+
+```python
+import udr
+from udr_query import QueryEngine
+import pandas as pd
+
+# Initialize with transaction support
+store = udr.PyChunkStore("./data/chunks")
+catalog = udr.PyCatalog("./data/catalog")
+branches = udr.PyBranchManager("./data/branches")
+tx_manager = udr.PyTransactionManager("./data/transactions", "./data/catalog", "./data/branches")
+
+engine = QueryEngine(
+    store, catalog,
+    branch_manager=branches,
+    transaction_manager=tx_manager
+)
+
+# Write initial data
+engine.write_table("users", pd.DataFrame({"id": [1, 2], "name": ["Alice", "Bob"]}))
+
+# Cross-table ACID transaction
+with engine.transaction() as tx:
+    # Read current data (snapshot isolation)
+    users = tx.query("SELECT * FROM users")
+
+    # Buffer multiple writes (not visible until commit)
+    tx.write_table("users", pd.DataFrame({"id": [1, 2, 3], "name": ["Alice", "Bob", "Charlie"]}))
+    tx.write_table("audit_log", pd.DataFrame({"action": ["added_user"], "user_id": [3]}))
+
+    # Read-your-writes: see buffered data within transaction
+    count = tx.query("SELECT COUNT(*) as cnt FROM users")
+    print(f"Users in transaction: {count.to_pandas()['cnt'].iloc[0]}")  # 3
+
+    # Auto-commits on exit, rolls back on exception
+# Both tables updated atomically!
+
+# Verify commit
+result = engine.query("SELECT COUNT(*) as cnt FROM users")
+print(f"Committed users: {result.to_pandas()['cnt'].iloc[0]}")  # 3
 ```
 
 ### Low-Level API (Rust Core)

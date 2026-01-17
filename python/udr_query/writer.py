@@ -39,6 +39,22 @@ class WriteResult:
     total_bytes: int
 
 
+@dataclass
+class ChunkWriteResult:
+    """
+    Result of writing chunks without catalog commit.
+
+    Used internally by transactions to separate chunk storage from
+    catalog commit (which the TransactionManager handles).
+    """
+    table_name: str
+    next_version: int  # The version that WILL be assigned
+    chunk_count: int
+    chunk_hashes: List[str]
+    total_rows: int
+    total_bytes: int
+
+
 class TableWriter:
     """
     Writes data to UDR as versioned, content-addressable Parquet chunks.
@@ -133,6 +149,59 @@ class TableWriter:
         return WriteResult(
             table_name=table_name,
             version=committed_version,
+            chunk_count=len(chunk_hashes),
+            chunk_hashes=chunk_hashes,
+            total_rows=table.num_rows,
+            total_bytes=total_bytes,
+        )
+
+    def write_chunks_only(
+        self,
+        table_name: str,
+        data: Union["pd.DataFrame", pa.Table],
+    ) -> ChunkWriteResult:
+        """
+        Write data chunks without committing to catalog.
+
+        This is used by transactions to separate the chunk write phase
+        from the catalog commit phase. The TransactionManager handles
+        the catalog commit for atomicity.
+
+        Args:
+            table_name: Name of the table to write
+            data: DataFrame or Arrow Table to write
+
+        Returns:
+            ChunkWriteResult with chunk info and the version that will be assigned
+
+        Raises:
+            ValueError: If data is empty or invalid
+        """
+        # Convert to Arrow Table if needed
+        table = self._to_arrow(data)
+
+        if table.num_rows == 0:
+            raise ValueError("Cannot write empty table")
+
+        # Determine chunking strategy
+        chunks = self._chunk_table(table)
+
+        # Store each chunk and collect hashes
+        chunk_hashes = []
+        total_bytes = 0
+
+        for chunk in chunks:
+            parquet_bytes = self._to_parquet_bytes(chunk)
+            chunk_hash = self.store.put(parquet_bytes)
+            chunk_hashes.append(chunk_hash)
+            total_bytes += len(parquet_bytes)
+
+        # Determine what the next version WILL be (don't commit yet)
+        next_version = self._get_next_version(table_name)
+
+        return ChunkWriteResult(
+            table_name=table_name,
+            next_version=next_version,
             chunk_count=len(chunk_hashes),
             chunk_hashes=chunk_hashes,
             total_rows=table.num_rows,
