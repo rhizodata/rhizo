@@ -19,23 +19,23 @@ Armillaria is the next generation of data infrastructure—one system that repla
 
 | Phase | Status | Key Deliverable |
 |-------|--------|-----------------|
-| Phase 0: Environment | ✅ Complete | Rust + PyO3 working |
-| Phase 1: Chunk Store | ✅ Complete | Content-addressable storage with deduplication |
-| Phase 2: Catalog | ✅ Complete | Versioned tables with time travel |
-| Phase 3: Query Layer | ✅ Complete | DuckDB + SQL + time travel queries |
-| Phase 4: Branching | ✅ Complete | Git-like branches with zero-copy semantics |
-| Phase 5: Transactions | ✅ Complete | Cross-table ACID with recovery & robustness |
-| Phase 6: Changelog | ✅ Complete | Unified batch/stream via subscriptions |
-| Phase 6.5: QC & CI | ✅ Complete | Ruff + Clippy linting, GitHub Actions |
-| Phase 7: Production | ⏳ Planned | Real workload migration |
-| Phase 8: Release | ⏳ Planned | Documentation and publication |
-| Phase 9: Advanced Storage | 💡 Future | Delta encoding, CDC chunking |
+| Phase 0: Environment | Complete | Rust + PyO3 working |
+| Phase 1: Chunk Store | Complete | Content-addressable storage with deduplication |
+| Phase 2: Catalog | Complete | Versioned tables with time travel |
+| Phase 3: Query Layer | Complete | DuckDB + SQL + time travel queries |
+| Phase 4: Branching | Complete | Git-like branches with zero-copy semantics |
+| Phase 5: Transactions | Complete | Cross-table ACID with recovery & robustness |
+| Phase 6: Changelog | Complete | Unified batch/stream via subscriptions |
+| Phase 6.5: QC & CI | Complete | Ruff + Clippy linting, GitHub Actions |
+| Phase 7: Production | Planned | Real workload migration |
+| Phase 8: Release | Planned | Documentation and publication |
+| Phase 9: Advanced Storage | Future | Delta encoding, CDC chunking |
 
 ---
 
-## ✅ COMPLETED PHASES
+## COMPLETED PHASES
 
-### Phase 0: Environment & Rust Foundations ✅
+### Phase 0: Environment & Rust Foundations
 
 **Status:** Complete
 
@@ -45,7 +45,7 @@ Armillaria is the next generation of data infrastructure—one system that repla
 - [x] PyO3 bindings working (`maturin develop`)
 - [x] Git repository initialized and pushed to GitHub
 
-### Phase 1: Content-Addressable Chunk Store ✅
+### Phase 1: Content-Addressable Chunk Store
 
 **Status:** Complete (22 Rust tests passing)
 
@@ -64,7 +64,7 @@ Armillaria is the next generation of data infrastructure—one system that repla
 - `udr_core/src/chunk_store/error.rs`
 - `udr_python/src/lib.rs`
 
-### Phase 2: Table Catalog & Versioning ✅
+### Phase 2: Table Catalog & Versioning
 
 **Status:** Complete
 
@@ -83,7 +83,7 @@ Armillaria is the next generation of data infrastructure—one system that repla
 - `udr_core/src/catalog/version.rs`
 - `udr_core/src/catalog/error.rs`
 
-### Phase 3: Query Layer (DuckDB Integration) ✅
+### Phase 3: Query Layer (DuckDB Integration)
 
 **Status:** Complete (26 Python tests passing, 46 total)
 
@@ -107,7 +107,7 @@ Armillaria is the next generation of data infrastructure—one system that repla
 
 ---
 
-## ✅ RECENTLY COMPLETED
+## RECENTLY COMPLETED
 
 ### Phase 4: Branching
 
@@ -201,7 +201,7 @@ Branch:
 
 ---
 
-## ✅ RECENTLY COMPLETED
+## RECENTLY COMPLETED
 
 ### Phase 5: Cross-Table Transactions
 
@@ -217,7 +217,7 @@ Branch:
 - **Isolation Level:** Snapshot Isolation
 - **Scope:** Single-process first, distributed later
 
-#### Phase 5.0: Core Transaction Infrastructure ✅ COMPLETE
+#### Phase 5.0: Core Transaction Infrastructure (Complete)
 
 **What We Built:**
 - [x] `TransactionRecord` struct with read/write sets
@@ -240,7 +240,7 @@ Branch:
 
 **Test Count:** 71 new Rust tests (110 total)
 
-#### Phase 5.1: QueryEngine Integration ✅ COMPLETE
+#### Phase 5.1: QueryEngine Integration (Complete)
 
 **Goal:** Seamless Python API with context manager
 
@@ -277,7 +277,7 @@ with engine.transaction() as tx:
 # Rolls back on exception
 ```
 
-#### Phase 5.2: Recovery & Robustness ✅ COMPLETE
+#### Phase 5.2: Recovery & Robustness (Complete)
 
 **Goal:** Production-grade crash recovery
 
@@ -324,7 +324,7 @@ if not health["is_healthy"]:
 
 ---
 
-## ✅ RECENTLY COMPLETED
+## RECENTLY COMPLETED
 
 ### Phase 6: Changelog & Subscriptions
 
@@ -406,7 +406,7 @@ subscriber.start_background(on_change)
 
 ---
 
-## ✅ RECENTLY COMPLETED
+## RECENTLY COMPLETED
 
 ### Phase 6.5: Quality Control & CI
 
@@ -450,7 +450,7 @@ pytest tests/ -v         # 155 tests
 
 ---
 
-## ⏳ PLANNED PHASES
+## PLANNED PHASES
 
 ### Phase 7: Production Migration
 
@@ -557,12 +557,12 @@ From the whitepaper verification:
 
 | Property | Complexity | Verified |
 |----------|------------|----------|
-| Write | O(n) in data size | ✅ |
-| Read | O(n) in data size | ✅ |
-| Time travel | O(1) version lookup | ✅ |
-| Branch creation | O(k) where k = tables | ✅ |
-| Collision probability | ~10^-47 at exabyte scale | ✅ |
-| Deduplication ratio | 60-85% typical | ✅ |
+| Write | O(n) in data size | Yes |
+| Read | O(n) in data size | Yes |
+| Time travel | O(1) version lookup | Yes |
+| Branch creation | O(k) where k = tables | Yes |
+| Collision probability | ~10^-47 at exabyte scale | Yes |
+| Deduplication ratio | 60-85% typical | Yes |
 
 ---
 

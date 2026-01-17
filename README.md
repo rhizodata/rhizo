@@ -4,428 +4,218 @@
 
 Armillaria is a next-generation data infrastructure that unifies transactional, analytical, and streaming workloads through content-addressable storage, cross-table ACID transactions, and Git-like versioning.
 
-[![CI](https://github.com/aquadantheman/armillaria/actions/workflows/ci.yml/badge.svg)](https://github.com/aquadantheman/armillaria/actions/workflows/ci.yml)
-[![Rust Tests](https://img.shields.io/badge/rust%20tests-127%20passed-brightgreen)](https://github.com/aquadantheman/armillaria)
-[![Python Tests](https://img.shields.io/badge/python%20tests-153%20passed-brightgreen)](https://github.com/aquadantheman/armillaria)
-[![Clippy](https://img.shields.io/badge/clippy-clean-brightgreen)](https://github.com/aquadantheman/armillaria)
-[![Ruff](https://img.shields.io/badge/ruff-clean-brightgreen)](https://github.com/aquadantheman/armillaria)
+[![CI](https://github.com/aquadantheman/unifieddataruntime/actions/workflows/ci.yml/badge.svg)](https://github.com/aquadantheman/unifieddataruntime/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Rust](https://img.shields.io/badge/rust-127%20tests-blue)](https://github.com/aquadantheman/unifieddataruntime)
+[![Python](https://img.shields.io/badge/python-153%20tests-blue)](https://github.com/aquadantheman/unifieddataruntime)
 
-## Why Armillaria?
+---
 
-Modern data infrastructure is fundamentally fragmented. Organizations maintain separate systems for:
-- Transactional workloads (PostgreSQL, MySQL)
-- Analytical processing (Snowflake, BigQuery)
-- Streaming computation (Kafka, Flink)
-- Feature stores for ML pipelines
+## The Problem
 
-**The result:** 60-80% of data engineering effort goes to integration, synchronization, and pipeline maintenance rather than generating insights.
+Modern data infrastructure is fragmented. Organizations maintain separate systems for transactional workloads, analytical processing, streaming computation, and ML feature stores. The result: **60-80% of data engineering effort goes to integration and pipeline maintenance** rather than generating insights.
 
-Armillaria eliminates this fragmentation through five foundational innovations:
+Existing lakehouse formats (Delta Lake, Iceberg, Hudi) improve single-table versioning but cannot solve:
 
-| Innovation | Benefit |
-|------------|---------|
+| Limitation | Why It Matters |
+|------------|----------------|
+| Single-table transactions only | Cannot atomically update customers + orders + audit log |
+| No cross-table deduplication | Same data stored multiple times across tables |
+| No branching | Cannot safely experiment on production data |
+| Batch-stream semantic gap | Different APIs, different guarantees |
+
+## The Solution
+
+Armillaria replaces the architecture that makes these limitations inevitable.
+
+| Capability | What It Enables |
+|------------|-----------------|
 | **Content-Addressable Storage** | Automatic deduplication, corruption detection, zero-copy operations |
 | **Cross-Table ACID Transactions** | Atomic updates across your entire data estate |
 | **Time Travel** | Query any historical version instantly |
 | **Git-like Branching** | Experiment safely, merge when ready |
 | **Unified Batch/Stream** | One semantic model for all workloads |
 
-## Current Status
+---
 
-| Phase | Status | Description |
-|-------|--------|-------------|
-| Phase 1: Storage | ✅ Complete | Content-addressable chunk store with BLAKE3 hashing |
-| Phase 2: Catalog | ✅ Complete | Versioned file catalog with time travel |
-| Phase 3: Query | ✅ Complete | DuckDB integration with SQL + time travel |
-| Phase 4: Branching | ✅ Complete | Git-like branching with zero-copy semantics |
-| Phase 5: Transactions | ✅ Complete | Cross-table ACID with recovery & robustness |
-| Phase 6: Changelog | ✅ Complete | Unified batch/stream via subscriptions |
+## Benchmarks
 
-## Architecture
+Measured on commodity hardware (results from running `examples/`):
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      Application Layer                       │
-│     Python (armillaria_query) │ Rust │ CLI (planned)          │
-│      TableWriter │ TableReader │ QueryEngine (DuckDB)        │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                        FileCatalog                           │
-│   • Versioned table metadata                                 │
-│   • Sequential version enforcement                           │
-│   • Time travel queries                                      │
-│   • Atomic commits                                           │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                        ChunkStore                            │
-│   • Content-addressed storage (BLAKE3)                       │
-│   • Automatic deduplication                                  │
-│   • Atomic writes (write-to-temp-rename)                     │
-│   • Integrity verification (get_verified)                    │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                       File System                            │
-│   • 2-level directory tree for O(1) lookups (ab/cd/...)     │
-│   • JSON metadata files                                      │
-│   • Parquet data chunks                                      │
-└─────────────────────────────────────────────────────────────┘
-```
+| Operation | Performance | Notes |
+|-----------|-------------|-------|
+| Write throughput | 2,278 MB/s | BLAKE3 hashing + file write |
+| Read + verify | 579 MB/s | Includes integrity verification |
+| Branch creation | <1 ms | 50,000 rows, 176 bytes overhead |
+| Deduplication | 5x | Identical 1MB chunks stored once |
+| Storage efficiency | 462 KB | 50,000 rows with indexes |
+
+### Comparison
+
+| Feature | Armillaria | Delta Lake | Iceberg | Hudi |
+|---------|------------|------------|---------|------|
+| Cross-table ACID | Yes | No | No | No |
+| Zero-copy branching | Yes | No | No | No |
+| Global deduplication | Yes | No | No | No |
+| Corruption detection | Built-in | External | External | External |
+| Time travel | O(1) | O(log n) | O(log n) | O(log n) |
+
+---
 
 ## Quick Start
 
-### Installation (from PyPI)
+### Installation
 
 ```bash
-# Install the core Rust bindings
-pip install armillaria
-
-# Install the query layer (includes armillaria as dependency)
 pip install armillaria-query
 ```
 
-### Installation (from source)
-
-Prerequisites:
-- Rust 1.70+ (`rustup install stable`)
-- Python 3.9+
-- maturin (`pip install maturin`)
-
-```bash
-# Clone and build
-git clone https://github.com/aquadantheman/armillaria.git
-cd armillaria
-
-# Build Rust core and Python bindings
-cd udr_python && maturin develop --release && cd ..
-
-# Install Python query layer
-pip install -e python/
-
-# Install test dependencies
-pip install pytest
-```
-
-### Basic Usage (Python)
+### Basic Usage
 
 ```python
 import armillaria
-from armillaria_query import TableWriter, TableReader, QueryEngine
+from armillaria_query import QueryEngine
 import pandas as pd
 
-# Initialize storage
+# Initialize
 store = armillaria.PyChunkStore("./data/chunks")
 catalog = armillaria.PyCatalog("./data/catalog")
-
-# Write data using the query layer
 engine = QueryEngine(store, catalog)
 
+# Write data
 df = pd.DataFrame({
     "id": [1, 2, 3],
     "name": ["Alice", "Bob", "Charlie"],
     "score": [85.5, 92.0, 78.5]
 })
-
 engine.write_table("users", df)
 
-# SQL queries with DuckDB
+# Query with DuckDB
 result = engine.query("SELECT * FROM users WHERE score > 80")
-print(result.to_pandas())
 ```
 
 ### Time Travel
 
 ```python
-# Write version 1
-engine.write_table("users", df_v1)
-
-# Write version 2 with updated data
-df_v2 = df_v1.copy()
-df_v2["score"] = df_v2["score"] + 10
-engine.write_table("users", df_v2)
-
-# Query any historical version
+# Query historical versions
 result_v1 = engine.query(
     "SELECT AVG(score) FROM users",
-    versions={"users": 1}  # Time travel!
-)
-
-result_v2 = engine.query(
-    "SELECT AVG(score) FROM users",
-    versions={"users": 2}
+    versions={"users": 1}
 )
 
 # Compare versions
 diff = engine.diff_versions("users", 1, 2, key_columns=["id"])
-print(f"Rows added: {diff['rows_added']}")
-print(f"Rows removed: {diff['rows_removed']}")
 ```
 
-### Branching (Phase 4)
+### Branching
 
 ```python
-import armillaria
-from armillaria_query import QueryEngine
-import pandas as pd
+# Create branch (instant, zero-copy)
+engine.create_branch("experiment/new-scoring")
+engine.checkout("experiment/new-scoring")
 
-# Initialize with branch support
-store = armillaria.PyChunkStore("./data/chunks")
-catalog = armillaria.PyCatalog("./data/catalog")
-branches = armillaria.PyBranchManager("./data/branches")
-engine = QueryEngine(store, catalog, branch_manager=branches)
+# Modify on branch (production unchanged)
+engine.write_table("scores", updated_df)
 
-# Write initial data to main branch
-df = pd.DataFrame({"id": [1, 2], "score": [80, 90]})
-engine.write_table("scores", df)  # Automatically updates main branch head
-
-# Create a feature branch (zero-copy - instant!)
-engine.create_branch("feature/new-scoring", description="Testing new algorithm")
-
-# Switch to feature branch
-engine.checkout("feature/new-scoring")
-print(f"Current branch: {engine.current_branch}")
-
-# Modify data on feature branch
-df_updated = pd.DataFrame({"id": [1, 2], "score": [85, 95]})
-engine.write_table("scores", df_updated)
-
-# Query both branches - see different results!
-main_avg = engine.query("SELECT AVG(score) as avg FROM scores", branch="main")
-feat_avg = engine.query("SELECT AVG(score) as avg FROM scores", branch="feature/new-scoring")
-print(f"Main avg: {main_avg.to_pandas()['avg'].iloc[0]}")      # 85.0
-print(f"Feature avg: {feat_avg.to_pandas()['avg'].iloc[0]}")   # 90.0
-
-# Compare branches
-diff = engine.diff_branches("feature/new-scoring", "main")
-print(f"Modified tables: {diff['modified']}")  # [("scores", 2, 1)]
+# Query both branches
+main_result = engine.query("SELECT * FROM scores", branch="main")
+exp_result = engine.query("SELECT * FROM scores", branch="experiment/new-scoring")
 
 # Merge when ready
-engine.checkout("main")
-engine.merge_branch("feature/new-scoring", into="main")
+engine.merge_branch("experiment/new-scoring", into="main")
 ```
 
-### Transactions (Phase 5)
+### Cross-Table Transactions
 
 ```python
-import armillaria
-from armillaria_query import QueryEngine
-import pandas as pd
-
-# Initialize with transaction support
-store = armillaria.PyChunkStore("./data/chunks")
-catalog = armillaria.PyCatalog("./data/catalog")
-branches = armillaria.PyBranchManager("./data/branches")
-tx_manager = armillaria.PyTransactionManager("./data/transactions", "./data/catalog", "./data/branches")
-
-engine = QueryEngine(
-    store, catalog,
-    branch_manager=branches,
-    transaction_manager=tx_manager
-)
-
-# Write initial data
-engine.write_table("users", pd.DataFrame({"id": [1, 2], "name": ["Alice", "Bob"]}))
-
-# Cross-table ACID transaction
 with engine.transaction() as tx:
-    # Read current data (snapshot isolation)
-    users = tx.query("SELECT * FROM users")
-
-    # Buffer multiple writes (not visible until commit)
-    tx.write_table("users", pd.DataFrame({"id": [1, 2, 3], "name": ["Alice", "Bob", "Charlie"]}))
-    tx.write_table("audit_log", pd.DataFrame({"action": ["added_user"], "user_id": [3]}))
-
-    # Read-your-writes: see buffered data within transaction
-    count = tx.query("SELECT COUNT(*) as cnt FROM users")
-    print(f"Users in transaction: {count.to_pandas()['cnt'].iloc[0]}")  # 3
-
-    # Auto-commits on exit, rolls back on exception
-# Both tables updated atomically!
-
-# Verify commit
-result = engine.query("SELECT COUNT(*) as cnt FROM users")
-print(f"Committed users: {result.to_pandas()['cnt'].iloc[0]}")  # 3
+    tx.write_table("customers", updated_customers)
+    tx.write_table("orders", new_order)
+    tx.write_table("audit_log", audit_entry)
+    # All commit together, or all rollback
 ```
 
-### Low-Level API (Rust Core)
+---
 
-```python
-import armillaria
+## Architecture
 
-# Content-addressable storage
-store = armillaria.PyChunkStore("./data/chunks")
-
-# Store data - returns BLAKE3 hash
-hash_str = store.put(b"Hello, World!")
-print(f"Stored with hash: {hash_str}")
-
-# Retrieve with integrity verification
-data = store.get_verified(hash_str)  # Raises if corrupted
-
-# Versioned catalog
-catalog = armillaria.PyCatalog("./data/catalog")
-
-version = armillaria.PyTableVersion("users", 1, [hash_str])
-catalog.commit(version)
-
-# Time travel to any version
-v1 = catalog.get_version("users", 1)
-latest = catalog.get_version("users")  # Gets latest
+```
+Application Layer
+    Python (armillaria_query) | Rust | CLI (planned)
+    TableWriter | TableReader | QueryEngine (DuckDB)
+                            |
+                            v
+                      FileCatalog
+    Versioned table metadata | Time travel queries | Atomic commits
+                            |
+                            v
+                       ChunkStore
+    Content-addressed storage (BLAKE3) | Automatic deduplication
+    Atomic writes | Integrity verification
+                            |
+                            v
+                       File System
+    2-level directory tree | JSON metadata | Parquet chunks
 ```
 
-## Testing & Quality Checks
+---
 
-```bash
-# Run all Rust tests (127 tests)
-cargo test --all
+## Current Status
 
-# Run Python tests (155 tests)
-pytest tests/ -v
+| Phase | Description |
+|-------|-------------|
+| Phase 1: Storage | Content-addressable chunk store with BLAKE3 hashing |
+| Phase 2: Catalog | Versioned file catalog with time travel |
+| Phase 3: Query | DuckDB integration with SQL and time travel |
+| Phase 4: Branching | Git-like branching with zero-copy semantics |
+| Phase 5: Transactions | Cross-table ACID with recovery |
+| Phase 6: Changelog | Unified batch/stream via subscriptions |
 
-# Linting (Phase 6.5)
-cargo clippy --all       # Rust linting
-python -m ruff check .   # Python linting
-```
+All phases complete. 280 tests passing (127 Rust + 153 Python).
+
+---
 
 ## Project Structure
 
 ```
-unifieddataruntime/
-├── Cargo.toml                    # Workspace configuration
-├── README.md                     # This file
-├── udr_roadmap.md               # Development roadmap
-├── unified_data_runtime_whitepaper.docx  # Technical whitepaper
-│
-├── udr_core/                     # Rust core library
+armillaria/
+├── udr_core/                 # Rust core library
 │   └── src/
-│       ├── lib.rs               # Public exports
-│       ├── chunk_store/         # Content-addressable storage
-│       │   ├── store.rs         # ChunkStore (BLAKE3, atomic writes)
-│       │   └── error.rs         # ChunkStoreError, HashMismatch
-│       ├── catalog/             # Versioned catalog
-│       │   ├── file_catalog.rs  # FileCatalog implementation
-│       │   ├── version.rs       # TableVersion struct
-│       │   └── error.rs         # CatalogError types
-│       ├── branch/              # Git-like branching (Phase 4)
-│       │   ├── branch.rs        # Branch, BranchDiff structs
-│       │   ├── manager.rs       # BranchManager (create, merge, diff)
-│       │   └── error.rs         # BranchError types
-│       ├── transaction/         # Cross-table ACID (Phase 5)
-│       │   ├── types.rs         # TxId, TransactionRecord, WriteGranularity
-│       │   ├── epoch.rs         # EpochConfig, EpochMetadata
-│       │   ├── error.rs         # TransactionError types
-│       │   ├── log.rs           # TransactionLog (persistent WAL)
-│       │   ├── conflict.rs      # ConflictDetector trait, TableLevelConflictDetector
-│       │   ├── manager.rs       # TransactionManager (coordinator)
-│       │   └── recovery.rs      # RecoveryManager, RecoveryReport
-│       └── changelog/           # Changelog & Subscriptions (Phase 6)
-│           ├── entry.rs         # ChangelogEntry, TableChange
-│           └── query.rs         # ChangelogQuery builder
+│       ├── chunk_store/      # Content-addressable storage
+│       ├── catalog/          # Versioned catalog
+│       ├── branch/           # Git-like branching
+│       ├── transaction/      # Cross-table ACID
+│       └── changelog/        # Change tracking
 │
-├── udr_python/                   # PyO3 bindings (builds 'armillaria' module)
-│   └── src/lib.rs               # Python interface
-│
-├── python/                       # Python packages
-│   ├── armillaria.pyi           # Type stubs for IDE support
-│   └── armillaria_query/        # Query layer
-│       ├── writer.py            # TableWriter (DataFrame → Parquet chunks)
-│       ├── reader.py            # TableReader (chunks → DataFrame)
-│       ├── engine.py            # QueryEngine (DuckDB + time travel + transactions)
-│       ├── transaction.py       # TransactionContext for ACID transactions
-│       └── subscriber.py        # Subscriber for changelog events (Phase 6)
-│
-├── tests/                        # Test suites
-│   ├── test_armillaria.py       # Core Rust binding tests (20 tests)
-│   ├── test_query_layer.py      # Query layer tests (26 tests)
-│   ├── test_branching.py        # Branching tests (20 tests)
-│   ├── test_branch_query_integration.py  # Branch+Query integration (15 tests)
-│   ├── test_transactions.py     # Transaction tests (28 tests)
-│   ├── test_recovery.py         # Recovery tests (22 tests)
-│   └── test_changelog.py        # Changelog & subscriber tests (24 tests)
-│
-└── examples/
-    ├── time_travel_demo.py          # Version history and historical queries
-    ├── zero_copy_branching_demo.py  # Git-like branching for data
-    ├── cross_table_transaction_demo.py  # Multi-table ACID transactions
-    ├── corruption_proof_demo.py     # Content-addressable integrity
-    ├── changelog_demo.py            # Unified batch/stream subscriptions
-    └── unified_platform_demo.py     # All features combined
+├── udr_python/               # PyO3 bindings
+├── python/armillaria_query/  # Python query layer
+├── tests/                    # Test suites
+└── examples/                 # Interactive demos
 ```
+
+---
 
 ## Design Principles
 
-1. **Immutability**: All data is immutable once written. Updates create new versions.
-2. **Content Addressing**: Data identified by BLAKE3 hash enables automatic deduplication.
-3. **Atomic Operations**: Write-to-temp-rename pattern prevents corruption.
-4. **Layered Architecture**: ChunkStore, FileCatalog, and BranchManager are independent and composable.
-5. **Time Travel by Default**: Every version is preserved and queryable.
-6. **Zero-Copy Branching**: Branches are pointers to table versions, not data copies.
+1. **Immutability** — All data is immutable once written. Updates create new versions.
+2. **Content Addressing** — Data identified by BLAKE3 hash enables automatic deduplication.
+3. **Atomic Operations** — Write-to-temp-rename pattern prevents corruption.
+4. **Layered Architecture** — ChunkStore, FileCatalog, and BranchManager are independent and composable.
+5. **Time Travel by Default** — Every version is preserved and queryable.
+6. **Zero-Copy Branching** — Branches are pointers to table versions, not data copies.
 
-## Performance Characteristics
+---
 
-| Operation | Complexity | Notes |
-|-----------|------------|-------|
-| Write chunk | O(n) | n = data size; hashing + file write |
-| Read chunk | O(n) | n = data size; direct file read |
-| Check exists | O(1) | Hash → path lookup |
-| Time travel query | O(1) | Direct version lookup, no log replay |
-| Commit version | O(k) | k = number of chunk hashes |
-| Branch creation | O(k) | k = tables; zero data copy |
+## Documentation
 
-## Theoretical Impact
+- [Technical Foundations](./docs/TECHNICAL_FOUNDATIONS.md) — Mathematical proofs and complexity analysis
+- [Development Roadmap](./udr_roadmap.md) — Planned features and architecture
+- [Changelog](./CHANGELOG.md) — Version history
+- [Origin Story](./ORIGIN_STORY.md) — Why I built Armillaria
+- [Contributing](./CONTRIBUTING.md) — How to contribute
 
-Based on the technical whitepaper analysis:
-
-| Metric | Current State | With Armillaria |
-|--------|--------------|----------|
-| Data engineering overhead | 60-80% on integration | Focus on insights |
-| Storage efficiency | Multiple copies per system | 60-85% deduplication |
-| Query consistency | Eventually consistent | ACID across tables |
-| Historical queries | Limited or impossible | Instant time travel |
-| Experimentation | Risky, requires copies | Zero-copy branching |
-
-## Roadmap
-
-See [udr_roadmap.md](./udr_roadmap.md) for the complete development roadmap.
-
-**Phase 6 Complete - Unified Batch/Stream:**
-- ✅ ChangelogEntry and TableChange (Rust + Python bindings)
-- ✅ ChangelogQuery builder with filtering (tx_id, timestamp, tables, branch)
-- ✅ Subscriber API with polling, iterator, and background processing
-- ✅ QueryEngine: `get_changes()`, `subscribe()`, `latest_tx_id()`
-- ✅ Interactive demo: `python examples/changelog_demo.py`
-
-**Phase 6.5 Complete - Quality & CI:**
-- ✅ Ruff linting for Python (gentle configuration)
-- ✅ Clippy linting for Rust (clean codebase)
-- ✅ GitHub Actions CI workflow
-
-**Next milestone (Phase 7: Production Migration):**
-- Run real workloads on Armillaria
-- Validate performance at scale
-- Migration tooling and guides
-
-## References
-
-- [Development Roadmap](./udr_roadmap.md) - Planned features and architecture
-- [Technical Foundations](./docs/TECHNICAL_FOUNDATIONS.md) - Mathematical proofs and verification
-- [Changelog](./CHANGELOG.md) - Version history
-- [Origin Story](./ORIGIN_STORY.md) - Why I built Armillaria
-- [BLAKE3](https://github.com/BLAKE3-team/BLAKE3) - Cryptographic hash function
-- [DuckDB](https://duckdb.org/) - Analytical SQL engine
-- [Apache Arrow](https://arrow.apache.org/) - Columnar memory format
-- [PyO3](https://pyo3.rs/) - Rust bindings for Python
+---
 
 ## License
 
-MIT - See [LICENSE](./LICENSE) for details.
-
-## Contributing
-
-Contributions welcome! Please read [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
+MIT — See [LICENSE](./LICENSE) for details.
