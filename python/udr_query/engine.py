@@ -26,6 +26,8 @@ from .writer import TableWriter, WriteResult
 if TYPE_CHECKING:
     import pandas as pd
     import udr
+    from .transaction import TransactionContext
+    from .subscriber import Subscriber
 
 
 @dataclass
@@ -807,6 +809,176 @@ class QueryEngine:
             "warnings": list(report.warnings),
             "errors": list(report.errors),
         }
+
+    # =========================================================================
+    # Changelog & Subscription Operations
+    # =========================================================================
+
+    def get_changes(
+        self,
+        since_tx_id: Optional[int] = None,
+        since_timestamp: Optional[int] = None,
+        tables: Optional[List[str]] = None,
+        branch: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Get changelog entries since a specific point.
+
+        This is the batch interface for querying what changed:
+        - Batch state query: "What is the data?" -> engine.query()
+        - Batch change query: "What changed?" -> engine.get_changes()
+        - Stream changes: "Notify me of changes" -> engine.subscribe()
+
+        Args:
+            since_tx_id: Start from this transaction ID (exclusive)
+            since_timestamp: Start from this Unix timestamp (inclusive)
+            tables: Filter to specific tables (None = all tables)
+            branch: Filter to specific branch (None = all branches)
+            limit: Maximum entries to return (None = no limit)
+
+        Returns:
+            List of changelog entries as dicts, each containing:
+            - tx_id: Transaction ID
+            - epoch_id: Epoch the transaction was in
+            - committed_at: Unix timestamp of commit
+            - branch: Branch name
+            - changes: List of table changes, each with:
+              - table_name: Name of changed table
+              - old_version: Previous version (None if new table)
+              - new_version: New version after change
+
+        Raises:
+            RuntimeError: If transaction_manager is not configured
+
+        Example:
+            >>> # Get all changes since transaction 100
+            >>> changes = engine.get_changes(since_tx_id=100)
+            >>> for entry in changes:
+            ...     for change in entry["changes"]:
+            ...         print(f"{change['table_name']}: v{change['old_version']} -> v{change['new_version']}")
+
+            >>> # Get changes to specific tables in last hour
+            >>> import time
+            >>> one_hour_ago = int(time.time()) - 3600
+            >>> changes = engine.get_changes(
+            ...     since_timestamp=one_hour_ago,
+            ...     tables=["users", "orders"]
+            ... )
+        """
+        if self.transaction_manager is None:
+            raise RuntimeError(
+                "Cannot get changes: transaction_manager not configured. "
+                "Initialize QueryEngine with a PyTransactionManager."
+            )
+
+        entries = self.transaction_manager.get_changelog(
+            since_tx_id=since_tx_id,
+            since_timestamp=since_timestamp,
+            tables=tables,
+            branch=branch,
+            limit=limit,
+        )
+
+        return [
+            {
+                "tx_id": e.tx_id,
+                "epoch_id": e.epoch_id,
+                "committed_at": e.committed_at,
+                "branch": e.branch,
+                "changes": [
+                    {
+                        "table_name": c.table_name,
+                        "old_version": c.old_version,
+                        "new_version": c.new_version,
+                    }
+                    for c in e.changes
+                ],
+            }
+            for e in entries
+        ]
+
+    def subscribe(
+        self,
+        tables: Optional[List[str]] = None,
+        since_tx_id: Optional[int] = None,
+        branch: Optional[str] = None,
+        poll_interval: float = 1.0,
+    ) -> "Subscriber":
+        """
+        Create a subscriber for changelog events.
+
+        This is the streaming interface for the unified batch/stream model.
+        Returns a Subscriber that can be iterated or used with callbacks.
+
+        Args:
+            tables: Only receive events for these tables (None = all)
+            since_tx_id: Start from this transaction (exclusive).
+                        None = start from current latest (won't replay history)
+            branch: Filter to specific branch (None = all branches)
+            poll_interval: Seconds between polls when waiting (default: 1.0)
+
+        Returns:
+            Subscriber instance for processing change events
+
+        Raises:
+            RuntimeError: If transaction_manager is not configured
+
+        Example (iterator):
+            >>> for event in engine.subscribe(tables=["users"]):
+            ...     print(f"{event.table_name}: v{event.old_version} -> v{event.new_version}")
+            ...     if should_stop:
+            ...         break
+
+        Example (non-blocking poll):
+            >>> subscriber = engine.subscribe()
+            >>> events = subscriber.poll()  # Returns immediately
+            >>> process_events(events)
+
+        Example (background processing):
+            >>> def on_change(event):
+            ...     print(f"Changed: {event.table_name}")
+            >>> subscriber = engine.subscribe()
+            >>> subscriber.start_background(on_change)
+            >>> # ... do other work ...
+            >>> subscriber.stop()
+        """
+        # Import here to avoid circular import
+        from .subscriber import Subscriber
+
+        if self.transaction_manager is None:
+            raise RuntimeError(
+                "Cannot subscribe: transaction_manager not configured. "
+                "Initialize QueryEngine with a PyTransactionManager."
+            )
+
+        return Subscriber(
+            transaction_manager=self.transaction_manager,
+            since_tx_id=since_tx_id,
+            tables=tables,
+            branch=branch,
+            poll_interval=poll_interval,
+        )
+
+    def latest_tx_id(self) -> Optional[int]:
+        """
+        Get the latest committed transaction ID.
+
+        Useful for establishing a checkpoint before processing,
+        then using get_changes(since_tx_id=checkpoint) later.
+
+        Returns:
+            Latest transaction ID, or None if no transactions yet
+
+        Raises:
+            RuntimeError: If transaction_manager is not configured
+        """
+        if self.transaction_manager is None:
+            raise RuntimeError(
+                "Cannot get latest_tx_id: transaction_manager not configured"
+            )
+
+        return self.transaction_manager.latest_tx_id()
 
     def close(self) -> None:
         """Close the DuckDB connection."""

@@ -3,7 +3,7 @@
 **A next-generation data infrastructure that unifies transactional, analytical, and streaming workloads through content-addressable storage, cross-table ACID transactions, and Git-like versioning.**
 
 [![Rust Tests](https://img.shields.io/badge/tests-127%20passed-brightgreen)]()
-[![Python Tests](https://img.shields.io/badge/python%20tests-131%20passed-brightgreen)]()
+[![Python Tests](https://img.shields.io/badge/python%20tests-155%20passed-brightgreen)]()
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)]()
 
 ## Why UDR?
@@ -267,7 +267,7 @@ latest = catalog.get_version("users")  # Gets latest
 # Run all Rust tests (127 tests)
 cargo test --all
 
-# Run Python tests (131 tests)
+# Run Python tests (155 tests)
 pytest tests/ -v
 ```
 
@@ -315,7 +315,8 @@ unifieddataruntime/
 │       ├── writer.py            # TableWriter (DataFrame → Parquet chunks)
 │       ├── reader.py            # TableReader (chunks → DataFrame)
 │       ├── engine.py            # QueryEngine (DuckDB + time travel + transactions)
-│       └── transaction.py       # TransactionContext for ACID transactions
+│       ├── transaction.py       # TransactionContext for ACID transactions
+│       └── subscriber.py        # Subscriber for changelog events (Phase 6)
 │
 ├── tests/                        # Test suites
 │   ├── test_udr.py              # Core Rust binding tests (20 tests)
@@ -323,7 +324,8 @@ unifieddataruntime/
 │   ├── test_branching.py        # Branching tests (20 tests)
 │   ├── test_branch_query_integration.py  # Branch+Query integration (15 tests)
 │   ├── test_transactions.py     # Transaction tests (28 tests)
-│   └── test_recovery.py         # Recovery tests (22 tests)
+│   ├── test_recovery.py         # Recovery tests (22 tests)
+│   └── test_changelog.py        # Changelog & subscriber tests (24 tests)
 │
 └── examples/
     └── time_travel_demo.py      # Interactive demo
@@ -369,8 +371,9 @@ See [udr_roadmap.md](./udr_roadmap.md) for the complete development roadmap.
 - ✅ ChangelogEntry and TableChange structs (Rust)
 - ✅ ChangelogQuery builder with filtering
 - ✅ Python bindings (PyChangelogEntry, PyTableChange)
-- ⏳ Subscriber API for change notifications
-- ⏳ QueryEngine integration (get_changes, subscribe)
+- ✅ Subscriber API with polling and background processing
+- ✅ QueryEngine integration (get_changes, subscribe, latest_tx_id)
+- ⏳ Demo script and integration tests
 
 ## References
 

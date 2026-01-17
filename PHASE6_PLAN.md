@@ -871,23 +871,25 @@ class PyTransactionManager:
 - PyChangelogEntry helper methods (changed_tables, contains_table, get_change, change_count)
 - PyTableChange.is_new_table() method
 
-### Phase 6.2: Subscriber API (Python)
+### Phase 6.2: Subscriber API (Python) ✅ COMPLETE
 
 **Goal:** Streaming interface for changelog
 
-**Files to create:**
-1. `python/udr_query/subscriber.py` - Subscriber class, ChangeEvent
+**Files created:**
+1. ✅ `python/udr_query/subscriber.py` - Subscriber class, ChangeEvent dataclass
 
-**Files to modify:**
-1. `python/udr_query/__init__.py` - Export Subscriber, ChangeEvent
-2. `python/udr_query/engine.py` - Add get_changes(), subscribe()
+**Files modified:**
+1. ✅ `python/udr_query/__init__.py` - Export Subscriber, ChangeEvent
+2. ✅ `python/udr_query/engine.py` - Added get_changes(), subscribe(), latest_tx_id()
 
-**Estimated tests:** 15-20 Python tests
-- Iterator interface
-- Callback interface
-- Background thread
-- Filtering
+**Tests:** 24 new Python tests (155 total)
+- get_changes() with all filter options
+- latest_tx_id() method
+- Subscriber.poll() for non-blocking access
+- Iterator interface for blocking access
+- Background thread processing
 - Graceful shutdown
+- Unified batch/stream demonstration tests
 
 ### Phase 6.3: Integration & Demo
 
@@ -966,15 +968,15 @@ class TestQueryEngineIntegration:
 - [x] Query changelog since tx_id/timestamp
 - [x] Filter by tables and branch
 - [x] Python bindings for changelog
-- [ ] Subscriber with polling
-- [ ] `engine.get_changes()` method
-- [ ] `engine.subscribe()` method
+- [x] Subscriber with polling
+- [x] `engine.get_changes()` method
+- [x] `engine.subscribe()` method
 
 ### Should Have
-- [ ] Background subscriber thread
-- [ ] Callback interface
-- [ ] ChangeEvent helper class
-- [x] Comprehensive tests (17 Rust tests, Python bindings verified)
+- [x] Background subscriber thread
+- [x] Callback interface
+- [x] ChangeEvent helper class
+- [x] Comprehensive tests (127 Rust, 155 Python)
 
 ### Nice to Have (Future)
 - [ ] Push notifications (WebSocket/gRPC)
