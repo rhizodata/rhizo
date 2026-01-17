@@ -50,21 +50,32 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
 
+      - name: Create virtual environment
+        run: python -m venv .venv
+
       - name: Install dependencies
         run: |
+          source .venv/bin/activate
           python -m pip install --upgrade pip
           pip install maturin pytest pandas pyarrow duckdb ruff
 
       - name: Build Python extension
         run: |
+          source .venv/bin/activate
           cd udr_python
           maturin develop
 
       - name: Install query layer
-        run: pip install -e python/
+        run: |
+          source .venv/bin/activate
+          pip install -e python/
 
       - name: Ruff check (linting)
-        run: python -m ruff check .
+        run: |
+          source .venv/bin/activate
+          python -m ruff check .
 
       - name: Run tests
-        run: python -m pytest tests/ -v
+        run: |
+          source .venv/bin/activate
+          python -m pytest tests/ -v
