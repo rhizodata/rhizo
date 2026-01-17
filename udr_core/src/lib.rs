@@ -3,6 +3,7 @@ pub mod catalog;
 pub mod branch;
 pub mod transaction;
 pub mod changelog;
+pub mod merkle;
 
 pub use chunk_store::{ChunkStore, ChunkStoreError};
 pub use catalog::{FileCatalog, TableVersion, CatalogError};
@@ -16,3 +17,7 @@ pub use transaction::{
     RecoveryReport, RecoveryManager,
 };
 pub use changelog::{ChangelogEntry, TableChange, ChangelogQuery};
+pub use merkle::{
+    MerkleTree, MerkleNode, DataChunk, MerkleDiff, MerkleConfig, MerkleError,
+    build_tree, diff_trees, verify_tree,
+};

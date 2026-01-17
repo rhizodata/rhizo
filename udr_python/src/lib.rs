@@ -7,6 +7,8 @@ use udr_core::{
     TransactionManager, TransactionRecord, TransactionError,
     TableWrite, RecoveryReport,
     ChangelogEntry, TableChange, ChangelogQuery,
+    MerkleTree, MerkleNode, DataChunk, MerkleDiff, MerkleConfig, MerkleError,
+    build_tree, diff_trees, verify_tree,
 };
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -67,6 +69,34 @@ fn branch_err_to_py(e: BranchError) -> PyErr {
         }
         BranchError::Io(e) => PyIOError::new_err(e.to_string()),
         BranchError::Json(e) => PyValueError::new_err(format!("JSON error: {}", e)),
+    }
+}
+
+/// Convert MerkleError to appropriate Python exception
+fn merkle_err_to_py(e: MerkleError) -> PyErr {
+    match e {
+        MerkleError::Io(e) => PyIOError::new_err(e.to_string()),
+        MerkleError::ChunkNotFound(hash) => {
+            PyValueError::new_err(format!("Chunk not found: {}", hash))
+        }
+        MerkleError::InvalidChunkSize(size) => {
+            PyValueError::new_err(format!("Invalid chunk size: must be > 0, got {}", size))
+        }
+        MerkleError::EmptyData => {
+            PyValueError::new_err("Cannot build Merkle tree from empty data")
+        }
+        MerkleError::IntegrityError { expected, actual } => {
+            PyValueError::new_err(format!("Integrity error: expected {}, got {}", expected, actual))
+        }
+        MerkleError::TreeCorruption(msg) => {
+            PyValueError::new_err(format!("Tree corruption: {}", msg))
+        }
+        MerkleError::Serialization(msg) => {
+            PyValueError::new_err(format!("Serialization error: {}", msg))
+        }
+        MerkleError::ChunkStore(msg) => {
+            PyIOError::new_err(format!("Chunk store error: {}", msg))
+        }
     }
 }
 
@@ -580,6 +610,315 @@ impl PyChangelogEntry {
 }
 
 // =============================================================================
+// Merkle Tree Types
+// =============================================================================
+
+/// A leaf node in the Merkle tree - contains actual data
+#[pyclass]
+#[derive(Clone)]
+struct PyDataChunk {
+    #[pyo3(get)]
+    hash: String,
+    #[pyo3(get)]
+    byte_range: (u64, u64),
+    #[pyo3(get)]
+    size: u64,
+    #[pyo3(get)]
+    index: usize,
+}
+
+impl From<&DataChunk> for PyDataChunk {
+    fn from(chunk: &DataChunk) -> Self {
+        Self {
+            hash: chunk.hash.clone(),
+            byte_range: chunk.byte_range,
+            size: chunk.size,
+            index: chunk.index,
+        }
+    }
+}
+
+#[pymethods]
+impl PyDataChunk {
+    fn __repr__(&self) -> String {
+        format!(
+            "PyDataChunk(hash={}..., range={:?}, size={})",
+            &self.hash[..8.min(self.hash.len())],
+            self.byte_range,
+            self.size
+        )
+    }
+}
+
+/// Internal node in the Merkle tree
+#[pyclass]
+#[derive(Clone)]
+struct PyMerkleNode {
+    #[pyo3(get)]
+    hash: String,
+    #[pyo3(get)]
+    children: Vec<String>,
+    #[pyo3(get)]
+    level: u32,
+    #[pyo3(get)]
+    index: usize,
+}
+
+impl From<&MerkleNode> for PyMerkleNode {
+    fn from(node: &MerkleNode) -> Self {
+        Self {
+            hash: node.hash.clone(),
+            children: node.children.clone(),
+            level: node.level,
+            index: node.index,
+        }
+    }
+}
+
+#[pymethods]
+impl PyMerkleNode {
+    fn __repr__(&self) -> String {
+        format!(
+            "PyMerkleNode(hash={}..., level={}, children={})",
+            &self.hash[..8.min(self.hash.len())],
+            self.level,
+            self.children.len()
+        )
+    }
+}
+
+/// Complete Merkle tree for a data blob
+#[pyclass]
+#[derive(Clone)]
+struct PyMerkleTree {
+    #[pyo3(get)]
+    root_hash: String,
+    #[pyo3(get)]
+    total_size: u64,
+    #[pyo3(get)]
+    chunk_size: usize,
+    #[pyo3(get)]
+    height: u32,
+    chunks: Vec<PyDataChunk>,
+    inner: MerkleTree,
+}
+
+impl From<MerkleTree> for PyMerkleTree {
+    fn from(tree: MerkleTree) -> Self {
+        let chunks: Vec<PyDataChunk> = tree.chunks.iter().map(PyDataChunk::from).collect();
+        Self {
+            root_hash: tree.root_hash.clone(),
+            total_size: tree.total_size,
+            chunk_size: tree.chunk_size,
+            height: tree.height,
+            chunks,
+            inner: tree,
+        }
+    }
+}
+
+#[pymethods]
+impl PyMerkleTree {
+    /// Get all leaf chunks
+    #[getter]
+    fn chunks(&self) -> Vec<PyDataChunk> {
+        self.chunks.clone()
+    }
+
+    /// Get number of chunks
+    fn chunk_count(&self) -> usize {
+        self.chunks.len()
+    }
+
+    /// Get all chunk hashes (for storage)
+    fn chunk_hashes(&self) -> Vec<String> {
+        self.inner.chunk_hashes()
+    }
+
+    /// Get the chunk containing a specific byte offset
+    fn chunk_for_offset(&self, offset: u64) -> Option<PyDataChunk> {
+        self.inner.chunk_for_offset(offset).map(PyDataChunk::from)
+    }
+
+    /// Get chunks that overlap with a byte range
+    fn chunks_in_range(&self, start: u64, end: u64) -> Vec<PyDataChunk> {
+        self.inner
+            .chunks_in_range(start, end)
+            .into_iter()
+            .map(PyDataChunk::from)
+            .collect()
+    }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "PyMerkleTree(root={}..., chunks={}, size={}, height={})",
+            &self.root_hash[..8.min(self.root_hash.len())],
+            self.chunks.len(),
+            self.total_size,
+            self.height
+        )
+    }
+}
+
+/// Result of comparing two Merkle trees
+#[pyclass]
+#[derive(Clone)]
+struct PyMerkleDiff {
+    #[pyo3(get)]
+    unchanged_chunks: Vec<String>,
+    #[pyo3(get)]
+    removed_chunks: Vec<String>,
+    #[pyo3(get)]
+    added_chunks: Vec<String>,
+    #[pyo3(get)]
+    reuse_ratio: f64,
+}
+
+impl From<MerkleDiff> for PyMerkleDiff {
+    fn from(diff: MerkleDiff) -> Self {
+        Self {
+            unchanged_chunks: diff.unchanged_chunks,
+            removed_chunks: diff.removed_chunks,
+            added_chunks: diff.added_chunks,
+            reuse_ratio: diff.reuse_ratio,
+        }
+    }
+}
+
+#[pymethods]
+impl PyMerkleDiff {
+    /// Number of chunks that didn't change
+    fn unchanged_count(&self) -> usize {
+        self.unchanged_chunks.len()
+    }
+
+    /// Number of new chunks added
+    fn added_count(&self) -> usize {
+        self.added_chunks.len()
+    }
+
+    /// Number of chunks removed
+    fn removed_count(&self) -> usize {
+        self.removed_chunks.len()
+    }
+
+    /// Reuse percentage (0-100)
+    fn reuse_percentage(&self) -> f64 {
+        self.reuse_ratio * 100.0
+    }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "PyMerkleDiff(unchanged={}, added={}, removed={}, reuse={:.1}%)",
+            self.unchanged_chunks.len(),
+            self.added_chunks.len(),
+            self.removed_chunks.len(),
+            self.reuse_ratio * 100.0
+        )
+    }
+}
+
+/// Configuration for Merkle tree building
+#[pyclass]
+#[derive(Clone)]
+struct PyMerkleConfig {
+    inner: MerkleConfig,
+}
+
+#[pymethods]
+impl PyMerkleConfig {
+    /// Create a new Merkle config.
+    ///
+    /// Args:
+    ///     chunk_size: Target chunk size in bytes (default: 64KB)
+    ///     branching_factor: Tree branching factor (default: 2 for binary)
+    #[new]
+    #[pyo3(signature = (chunk_size=65536, branching_factor=2))]
+    fn new(chunk_size: usize, branching_factor: usize) -> Self {
+        Self {
+            inner: MerkleConfig::new(chunk_size).with_branching_factor(branching_factor),
+        }
+    }
+
+    #[getter]
+    fn chunk_size(&self) -> usize {
+        self.inner.chunk_size
+    }
+
+    #[getter]
+    fn branching_factor(&self) -> usize {
+        self.inner.branching_factor
+    }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "PyMerkleConfig(chunk_size={}, branching_factor={})",
+            self.inner.chunk_size, self.inner.branching_factor
+        )
+    }
+}
+
+/// Build a Merkle tree from data.
+///
+/// Args:
+///     data: Raw bytes to build tree from
+///     config: Optional MerkleConfig (uses defaults if not provided)
+///
+/// Returns:
+///     PyMerkleTree with content-addressable structure
+///
+/// Example:
+///     >>> config = PyMerkleConfig(chunk_size=1024)
+///     >>> tree = merkle_build_tree(data, config)
+///     >>> print(f"Root: {tree.root_hash}")
+#[pyfunction]
+#[pyo3(signature = (data, config=None))]
+fn merkle_build_tree(data: &[u8], config: Option<PyMerkleConfig>) -> PyResult<PyMerkleTree> {
+    let cfg = config.map(|c| c.inner).unwrap_or_default();
+    build_tree(data, &cfg)
+        .map(PyMerkleTree::from)
+        .map_err(merkle_err_to_py)
+}
+
+/// Compare two Merkle trees and find differences.
+///
+/// Args:
+///     old_tree: Previous version tree
+///     new_tree: New version tree
+///
+/// Returns:
+///     PyMerkleDiff with unchanged, added, and removed chunks
+///
+/// Example:
+///     >>> diff = merkle_diff_trees(old_tree, new_tree)
+///     >>> print(f"Reuse: {diff.reuse_percentage():.1f}%")
+#[pyfunction]
+fn merkle_diff_trees(old_tree: &PyMerkleTree, new_tree: &PyMerkleTree) -> PyMerkleDiff {
+    PyMerkleDiff::from(diff_trees(&old_tree.inner, &new_tree.inner))
+}
+
+/// Verify integrity of a Merkle tree.
+///
+/// This function verifies that all chunk hashes match their actual data
+/// and that the tree structure is consistent.
+///
+/// Args:
+///     tree: The Merkle tree to verify
+///     chunk_store: A PyChunkStore to retrieve chunk data
+///
+/// Returns:
+///     True if verification passes
+///
+/// Raises:
+///     ValueError: If integrity check fails
+#[pyfunction]
+fn merkle_verify_tree(tree: &PyMerkleTree, chunk_store: &PyChunkStore) -> PyResult<bool> {
+    verify_tree(&tree.inner, |hash| {
+        chunk_store.inner.get(hash).ok()
+    }).map_err(merkle_err_to_py)
+}
+
+// =============================================================================
 // Transaction Manager
 // =============================================================================
 
@@ -847,6 +1186,16 @@ fn armillaria(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Changelog
     m.add_class::<PyTableChange>()?;
     m.add_class::<PyChangelogEntry>()?;
+
+    // Merkle Tree
+    m.add_class::<PyDataChunk>()?;
+    m.add_class::<PyMerkleNode>()?;
+    m.add_class::<PyMerkleTree>()?;
+    m.add_class::<PyMerkleDiff>()?;
+    m.add_class::<PyMerkleConfig>()?;
+    m.add_function(wrap_pyfunction!(merkle_build_tree, m)?)?;
+    m.add_function(wrap_pyfunction!(merkle_diff_trees, m)?)?;
+    m.add_function(wrap_pyfunction!(merkle_verify_tree, m)?)?;
 
     Ok(())
 }

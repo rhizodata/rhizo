@@ -154,3 +154,105 @@ class PyChangelogEntry:
     def contains_table(self, table_name: str) -> bool: ...
     def get_change(self, table_name: str) -> Optional[PyTableChange]: ...
     def change_count(self) -> int: ...
+
+# =============================================================================
+# Merkle Tree Types
+# =============================================================================
+
+class PyDataChunk:
+    """A leaf node in the Merkle tree - contains actual data."""
+    hash: str
+    byte_range: Tuple[int, int]
+    size: int
+    index: int
+
+class PyMerkleNode:
+    """Internal node in the Merkle tree."""
+    hash: str
+    children: List[str]
+    level: int
+    index: int
+
+class PyMerkleTree:
+    """Complete Merkle tree for a data blob."""
+    root_hash: str
+    total_size: int
+    chunk_size: int
+    height: int
+    chunks: List[PyDataChunk]
+
+    def chunk_count(self) -> int: ...
+    def chunk_hashes(self) -> List[str]: ...
+    def chunk_for_offset(self, offset: int) -> Optional[PyDataChunk]: ...
+    def chunks_in_range(self, start: int, end: int) -> List[PyDataChunk]: ...
+
+class PyMerkleDiff:
+    """Result of comparing two Merkle trees."""
+    unchanged_chunks: List[str]
+    removed_chunks: List[str]
+    added_chunks: List[str]
+    reuse_ratio: float
+
+    def unchanged_count(self) -> int: ...
+    def added_count(self) -> int: ...
+    def removed_count(self) -> int: ...
+    def reuse_percentage(self) -> float: ...
+
+class PyMerkleConfig:
+    """Configuration for Merkle tree building."""
+    chunk_size: int
+    branching_factor: int
+
+    def __init__(
+        self,
+        chunk_size: int = 65536,
+        branching_factor: int = 2,
+    ) -> None: ...
+
+def merkle_build_tree(
+    data: bytes,
+    config: Optional[PyMerkleConfig] = None,
+) -> PyMerkleTree:
+    """Build a Merkle tree from data.
+
+    Args:
+        data: Raw bytes to build tree from
+        config: Optional MerkleConfig (uses defaults if not provided)
+
+    Returns:
+        PyMerkleTree with content-addressable structure
+    """
+    ...
+
+def merkle_diff_trees(
+    old_tree: PyMerkleTree,
+    new_tree: PyMerkleTree,
+) -> PyMerkleDiff:
+    """Compare two Merkle trees and find differences.
+
+    Args:
+        old_tree: Previous version tree
+        new_tree: New version tree
+
+    Returns:
+        PyMerkleDiff with unchanged, added, and removed chunks
+    """
+    ...
+
+def merkle_verify_tree(
+    tree: PyMerkleTree,
+    chunk_store: PyChunkStore,
+) -> bool:
+    """Verify integrity of a Merkle tree.
+
+    Args:
+        tree: The Merkle tree to verify
+        chunk_store: A PyChunkStore to retrieve chunk data
+
+    Returns:
+        True if verification passes
+
+    Raises:
+        ValueError: If integrity check fails
+    """
+    ...

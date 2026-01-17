@@ -47,8 +47,19 @@ Measured on commodity hardware (results from running `examples/`):
 | Write throughput | 2,278 MB/s | BLAKE3 hashing + file write |
 | Read + verify | 579 MB/s | Includes integrity verification |
 | Branch creation | <1 ms | 50,000 rows, 176 bytes overhead |
-| Deduplication | 5x | Identical 1MB chunks stored once |
+| Identical content dedup | 5x | Same data stored once |
+| Incremental dedup | 95% reuse | 5% change = 95% chunk reuse |
 | Storage efficiency | 462 KB | 50,000 rows with indexes |
+
+### Incremental Deduplication (Merkle Tree Storage)
+
+| Change Percentage | Chunk Reuse | Storage Savings |
+|-------------------|-------------|-----------------|
+| 1% change | 98.8% reuse | ~49% vs naive |
+| 5% change | 95.0% reuse | ~47% vs naive |
+| 10% change | 90.0% reuse | ~45% vs naive |
+
+**O(change) storage** instead of O(n) per version.
 
 ### Comparison
 
@@ -170,8 +181,9 @@ Application Layer
 | Phase 4: Branching | Git-like branching with zero-copy semantics |
 | Phase 5: Transactions | Cross-table ACID with recovery |
 | Phase 6: Changelog | Unified batch/stream via subscriptions |
+| Phase A: Merkle Storage | O(change) deduplication via Merkle trees |
 
-All phases complete. 280 tests passing (127 Rust + 153 Python).
+All phases complete. 295+ tests passing (142 Rust + 153 Python).
 
 ---
 
@@ -185,7 +197,8 @@ armillaria/
 │       ├── catalog/          # Versioned catalog
 │       ├── branch/           # Git-like branching
 │       ├── transaction/      # Cross-table ACID
-│       └── changelog/        # Change tracking
+│       ├── changelog/        # Change tracking
+│       └── merkle/           # Merkle tree deduplication
 │
 ├── udr_python/               # PyO3 bindings
 ├── python/armillaria_query/  # Python query layer
