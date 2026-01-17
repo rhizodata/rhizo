@@ -130,16 +130,24 @@ class TableReader:
             IOError: If table or version not found
             ValueError: If chunk data is corrupted
         """
-        chunks = list(self.iter_chunks(table_name, version))
+        metadata = self.get_metadata(table_name, version)
 
-        if not chunks:
-            # Return empty table (should not happen for valid versions)
+        if not metadata.chunk_hashes:
             raise ValueError(f"Table {table_name} has no chunks")
 
-        if len(chunks) == 1:
-            return chunks[0]
+        # Fetch all chunks in parallel using batch operation
+        if self.verify_integrity:
+            chunk_data_list = self.store.get_batch_verified(metadata.chunk_hashes)
+        else:
+            chunk_data_list = self.store.get_batch(metadata.chunk_hashes)
 
-        return pa.concat_tables(chunks)
+        # Deserialize all chunks to Arrow
+        arrow_chunks = [self._parquet_to_arrow(data) for data in chunk_data_list]
+
+        if len(arrow_chunks) == 1:
+            return arrow_chunks[0]
+
+        return pa.concat_tables(arrow_chunks)
 
     def read_pandas(
         self,

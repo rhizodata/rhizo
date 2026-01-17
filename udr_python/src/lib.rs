@@ -134,6 +134,74 @@ impl PyChunkStore {
     fn delete(&self, hash: &str) -> PyResult<()> {
         self.inner.delete(hash).map_err(chunk_err_to_py)
     }
+
+    // =========================================================================
+    // Batch Operations (Parallel)
+    // =========================================================================
+
+    /// Store multiple chunks in parallel, returning their hashes.
+    ///
+    /// This is significantly faster than calling `put()` in a loop because:
+    /// 1. BLAKE3 hashing runs in parallel across CPU cores
+    /// 2. Disk I/O is parallelized
+    /// 3. Single FFI call overhead instead of N calls
+    ///
+    /// Args:
+    ///     chunks: List of byte arrays to store
+    ///
+    /// Returns:
+    ///     List of hashes in the same order as input chunks
+    ///
+    /// Example:
+    ///     >>> store = PyChunkStore("./data")
+    ///     >>> hashes = store.put_batch([b"chunk1", b"chunk2", b"chunk3"])
+    ///     >>> len(hashes)
+    ///     3
+    fn put_batch(&self, chunks: Vec<Vec<u8>>) -> PyResult<Vec<String>> {
+        let refs: Vec<&[u8]> = chunks.iter().map(|c| c.as_slice()).collect();
+        self.inner.put_batch(&refs).map_err(chunk_err_to_py)
+    }
+
+    /// Retrieve multiple chunks in parallel by their hashes.
+    ///
+    /// Returns results in the same order as input hashes.
+    /// If any chunk is not found, raises an IOError.
+    ///
+    /// Args:
+    ///     hashes: List of hash strings to retrieve
+    ///
+    /// Returns:
+    ///     List of chunk data (bytes) in the same order as input hashes
+    ///
+    /// Example:
+    ///     >>> store = PyChunkStore("./data")
+    ///     >>> h1 = store.put(b"data1")
+    ///     >>> h2 = store.put(b"data2")
+    ///     >>> results = store.get_batch([h1, h2])
+    ///     >>> results[0]
+    ///     b'data1'
+    fn get_batch(&self, hashes: Vec<String>) -> PyResult<Vec<Vec<u8>>> {
+        let refs: Vec<&str> = hashes.iter().map(|s| s.as_str()).collect();
+        self.inner.get_batch(&refs).map_err(chunk_err_to_py)
+    }
+
+    /// Retrieve multiple chunks with integrity verification in parallel.
+    ///
+    /// Like `get_batch`, but verifies each chunk's integrity by comparing
+    /// its content hash to the expected hash.
+    ///
+    /// Args:
+    ///     hashes: List of hash strings to retrieve and verify
+    ///
+    /// Returns:
+    ///     List of verified chunk data (bytes) in the same order as input
+    ///
+    /// Raises:
+    ///     ValueError: If any chunk fails integrity verification
+    fn get_batch_verified(&self, hashes: Vec<String>) -> PyResult<Vec<Vec<u8>>> {
+        let refs: Vec<&str> = hashes.iter().map(|s| s.as_str()).collect();
+        self.inner.get_batch_verified(&refs).map_err(chunk_err_to_py)
+    }
 }
 
 #[pyclass]

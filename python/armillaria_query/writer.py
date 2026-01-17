@@ -124,15 +124,12 @@ class TableWriter:
         # Determine chunking strategy
         chunks = self._chunk_table(table)
 
-        # Store each chunk and collect hashes
-        chunk_hashes = []
-        total_bytes = 0
+        # Serialize all chunks to Parquet bytes
+        parquet_chunks = [self._to_parquet_bytes(chunk) for chunk in chunks]
+        total_bytes = sum(len(p) for p in parquet_chunks)
 
-        for chunk in chunks:
-            parquet_bytes = self._to_parquet_bytes(chunk)
-            chunk_hash = self.store.put(parquet_bytes)
-            chunk_hashes.append(chunk_hash)
-            total_bytes += len(parquet_bytes)
+        # Store all chunks in parallel using batch operation
+        chunk_hashes = self.store.put_batch(parquet_chunks)
 
         # Determine the next version number
         version = self._get_next_version(table_name)
@@ -186,15 +183,12 @@ class TableWriter:
         # Determine chunking strategy
         chunks = self._chunk_table(table)
 
-        # Store each chunk and collect hashes
-        chunk_hashes = []
-        total_bytes = 0
+        # Serialize all chunks to Parquet bytes
+        parquet_chunks = [self._to_parquet_bytes(chunk) for chunk in chunks]
+        total_bytes = sum(len(p) for p in parquet_chunks)
 
-        for chunk in chunks:
-            parquet_bytes = self._to_parquet_bytes(chunk)
-            chunk_hash = self.store.put(parquet_bytes)
-            chunk_hashes.append(chunk_hash)
-            total_bytes += len(parquet_bytes)
+        # Store all chunks in parallel using batch operation
+        chunk_hashes = self.store.put_batch(parquet_chunks)
 
         # Determine what the next version WILL be (don't commit yet)
         next_version = self._get_next_version(table_name)

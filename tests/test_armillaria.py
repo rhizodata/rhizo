@@ -135,6 +135,121 @@ class TestChunkStore:
 
         assert retrieved == data
 
+    # ========== Batch Operations ==========
+
+    def test_put_batch_empty(self, temp_dir):
+        """Test put_batch with empty list."""
+        store = armillaria.PyChunkStore(os.path.join(temp_dir, "chunks"))
+
+        hashes = store.put_batch([])
+        assert hashes == []
+
+    def test_put_batch_single(self, temp_dir):
+        """Test put_batch with a single chunk."""
+        store = armillaria.PyChunkStore(os.path.join(temp_dir, "chunks"))
+
+        data = b"single chunk"
+        hashes = store.put_batch([data])
+
+        assert len(hashes) == 1
+        assert len(hashes[0]) == 64
+        assert store.get(hashes[0]) == data
+
+    def test_put_batch_multiple(self, temp_dir):
+        """Test put_batch with multiple chunks."""
+        store = armillaria.PyChunkStore(os.path.join(temp_dir, "chunks"))
+
+        chunks = [b"chunk1", b"chunk2", b"chunk3", b"chunk4"]
+        hashes = store.put_batch(chunks)
+
+        assert len(hashes) == 4
+        for i, hash_str in enumerate(hashes):
+            assert store.get(hash_str) == chunks[i]
+
+    def test_put_batch_deduplication(self, temp_dir):
+        """Test that put_batch correctly deduplicates identical content."""
+        store = armillaria.PyChunkStore(os.path.join(temp_dir, "chunks"))
+
+        # Same content multiple times
+        same_data = b"duplicate content"
+        chunks = [same_data, same_data, same_data]
+        hashes = store.put_batch(chunks)
+
+        assert len(hashes) == 3
+        # All hashes should be the same
+        assert hashes[0] == hashes[1] == hashes[2]
+
+    def test_put_batch_large(self, temp_dir):
+        """Test put_batch with many chunks for parallelism."""
+        store = armillaria.PyChunkStore(os.path.join(temp_dir, "chunks"))
+
+        # Create 100 unique chunks
+        chunks = [f"chunk_{i}".encode() for i in range(100)]
+        hashes = store.put_batch(chunks)
+
+        assert len(hashes) == 100
+        # Verify all are unique (since content is unique)
+        assert len(set(hashes)) == 100
+
+    def test_get_batch_empty(self, temp_dir):
+        """Test get_batch with empty list."""
+        store = armillaria.PyChunkStore(os.path.join(temp_dir, "chunks"))
+
+        results = store.get_batch([])
+        assert results == []
+
+    def test_get_batch_multiple(self, temp_dir):
+        """Test get_batch with multiple hashes."""
+        store = armillaria.PyChunkStore(os.path.join(temp_dir, "chunks"))
+
+        # Store chunks first
+        chunks = [b"data_a", b"data_b", b"data_c"]
+        hashes = store.put_batch(chunks)
+
+        # Retrieve in different order
+        retrieved = store.get_batch([hashes[2], hashes[0], hashes[1]])
+
+        assert retrieved == [b"data_c", b"data_a", b"data_b"]
+
+    def test_get_batch_not_found(self, temp_dir):
+        """Test get_batch raises error if any hash not found."""
+        store = armillaria.PyChunkStore(os.path.join(temp_dir, "chunks"))
+
+        hash1 = store.put(b"exists")
+        fake_hash = "a" * 64
+
+        with pytest.raises(IOError, match="not found"):
+            store.get_batch([hash1, fake_hash])
+
+    def test_get_batch_verified(self, temp_dir):
+        """Test get_batch_verified method."""
+        store = armillaria.PyChunkStore(os.path.join(temp_dir, "chunks"))
+
+        chunks = [b"verify_a", b"verify_b"]
+        hashes = store.put_batch(chunks)
+
+        retrieved = store.get_batch_verified(hashes)
+        assert retrieved == chunks
+
+    def test_put_batch_get_batch_roundtrip(self, temp_dir):
+        """Test full roundtrip with batch operations."""
+        store = armillaria.PyChunkStore(os.path.join(temp_dir, "chunks"))
+
+        # Create chunks of varying sizes
+        chunks = [
+            b"small",
+            b"medium" * 100,
+            b"large" * 10000,
+            bytes(range(256)),
+        ]
+
+        hashes = store.put_batch(chunks)
+        retrieved = store.get_batch_verified(hashes)
+
+        assert len(retrieved) == len(chunks)
+        for i, chunk in enumerate(chunks):
+            assert retrieved[i] == chunk
+
 
 class TestCatalog:
     """Tests for PyCatalog and PyTableVersion."""

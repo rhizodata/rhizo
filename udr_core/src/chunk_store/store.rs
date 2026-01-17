@@ -1,5 +1,6 @@
 use std::fs;
 use std::path::{Path, PathBuf};
+use rayon::prelude::*;
 use super::error::ChunkStoreError;
 
 /// BLAKE3 hashes are 64 hex characters (256 bits)
@@ -25,9 +26,26 @@ impl ChunkStore {
                 fs::create_dir_all(parent)?;
             }
             // Atomic write: write to temp file then rename
-            let temp_path = chunk_path.with_extension("tmp");
+            // Use unique temp file name to avoid collisions in parallel writes
+            let temp_name = format!("{}.{}.tmp", hash, uuid::Uuid::new_v4());
+            let temp_path = chunk_path.with_file_name(&temp_name);
             fs::write(&temp_path, data)?;
-            fs::rename(&temp_path, &chunk_path)?;
+
+            // Rename may fail if another thread created the chunk first - that's OK
+            // because content-addressed storage means both wrote the same data
+            match fs::rename(&temp_path, &chunk_path) {
+                Ok(()) => {}
+                Err(_) if chunk_path.exists() => {
+                    // Another thread beat us - clean up our temp file
+                    let _ = fs::remove_file(&temp_path);
+                    // This is not an error - the chunk exists with correct content
+                }
+                Err(e) => {
+                    // Actual error - clean up and return
+                    let _ = fs::remove_file(&temp_path);
+                    return Err(ChunkStoreError::Io(e));
+                }
+            }
         }
 
         Ok(hash)
@@ -74,6 +92,92 @@ impl ChunkStore {
         }
 
         Ok(())
+    }
+
+    // =========================================================================
+    // Batch Operations (Parallel)
+    // =========================================================================
+
+    /// Store multiple chunks in parallel, returning their hashes.
+    ///
+    /// This is significantly faster than calling `put()` in a loop because:
+    /// 1. BLAKE3 hashing runs in parallel across CPU cores
+    /// 2. Disk I/O is parallelized
+    /// 3. Single function call overhead instead of N calls
+    ///
+    /// # Arguments
+    /// * `chunks` - Slice of byte slices to store
+    ///
+    /// # Returns
+    /// Vector of hashes in the same order as input chunks
+    ///
+    /// # Example
+    /// ```
+    /// # use udr_core::ChunkStore;
+    /// # let dir = std::env::temp_dir().join("batch_example");
+    /// # std::fs::create_dir_all(&dir).unwrap();
+    /// let store = ChunkStore::new(&dir).unwrap();
+    /// let chunks: Vec<&[u8]> = vec![b"chunk1", b"chunk2", b"chunk3"];
+    /// let hashes = store.put_batch(&chunks).unwrap();
+    /// assert_eq!(hashes.len(), 3);
+    /// # std::fs::remove_dir_all(&dir).ok();
+    /// ```
+    pub fn put_batch(&self, chunks: &[&[u8]]) -> Result<Vec<String>, ChunkStoreError> {
+        chunks
+            .par_iter()
+            .map(|data| self.put(data))
+            .collect()
+    }
+
+    /// Retrieve multiple chunks in parallel by their hashes.
+    ///
+    /// Returns results in the same order as input hashes.
+    /// If any chunk is not found, returns an error.
+    ///
+    /// # Arguments
+    /// * `hashes` - Slice of hash strings to retrieve
+    ///
+    /// # Returns
+    /// Vector of chunk data in the same order as input hashes
+    ///
+    /// # Example
+    /// ```
+    /// # use udr_core::ChunkStore;
+    /// # let dir = std::env::temp_dir().join("get_batch_example");
+    /// # std::fs::create_dir_all(&dir).unwrap();
+    /// let store = ChunkStore::new(&dir).unwrap();
+    /// let h1 = store.put(b"data1").unwrap();
+    /// let h2 = store.put(b"data2").unwrap();
+    /// let results = store.get_batch(&[&h1, &h2]).unwrap();
+    /// assert_eq!(results[0], b"data1");
+    /// assert_eq!(results[1], b"data2");
+    /// # std::fs::remove_dir_all(&dir).ok();
+    /// ```
+    pub fn get_batch(&self, hashes: &[&str]) -> Result<Vec<Vec<u8>>, ChunkStoreError> {
+        hashes
+            .par_iter()
+            .map(|hash| self.get(hash))
+            .collect()
+    }
+
+    /// Retrieve multiple chunks with verification in parallel.
+    ///
+    /// Like `get_batch`, but verifies each chunk's integrity by
+    /// comparing its content hash to the expected hash.
+    ///
+    /// # Arguments
+    /// * `hashes` - Slice of hash strings to retrieve and verify
+    ///
+    /// # Returns
+    /// Vector of verified chunk data in the same order as input hashes
+    ///
+    /// # Errors
+    /// Returns `ChunkStoreError::HashMismatch` if any chunk fails verification
+    pub fn get_batch_verified(&self, hashes: &[&str]) -> Result<Vec<Vec<u8>>, ChunkStoreError> {
+        hashes
+            .par_iter()
+            .map(|hash| self.get_verified(hash))
+            .collect()
     }
 
     /// Validate that a hash string is properly formatted.
@@ -312,6 +416,211 @@ mod tests {
         let retrieved = store.get(&hash).unwrap();
 
         assert_eq!(data, retrieved);
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    // =========================================================================
+    // Batch Operation Tests
+    // =========================================================================
+
+    #[test]
+    fn test_put_batch_empty() {
+        let dir = temp_dir();
+        let store = ChunkStore::new(&dir).unwrap();
+
+        let chunks: Vec<&[u8]> = vec![];
+        let hashes = store.put_batch(&chunks).unwrap();
+
+        assert!(hashes.is_empty());
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn test_put_batch_single() {
+        let dir = temp_dir();
+        let store = ChunkStore::new(&dir).unwrap();
+
+        let data = b"single chunk";
+        let chunks: Vec<&[u8]> = vec![data];
+        let hashes = store.put_batch(&chunks).unwrap();
+
+        assert_eq!(hashes.len(), 1);
+        // Verify we can retrieve it
+        let retrieved = store.get(&hashes[0]).unwrap();
+        assert_eq!(retrieved, data);
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn test_put_batch_multiple() {
+        let dir = temp_dir();
+        let store = ChunkStore::new(&dir).unwrap();
+
+        let data1 = b"chunk one";
+        let data2 = b"chunk two";
+        let data3 = b"chunk three";
+        let chunks: Vec<&[u8]> = vec![data1, data2, data3];
+        let hashes = store.put_batch(&chunks).unwrap();
+
+        assert_eq!(hashes.len(), 3);
+
+        // All chunks should be retrievable and in order
+        assert_eq!(store.get(&hashes[0]).unwrap(), data1);
+        assert_eq!(store.get(&hashes[1]).unwrap(), data2);
+        assert_eq!(store.get(&hashes[2]).unwrap(), data3);
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn test_put_batch_deduplication() {
+        let dir = temp_dir();
+        let store = ChunkStore::new(&dir).unwrap();
+
+        // Same data appears multiple times
+        let data = b"duplicate data";
+        let chunks: Vec<&[u8]> = vec![data, data, data];
+        let hashes = store.put_batch(&chunks).unwrap();
+
+        assert_eq!(hashes.len(), 3);
+        // All hashes should be identical (deduplication)
+        assert_eq!(hashes[0], hashes[1]);
+        assert_eq!(hashes[1], hashes[2]);
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn test_put_batch_large() {
+        let dir = temp_dir();
+        let store = ChunkStore::new(&dir).unwrap();
+
+        // Create 100 unique chunks
+        let chunks_data: Vec<Vec<u8>> = (0..100)
+            .map(|i| format!("chunk number {}", i).into_bytes())
+            .collect();
+        let chunks: Vec<&[u8]> = chunks_data.iter().map(|c| c.as_slice()).collect();
+
+        let hashes = store.put_batch(&chunks).unwrap();
+
+        assert_eq!(hashes.len(), 100);
+        // Verify all chunks stored correctly
+        for (i, hash) in hashes.iter().enumerate() {
+            let retrieved = store.get(hash).unwrap();
+            assert_eq!(retrieved, chunks_data[i]);
+        }
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn test_get_batch_empty() {
+        let dir = temp_dir();
+        let store = ChunkStore::new(&dir).unwrap();
+
+        let hashes: Vec<&str> = vec![];
+        let results = store.get_batch(&hashes).unwrap();
+
+        assert!(results.is_empty());
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn test_get_batch_single() {
+        let dir = temp_dir();
+        let store = ChunkStore::new(&dir).unwrap();
+
+        let data = b"single chunk for get";
+        let hash = store.put(data).unwrap();
+
+        let results = store.get_batch(&[&hash]).unwrap();
+
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0], data);
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn test_get_batch_multiple() {
+        let dir = temp_dir();
+        let store = ChunkStore::new(&dir).unwrap();
+
+        let data1 = b"data one";
+        let data2 = b"data two";
+        let data3 = b"data three";
+
+        let hash1 = store.put(data1).unwrap();
+        let hash2 = store.put(data2).unwrap();
+        let hash3 = store.put(data3).unwrap();
+
+        let results = store.get_batch(&[&hash1, &hash2, &hash3]).unwrap();
+
+        assert_eq!(results.len(), 3);
+        assert_eq!(results[0], data1);
+        assert_eq!(results[1], data2);
+        assert_eq!(results[2], data3);
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn test_get_batch_not_found() {
+        let dir = temp_dir();
+        let store = ChunkStore::new(&dir).unwrap();
+
+        let data = b"existing chunk";
+        let hash = store.put(data).unwrap();
+        let fake_hash = fake_valid_hash();
+
+        // Mix of existing and non-existing
+        let result = store.get_batch(&[&hash, &fake_hash]);
+
+        assert!(result.is_err());
+        assert!(matches!(result, Err(ChunkStoreError::NotFound(_))));
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn test_get_batch_verified() {
+        let dir = temp_dir();
+        let store = ChunkStore::new(&dir).unwrap();
+
+        let data1 = b"verified one";
+        let data2 = b"verified two";
+
+        let hash1 = store.put(data1).unwrap();
+        let hash2 = store.put(data2).unwrap();
+
+        let results = store.get_batch_verified(&[&hash1, &hash2]).unwrap();
+
+        assert_eq!(results.len(), 2);
+        assert_eq!(results[0], data1);
+        assert_eq!(results[1], data2);
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn test_put_batch_get_batch_roundtrip() {
+        let dir = temp_dir();
+        let store = ChunkStore::new(&dir).unwrap();
+
+        // Create varied chunk sizes
+        let chunks_data: Vec<Vec<u8>> = vec![
+            vec![1, 2, 3],
+            vec![],  // empty chunk
+            (0..1000).map(|i| (i % 256) as u8).collect(),  // 1KB
+            (0..10000).map(|i| (i % 256) as u8).collect(), // 10KB
+        ];
+        let chunks: Vec<&[u8]> = chunks_data.iter().map(|c| c.as_slice()).collect();
+
+        // Put all chunks
+        let hashes = store.put_batch(&chunks).unwrap();
+
+        // Get all chunks back
+        let hash_refs: Vec<&str> = hashes.iter().map(|s| s.as_str()).collect();
+        let results = store.get_batch(&hash_refs).unwrap();
+
+        // Verify roundtrip
+        assert_eq!(results.len(), chunks_data.len());
+        for (i, result) in results.iter().enumerate() {
+            assert_eq!(result, &chunks_data[i], "Chunk {} mismatch", i);
+        }
         fs::remove_dir_all(&dir).ok();
     }
 }

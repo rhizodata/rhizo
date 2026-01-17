@@ -450,6 +450,37 @@ pytest tests/ -v         # 155 tests
 
 ---
 
+## IN PROGRESS
+
+### Phase P: Performance Optimization
+
+**Status:** In Progress (January 2026)
+
+**Goal:** Close the performance gap with Delta Lake while preserving architectural advantages
+
+**Why This Matters:**
+- Current: 167-335 MB/s write, 166-432 MB/s read
+- Target: 500-800 MB/s write, 500-800 MB/s read
+- Delta Lake: ~250-480 MB/s write, ~400-580 MB/s read
+
+**Sub-Phases:**
+
+| Phase | Description | Status | Expected Gain |
+|-------|-------------|--------|---------------|
+| P.1 | Parallel chunk I/O (Rayon) | In Progress | 3-5× |
+| P.2 | Memory-mapped reads | Planned | 1.3× |
+| P.3 | Batch Parquet parsing | Planned | 1.2× |
+| P.4 | Native Arrow/Parquet (optional) | Future | 1.5× |
+
+**Key Changes:**
+- Add `put_batch()` and `get_batch()` to ChunkStore
+- Use Rayon for parallel hashing and I/O
+- Update TableWriter/TableReader to use batch methods
+
+**Documentation:** See [Performance Optimization Roadmap](./docs/PERFORMANCE_OPTIMIZATION_ROADMAP.md)
+
+---
+
 ## PLANNED PHASES
 
 ### Phase 7: Production Migration

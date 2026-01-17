@@ -173,17 +173,20 @@ Application Layer
 
 ## Current Status
 
-| Phase | Description |
-|-------|-------------|
-| Phase 1: Storage | Content-addressable chunk store with BLAKE3 hashing |
-| Phase 2: Catalog | Versioned file catalog with time travel |
-| Phase 3: Query | DuckDB integration with SQL and time travel |
-| Phase 4: Branching | Git-like branching with zero-copy semantics |
-| Phase 5: Transactions | Cross-table ACID with recovery |
-| Phase 6: Changelog | Unified batch/stream via subscriptions |
-| Phase A: Merkle Storage | O(change) deduplication via Merkle trees |
+| Phase | Description | Status |
+|-------|-------------|--------|
+| Phase 1: Storage | Content-addressable chunk store with BLAKE3 hashing | Complete |
+| Phase 2: Catalog | Versioned file catalog with time travel | Complete |
+| Phase 3: Query | DuckDB integration with SQL and time travel | Complete |
+| Phase 4: Branching | Git-like branching with zero-copy semantics | Complete |
+| Phase 5: Transactions | Cross-table ACID with recovery | Complete |
+| Phase 6: Changelog | Unified batch/stream via subscriptions | Complete |
+| Phase A: Merkle Storage | O(change) deduplication via Merkle trees | Complete |
+| **Phase P: Performance** | Parallel I/O, batch operations | **In Progress** |
 
-All phases complete. 295+ tests passing (142 Rust + 153 Python).
+All core phases complete. 295+ tests passing (142 Rust + 153 Python).
+
+Performance optimization in progress - targeting 2-3× throughput improvement via parallel chunk I/O.
 
 ---
 
