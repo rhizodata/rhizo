@@ -1,4 +1,4 @@
-# UDR Vision: The Significance of Unified Data Infrastructure
+# Armillaria Vision: The Significance of Unified Data Infrastructure
 
 ## The Problem We're Solving
 
@@ -47,11 +47,11 @@ Delta Lake, Apache Iceberg, and Apache Hudi are significant progress, but they s
 | No cross-table deduplication | Path-based file identity, not content identity |
 | Small file problem | Requires explicit compaction; operational burden |
 
-**UDR doesn't improve these formats—it replaces the architecture that makes these limitations inevitable.**
+**Armillaria doesn't improve these formats—it replaces the architecture that makes these limitations inevitable.**
 
 ---
 
-## The UDR Approach
+## The Armillaria Approach
 
 ### Five Foundational Innovations
 
@@ -97,7 +97,7 @@ Delta Lake, Apache Iceberg, and Apache Hudi are significant progress, but they s
 
 **Current State:** Multiple systems, each optimized for one workload, stitched together with pipelines.
 
-**UDR State:** One system that handles all workloads natively, with pipelines eliminated by design.
+**Armillaria State:** One system that handles all workloads natively, with pipelines eliminated by design.
 
 ---
 
@@ -150,7 +150,7 @@ Replication:        None              →      Read replicas
 
 ### Efficiency Gains
 
-| Metric | Current State | With UDR | Impact |
+| Metric | Current State | With Armillaria | Impact |
 |--------|--------------|----------|--------|
 | Data engineering time | 60-80% on pipelines | Focus on insights | 3-5x productivity |
 | Storage cost | Multiple copies | 60-85% deduplication | 2-4x savings |
@@ -165,7 +165,7 @@ From the whitepaper analysis:
 - **Network transfer energy:** 0.001-0.1 kWh per GB
 - **Global duplication estimate:** 60-80% of enterprise data
 
-**If UDR eliminates half of redundant data movement:**
+**If Armillaria eliminates half of redundant data movement:**
 - Significant reduction in data center energy consumption
 - Reduced network transfer overhead
 - Lower infrastructure footprint per insight generated
@@ -177,7 +177,7 @@ Currently, only the largest tech companies can afford unified data platforms:
 - Meta has their internal unified data platform
 - Most organizations? Dozens of systems, endless pipelines
 
-**UDR brings unified infrastructure to everyone:**
+**Armillaria brings unified infrastructure to everyone:**
 - Open source, runs on a laptop
 - Scales to production workloads
 - No vendor lock-in (Arrow, Parquet, SQL standards)
@@ -188,7 +188,7 @@ Currently, only the largest tech companies can afford unified data platforms:
 
 ### Technology Convergence
 
-Several technologies have matured that make UDR feasible:
+Several technologies have matured that make Armillaria feasible:
 
 1. **BLAKE3** - Cryptographic hashing at 5+ GB/s (faster than disk)
 2. **Apache Arrow** - Zero-copy columnar format, universal interchange
@@ -209,7 +209,7 @@ Several technologies have matured that make UDR feasible:
 
 ### vs. Delta Lake / Iceberg / Hudi
 
-| | Lakehouse Formats | UDR |
+| | Lakehouse Formats | Armillaria |
 |---|---|---|
 | Transaction scope | Single table | Cross-table |
 | Deduplication | Per-table | Global |
@@ -219,7 +219,7 @@ Several technologies have matured that make UDR feasible:
 
 ### vs. Traditional Databases
 
-| | Traditional DB | UDR |
+| | Traditional DB | Armillaria |
 |---|---|---|
 | Analytical queries | Poor performance | DuckDB-powered |
 | Historical queries | Point-in-time recovery only | Full time travel |
@@ -228,7 +228,7 @@ Several technologies have matured that make UDR feasible:
 
 ### vs. Building In-House
 
-| | In-House Build | UDR |
+| | In-House Build | Armillaria |
 |---|---|---|
 | Development effort | Years, large team | Weeks, small team |
 | Maintenance burden | Ongoing | Community-supported |
@@ -311,7 +311,7 @@ for change in engine.subscribe("events", since_version=100):
 
 ## Summary
 
-UDR is not an incremental improvement to existing data infrastructure. It's a fundamental rearchitecting based on content-addressable storage, enabling capabilities that are impossible with current approaches:
+Armillaria is not an incremental improvement to existing data infrastructure. It's a fundamental rearchitecting based on content-addressable storage, enabling capabilities that are impossible with current approaches:
 
 - **Cross-table ACID transactions** (impossible with lakehouse formats)
 - **Zero-copy branching** (impossible with path-based storage)
@@ -320,9 +320,9 @@ UDR is not an incremental improvement to existing data infrastructure. It's a fu
 
 The mathematical foundations are proven. The technology exists. The implementation is underway.
 
-**Current status:** Phases 1-3 complete (storage, catalog, query layer with time travel)
+**Current status:** Phases 1-6 complete (storage, catalog, query layer, branching, transactions, changelog)
 
-**68 tests passing. Working code. Real queries.**
+**280 tests passing (127 Rust + 153 Python). Working code. Real queries.**
 
 This is the future of data infrastructure.
 

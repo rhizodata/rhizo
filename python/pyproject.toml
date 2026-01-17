@@ -30,8 +30,8 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/armillaria"
-Repository = "https://github.com/yourusername/armillaria"
+Homepage = "https://github.com/aquadantheman/armillaria"
+Repository = "https://github.com/aquadantheman/armillaria"
 
 [project.optional-dependencies]
 dev = [

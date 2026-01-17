@@ -36,3 +36,13 @@ htmlcov/
 # Misc
 *.zip
 *.log
+
+# Internal planning docs (not for public repo)
+PHASE*_PLAN.md
+KILLER_DEMOS.md
+LOTITUDE_MIGRATION.md
+math_verification.md
+UDR_ACTION_PLAN.md
+
+# Local proof/demo directories
+/proof/

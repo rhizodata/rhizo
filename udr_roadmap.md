@@ -1,8 +1,8 @@
-# Unified Data Runtime (UDR) Development Roadmap
+# Armillaria Development Roadmap
 
 ## Executive Summary
 
-UDR is building the next generation of data infrastructure—one system that replaces the fragmented landscape of transactional databases, data warehouses, streaming platforms, and feature stores. This is not incremental improvement; it's architectural unification.
+Armillaria is the next generation of data infrastructure—one system that replaces the fragmented landscape of transactional databases, data warehouses, streaming platforms, and feature stores. This is not incremental improvement; it's architectural unification.
 
 **Current Progress:** Phases 1-4 complete. We have a working proof-of-concept with content-addressable storage, versioned catalogs, time travel queries, DuckDB integration, and Git-like branching with zero-copy semantics.
 
@@ -454,16 +454,13 @@ pytest tests/ -v         # 155 tests
 
 ### Phase 7: Production Migration
 
-**Goal:** Run real workloads on UDR
-
-**See:** [PHASE7_PLAN.md](./PHASE7_PLAN.md) for detailed plan
-**See:** [KILLER_DEMOS.md](./KILLER_DEMOS.md) for demo strategy
+**Goal:** Run real workloads on Armillaria
 
 **Key Steps:**
 1. Audit current data storage and flows
-2. Design UDR table schema
+2. Design Armillaria table schema
 3. Zero-copy import from existing Parquet/Iceberg
-4. Adapt queries to UDR
+4. Adapt queries to Armillaria
 5. Parallel operation and validation
 6. Cutover with rollback path
 

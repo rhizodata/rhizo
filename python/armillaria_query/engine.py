@@ -30,6 +30,45 @@ if TYPE_CHECKING:
     from .subscriber import Subscriber
 
 
+def _validate_table_name(table_name: str) -> str:
+    """
+    Validate and normalize a table name to prevent path traversal attacks.
+
+    Args:
+        table_name: Name of the table to validate
+
+    Returns:
+        Normalized (lowercase) table name
+
+    Raises:
+        ValueError: If table name is invalid
+    """
+    if not table_name:
+        raise ValueError("Table name cannot be empty")
+
+    # Normalize to lowercase
+    normalized = table_name.lower()
+
+    # Check length (reasonable limit to prevent issues)
+    if len(normalized) > 128:
+        raise ValueError(f"Table name too long (max 128 chars): {len(normalized)} chars")
+
+    # Must be a valid identifier: start with letter/underscore, alphanumeric + underscore only
+    if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', normalized):
+        raise ValueError(
+            f"Invalid table name '{table_name}': must start with a letter or underscore "
+            "and contain only letters, numbers, and underscores"
+        )
+
+    # Explicitly check for path traversal patterns (defense in depth)
+    dangerous_patterns = ['..', '/', '\\', '\x00']
+    for pattern in dangerous_patterns:
+        if pattern in table_name:
+            raise ValueError(f"Invalid table name '{table_name}': contains forbidden character sequence")
+
+    return normalized
+
+
 @dataclass
 class RegisteredTable:
     """Tracks a table registered with DuckDB."""
@@ -241,7 +280,7 @@ class QueryEngine:
         configured, also updates the branch head pointer.
 
         Args:
-            table_name: Name of the table
+            table_name: Name of the table (must be a valid SQL identifier)
             data: DataFrame or Arrow Table to write
             metadata: Optional metadata for this version
             branch: Branch to update. If None, uses current_branch.
@@ -249,8 +288,13 @@ class QueryEngine:
 
         Returns:
             WriteResult with version info
+
+        Raises:
+            ValueError: If table_name is invalid
         """
-        result = self.writer.write(table_name, data, metadata)
+        # Validate table name to prevent path traversal
+        validated_name = _validate_table_name(table_name)
+        result = self.writer.write(validated_name, data, metadata)
 
         # Update branch head if branch_manager is configured
         if self.branch_manager is not None:
@@ -388,8 +432,12 @@ class QueryEngine:
                 try:
                     metadata = self.reader.get_metadata(table_name)
                     version = metadata.version
-                except Exception:
-                    continue  # Table doesn't exist yet
+                except OSError as e:
+                    # Table not found in catalog - skip it
+                    if "not found" in str(e).lower():
+                        continue
+                    # Re-raise unexpected I/O errors (disk full, permissions, etc.)
+                    raise
 
             snapshot[table_name.lower()] = version
 
@@ -569,9 +617,13 @@ class QueryEngine:
             version_b: Second version to compare
             key_columns: Columns to use as primary key for row matching.
                         If None, compares aggregate statistics only.
+                        Column names must be valid SQL identifiers (alphanumeric + underscore).
 
         Returns:
             Dict with comparison results
+
+        Raises:
+            ValueError: If key_columns contain invalid characters
         """
         table_a = self.reader.read_arrow(table_name, version_a)
         table_b = self.reader.read_arrow(table_name, version_b)
@@ -587,35 +639,53 @@ class QueryEngine:
         }
 
         if key_columns:
+            # Validate key_columns to prevent SQL injection
+            valid_column_names = set(table_a.column_names) | set(table_b.column_names)
+            for col in key_columns:
+                if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', col):
+                    raise ValueError(
+                        f"Invalid column name '{col}': must be a valid SQL identifier "
+                        "(start with letter or underscore, contain only alphanumerics and underscores)"
+                    )
+                if col not in valid_column_names:
+                    raise ValueError(
+                        f"Column '{col}' not found in table schema. "
+                        f"Available columns: {sorted(valid_column_names)}"
+                    )
+
             # Detailed row-level diff using DuckDB
             # Register both versions temporarily
             self._conn.register("__diff_a", table_a)
             self._conn.register("__diff_b", table_b)
 
-            # Find added rows (in B but not in A)
-            added = self._conn.execute(f"""
-                SELECT * FROM __diff_b b
-                WHERE NOT EXISTS (
-                    SELECT 1 FROM __diff_a a
-                    WHERE {" AND ".join(f"a.{c} = b.{c}" for c in key_columns)}
-                )
-            """).fetch_arrow_table()
+            try:
+                # Use quoted identifiers for safety
+                join_conditions = " AND ".join(f'a."{c}" = b."{c}"' for c in key_columns)
 
-            # Find removed rows (in A but not in B)
-            removed = self._conn.execute(f"""
-                SELECT * FROM __diff_a a
-                WHERE NOT EXISTS (
-                    SELECT 1 FROM __diff_b b
-                    WHERE {" AND ".join(f"a.{c} = b.{c}" for c in key_columns)}
-                )
-            """).fetch_arrow_table()
+                # Find added rows (in B but not in A)
+                added = self._conn.execute(f"""
+                    SELECT * FROM __diff_b b
+                    WHERE NOT EXISTS (
+                        SELECT 1 FROM __diff_a a
+                        WHERE {join_conditions}
+                    )
+                """).fetch_arrow_table()
 
-            result["rows_added"] = added.num_rows
-            result["rows_removed"] = removed.num_rows
+                # Find removed rows (in A but not in B)
+                removed = self._conn.execute(f"""
+                    SELECT * FROM __diff_a a
+                    WHERE NOT EXISTS (
+                        SELECT 1 FROM __diff_b b
+                        WHERE {join_conditions}
+                    )
+                """).fetch_arrow_table()
 
-            # Unregister temp tables
-            self._conn.unregister("__diff_a")
-            self._conn.unregister("__diff_b")
+                result["rows_added"] = added.num_rows
+                result["rows_removed"] = removed.num_rows
+            finally:
+                # Always unregister temp tables
+                self._conn.unregister("__diff_a")
+                self._conn.unregister("__diff_b")
 
         return result
 

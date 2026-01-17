@@ -486,3 +486,268 @@ class TestTransactionEdgeCases:
             tx.write_table("data", df)
             result = tx.query_pandas("SELECT SUM(x) as total FROM data")
             assert result["total"].iloc[0] == 6
+
+
+class TestConcurrency:
+    """Concurrency and thread-safety tests."""
+
+    def test_concurrent_writes_different_tables(self, temp_storage):
+        """Test concurrent transactions writing to different tables."""
+        import threading
+        import time
+
+        store, catalog, branches, tx_manager, base_dir = temp_storage
+
+        results = {"errors": [], "success_count": 0}
+        lock = threading.Lock()
+
+        def write_table(table_name: str, data: dict):
+            """Worker function to write to a specific table."""
+            try:
+                # Each thread gets its own engine instance
+                engine = QueryEngine(
+                    store, catalog,
+                    branch_manager=branches,
+                    transaction_manager=tx_manager,
+                )
+                df = pd.DataFrame(data)
+
+                with engine.transaction() as tx:
+                    tx.write_table(table_name, df)
+                    # Small delay to increase chance of overlap
+                    time.sleep(0.01)
+
+                engine.close()
+
+                with lock:
+                    results["success_count"] += 1
+
+            except Exception as e:
+                with lock:
+                    results["errors"].append(f"{table_name}: {e}")
+
+        # Create threads for different tables
+        threads = []
+        for i in range(5):
+            t = threading.Thread(
+                target=write_table,
+                args=(f"table_{i}", {"id": [i], "value": [i * 100]})
+            )
+            threads.append(t)
+
+        # Start all threads
+        for t in threads:
+            t.start()
+
+        # Wait for completion
+        for t in threads:
+            t.join(timeout=10)
+
+        # Verify results
+        assert not results["errors"], f"Errors occurred: {results['errors']}"
+        assert results["success_count"] == 5
+
+        # Verify all tables were written
+        engine = QueryEngine(
+            store, catalog,
+            branch_manager=branches,
+            transaction_manager=tx_manager,
+        )
+        for i in range(5):
+            result = engine.query(f"SELECT * FROM table_{i}")
+            assert result.row_count == 1
+        engine.close()
+
+    def test_concurrent_writes_same_table_conflict(self, temp_storage):
+        """Test that concurrent writes to the same table trigger conflict detection."""
+        import threading
+        import time
+
+        store, catalog, branches, tx_manager, base_dir = temp_storage
+
+        # First, create the table
+        engine = QueryEngine(
+            store, catalog,
+            branch_manager=branches,
+            transaction_manager=tx_manager,
+        )
+        initial_df = pd.DataFrame({"id": [1], "value": [100]})
+        engine.write_table("shared_table", initial_df)
+        engine.close()
+
+        results = {"commits": 0, "conflicts": 0, "errors": []}
+        lock = threading.Lock()
+        barrier = threading.Barrier(3)  # Synchronize thread starts
+
+        def concurrent_update(thread_id: int):
+            """Worker function that tries to update the shared table."""
+            try:
+                engine = QueryEngine(
+                    store, catalog,
+                    branch_manager=branches,
+                    transaction_manager=tx_manager,
+                )
+
+                # Wait for all threads to be ready
+                barrier.wait()
+
+                with engine.transaction() as tx:
+                    # Read current value
+                    current = tx.query("SELECT value FROM shared_table")
+
+                    # Simulate some processing time
+                    time.sleep(0.05)
+
+                    # Write new value
+                    new_df = pd.DataFrame({"id": [1], "value": [thread_id * 1000]})
+                    tx.write_table("shared_table", new_df)
+
+                engine.close()
+
+                with lock:
+                    results["commits"] += 1
+
+            except ValueError as e:
+                # Conflict detected
+                if "conflict" in str(e).lower():
+                    with lock:
+                        results["conflicts"] += 1
+                else:
+                    with lock:
+                        results["errors"].append(f"Thread {thread_id}: {e}")
+            except Exception as e:
+                with lock:
+                    results["errors"].append(f"Thread {thread_id}: {e}")
+
+        # Create threads that will all try to update the same table
+        threads = []
+        for i in range(3):
+            t = threading.Thread(target=concurrent_update, args=(i,))
+            threads.append(t)
+
+        # Start all threads
+        for t in threads:
+            t.start()
+
+        # Wait for completion
+        for t in threads:
+            t.join(timeout=10)
+
+        # At least one should succeed, others may conflict or all succeed
+        # (depending on timing - not all may overlap)
+        assert not results["errors"], f"Unexpected errors: {results['errors']}"
+        assert results["commits"] >= 1, "At least one transaction should commit"
+        # Note: We can't guarantee conflicts will occur due to timing
+
+    def test_concurrent_reads_during_write(self, temp_storage):
+        """Test that reads see consistent snapshots during concurrent writes."""
+        import threading
+        import time
+
+        store, catalog, branches, tx_manager, base_dir = temp_storage
+
+        # Create initial data
+        engine = QueryEngine(
+            store, catalog,
+            branch_manager=branches,
+            transaction_manager=tx_manager,
+        )
+        initial_df = pd.DataFrame({"id": [1, 2, 3], "value": [10, 20, 30]})
+        engine.write_table("data", initial_df)
+        engine.close()
+
+        read_results = []
+        write_done = threading.Event()
+        read_started = threading.Event()
+        lock = threading.Lock()
+
+        def reader():
+            """Reader that queries multiple times during the write."""
+            engine = QueryEngine(
+                store, catalog,
+                branch_manager=branches,
+                transaction_manager=tx_manager,
+            )
+
+            read_started.set()  # Signal that reader is ready
+
+            # Read multiple times while writer is working
+            for _ in range(5):
+                result = engine.query("SELECT SUM(value) as total FROM data")
+                total = result.to_pandas()["total"].iloc[0]
+                with lock:
+                    read_results.append(total)
+                time.sleep(0.02)
+
+            engine.close()
+
+        def writer():
+            """Writer that updates all rows in a transaction."""
+            engine = QueryEngine(
+                store, catalog,
+                branch_manager=branches,
+                transaction_manager=tx_manager,
+            )
+
+            read_started.wait()  # Wait for reader to start
+
+            with engine.transaction() as tx:
+                # Update to new values (sum = 600 instead of 60)
+                new_df = pd.DataFrame({"id": [1, 2, 3], "value": [100, 200, 300]})
+                tx.write_table("data", new_df)
+                time.sleep(0.05)  # Hold transaction open
+
+            write_done.set()
+            engine.close()
+
+        # Start reader and writer
+        reader_thread = threading.Thread(target=reader)
+        writer_thread = threading.Thread(target=writer)
+
+        reader_thread.start()
+        writer_thread.start()
+
+        reader_thread.join(timeout=10)
+        writer_thread.join(timeout=10)
+
+        # All reads should see consistent values (either 60 or 600, not partial)
+        valid_values = {60, 600}
+        for val in read_results:
+            assert val in valid_values, f"Read inconsistent value: {val}"
+
+    def test_sequential_transactions_different_tables(self, engine_with_tx):
+        """Test that sequential transactions writing to different tables work correctly."""
+        engine, _ = engine_with_tx
+
+        # Multiple sequential transactions writing to different tables
+        for i in range(5):
+            with engine.transaction() as tx:
+                df = pd.DataFrame({"id": [i], "value": [i * 100]})
+                tx.write_table(f"sequential_table_{i}", df)
+
+        # Verify all tables were written
+        for i in range(5):
+            result = engine.query(f"SELECT value FROM sequential_table_{i}")
+            assert result.to_pandas()["value"].iloc[0] == i * 100
+
+    def test_write_conflict_detection_same_table(self, engine_with_tx):
+        """
+        Test that write-write conflicts to the same table are detected.
+
+        This verifies the ACID conflict detection: if two transactions
+        within the same epoch both write to the same table, the second
+        one should fail with a conflict error.
+        """
+        engine, _ = engine_with_tx
+
+        # Transaction 1: Create and write to table
+        with engine.transaction() as tx:
+            df1 = pd.DataFrame({"id": [1], "value": [100]})
+            tx.write_table("conflict_table", df1)
+
+        # Transaction 2: Should fail when writing to the same table
+        # (within same epoch, conflict detection triggers)
+        with pytest.raises(ValueError, match="conflict"):
+            with engine.transaction() as tx:
+                df2 = pd.DataFrame({"id": [1], "value": [200]})
+                tx.write_table("conflict_table", df2)

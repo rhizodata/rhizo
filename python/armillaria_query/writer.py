@@ -297,6 +297,9 @@ class TableWriter:
             if versions:
                 return max(versions) + 1
             return 1
-        except Exception:
-            # Table doesn't exist yet
-            return 1
+        except OSError as e:
+            # Table not found - this is the first version
+            if "not found" in str(e).lower():
+                return 1
+            # Re-raise unexpected I/O errors (disk full, permissions, etc.)
+            raise
