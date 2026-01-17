@@ -37,10 +37,10 @@
 //! let batch = decoder.decode(&parquet_bytes)?;
 //! ```
 
+mod decoder;
 mod encoder;
 mod error;
 
+pub use decoder::ParquetDecoder;
 pub use encoder::{ParquetEncoder, ParquetCompression};
 pub use error::ParquetError;
-
-// Decoder will be added in Step 4.3

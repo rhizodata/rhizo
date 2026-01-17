@@ -22,4 +22,4 @@ pub use merkle::{
     MerkleTree, MerkleNode, DataChunk, MerkleDiff, MerkleConfig, MerkleError,
     build_tree, diff_trees, verify_tree,
 };
-pub use parquet::{ParquetEncoder, ParquetCompression, ParquetError};
+pub use parquet::{ParquetEncoder, ParquetDecoder, ParquetCompression, ParquetError};
