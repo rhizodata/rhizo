@@ -29,6 +29,7 @@ UDR is building the next generation of data infrastructure—one system that rep
 | Phase 6.5: QC & CI | ✅ Complete | Ruff + Clippy linting, GitHub Actions |
 | Phase 7: Production | ⏳ Planned | Real workload migration |
 | Phase 8: Release | ⏳ Planned | Documentation and publication |
+| Phase 9: Advanced Storage | 💡 Future | Delta encoding, CDC chunking |
 
 ---
 
@@ -478,6 +479,26 @@ pytest tests/ -v         # 155 tests
 - Demo video/GIF
 - Blog post
 - GitHub Actions CI/CD (done in Phase 6.5!)
+
+---
+
+### Phase 9: Advanced Storage Optimization (Future)
+
+**Goal:** Dramatically reduce storage for versioned data
+
+**Techniques to Explore:**
+1. **Delta Encoding** - Store diffs between chunk versions (like git packfiles)
+2. **Content-Defined Chunking (CDC)** - Rolling hash for natural boundaries (like rsync)
+3. **Column-Level Deltas** - Store only changed columns
+4. **Tiered Storage** - Hot data full, cold data delta-compressed
+
+**Potential Impact:**
+| Scenario | Current | With Delta Encoding |
+|----------|---------|---------------------|
+| 1% change/version | ~1% new storage | ~0.01% new storage |
+| 10% change/version | ~10% new storage | ~1% new storage |
+
+**Priority:** Low - current deduplication is sufficient for launch. Revisit after production validation.
 
 ---
 

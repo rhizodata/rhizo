@@ -47,6 +47,17 @@ def print_subsection(title: str):
 
 
 def main():
+    print(r"""
+     _                _ _ _            _
+    / \   _ __ _ __ _(_) | | __ _ _ __(_) __ _
+   / _ \ | '__| '_ ` _ \ | | / _` | '__| |/ _` |
+  / ___ \| |  | | | | | | | | (_| | |  | | (_| |
+ /_/   \_\_|  |_| |_| |_|_|_|\__,_|_|  |_|\__,_|
+
+    Unified Batch/Stream Demo
+    "One system for both. No compromises."
+    """)
+
     # Create temporary storage
     temp_dir = tempfile.mkdtemp(prefix="armillaria_changelog_demo_")
     chunks_dir = os.path.join(temp_dir, "chunks")
@@ -54,7 +65,6 @@ def main():
     branches_dir = os.path.join(temp_dir, "branches")
     tx_dir = os.path.join(temp_dir, "transactions")
 
-    print_section("Armillaria Unified Batch/Stream Demo")
     print(f"Storage location: {temp_dir}")
     print("""
 This demo shows how Armillaria unifies batch and streaming workloads:

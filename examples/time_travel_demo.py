@@ -35,12 +35,22 @@ def print_section(title: str):
 
 
 def main():
+    print(r"""
+     _                _ _ _            _
+    / \   _ __ _ __ _(_) | | __ _ _ __(_) __ _
+   / _ \ | '__| '_ ` _ \ | | / _` | '__| |/ _` |
+  / ___ \| |  | | | | | | | | (_| | |  | | (_| |
+ /_/   \_\_|  |_| |_| |_|_|_|\__,_|_|  |_|\__,_|
+
+    Time Travel Demo
+    "Query any version. Instantly."
+    """)
+
     # Create temporary storage
     temp_dir = tempfile.mkdtemp(prefix="armillaria_demo_")
     chunks_dir = os.path.join(temp_dir, "chunks")
     catalog_dir = os.path.join(temp_dir, "catalog")
 
-    print_section("Armillaria Time Travel Demo")
     print(f"Storage location: {temp_dir}")
 
     try:

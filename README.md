@@ -80,23 +80,36 @@ Armillaria eliminates this fragmentation through five foundational innovations:
 
 ## Quick Start
 
-### Prerequisites
+### Installation (from PyPI)
+
+```bash
+# Install the core Rust bindings
+pip install armillaria
+
+# Install the query layer (includes armillaria as dependency)
+pip install armillaria-query
+```
+
+### Installation (from source)
+
+Prerequisites:
 - Rust 1.70+ (`rustup install stable`)
 - Python 3.9+
 - maturin (`pip install maturin`)
 
-### Installation
-
 ```bash
 # Clone and build
-git clone https://github.com/yourusername/unifieddataruntime.git
-cd unifieddataruntime
+git clone https://github.com/yourusername/armillaria.git
+cd armillaria
 
 # Build Rust core and Python bindings
 cd udr_python && maturin develop --release && cd ..
 
-# Install Python dependencies
-pip install pyarrow duckdb pandas pytest
+# Install Python query layer
+pip install -e python/
+
+# Install test dependencies
+pip install pytest
 ```
 
 ### Basic Usage (Python)
@@ -337,7 +350,12 @@ unifieddataruntime/
 │   └── test_changelog.py        # Changelog & subscriber tests (24 tests)
 │
 └── examples/
-    └── time_travel_demo.py      # Interactive demo
+    ├── time_travel_demo.py          # Version history and historical queries
+    ├── zero_copy_branching_demo.py  # Git-like branching for data
+    ├── cross_table_transaction_demo.py  # Multi-table ACID transactions
+    ├── corruption_proof_demo.py     # Content-addressable integrity
+    ├── changelog_demo.py            # Unified batch/stream subscriptions
+    └── unified_platform_demo.py     # All features combined
 ```
 
 ## Design Principles
@@ -389,7 +407,7 @@ See [udr_roadmap.md](./udr_roadmap.md) for the complete development roadmap.
 - ✅ GitHub Actions CI workflow
 
 **Next milestone (Phase 7: Production Migration):**
-- Run real workloads on UDR
+- Run real workloads on Armillaria
 - Validate performance at scale
 - Migration tooling and guides
 

@@ -1,15 +1,15 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["maturin>=1.4,<2.0"]
+build-backend = "maturin"
 
 [project]
-name = "armillaria-query"
+name = "armillaria"
 version = "0.1.0"
-description = "Query layer for Armillaria - versioned data with SQL, time travel, and cross-table ACID transactions"
+description = "The largest organism on Earth, now for your data - content-addressable storage with cross-table ACID transactions"
 readme = "../README.md"
 requires-python = ">=3.9"
 license = { text = "MIT" }
-keywords = ["data", "sql", "duckdb", "arrow", "versioning", "time-travel", "transactions"]
+keywords = ["data", "storage", "versioning", "transactions", "parquet", "duckdb"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -19,27 +19,15 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Rust",
     "Topic :: Database",
     "Topic :: Software Development :: Libraries",
-]
-dependencies = [
-    "armillaria>=0.1.0",
-    "pyarrow>=14.0.0",
-    "duckdb>=0.9.0",
-    "pandas>=2.0.0",
 ]
 
 [project.urls]
 Homepage = "https://github.com/yourusername/armillaria"
 Repository = "https://github.com/yourusername/armillaria"
 
-[project.optional-dependencies]
-dev = [
-    "pytest>=7.0.0",
-    "maturin>=1.0.0",
-    "ruff>=0.1.0",
-]
-
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["armillaria_query*"]
+[tool.maturin]
+features = ["pyo3/extension-module"]
+module-name = "armillaria"
