@@ -289,7 +289,7 @@ impl ParquetDecoder {
 
         let mut selection_ranges: Vec<std::ops::Range<usize>> = Vec::new();
         let mut current_offset = 0usize;
-        let mut pruned_groups = 0usize;
+        let mut _pruned_groups = 0usize;
         let mut kept_groups = 0usize;
 
         for rg_idx in 0..file_metadata.num_row_groups() {
@@ -298,7 +298,7 @@ impl ParquetDecoder {
 
             // Check if this row group can be pruned
             if can_prune_row_group(row_group, filters, &filter_to_column_idx) {
-                pruned_groups += 1;
+                _pruned_groups += 1;
                 // Don't add this range - it will be skipped
             } else {
                 // Keep this row group - add the range
@@ -505,9 +505,7 @@ fn apply_filters(
 
     for filter in filters {
         // Verify column exists in schema (validates filter against original schema)
-        if let Err(e) = schema.index_of(&filter.column) {
-            return Err(e);
-        }
+        schema.index_of(&filter.column)?;
 
         // Get the column from the batch - find by name since indices may differ
         let column = batch
