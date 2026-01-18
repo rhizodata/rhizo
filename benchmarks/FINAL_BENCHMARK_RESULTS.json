@@ -1,0 +1,77 @@
+{
+  "metadata": {
+    "timestamp": "2026-01-17 21:17:11",
+    "phases_tested": [
+      "R.1 Projection",
+      "R.2 Predicate",
+      "R.3 Row-Group Pruning",
+      "R.4 Parallel Encoding"
+    ]
+  },
+  "write": {
+    "100k_single_chunk": {
+      "median_ms": 40.22,
+      "min_ms": 37.45,
+      "max_ms": 43.78
+    },
+    "1M_sequential": {
+      "median_ms": 330.36,
+      "min_ms": 326.44,
+      "max_ms": 345.01
+    },
+    "1M_parallel": {
+      "median_ms": 86.12,
+      "min_ms": 82.53,
+      "max_ms": 90.83
+    }
+  },
+  "read": {
+    "full_decode": {
+      "median_ms": 11.53,
+      "min_ms": 10.62,
+      "max_ms": 13.39
+    },
+    "projection_2_cols": {
+      "median_ms": 3.74,
+      "min_ms": 3.7,
+      "max_ms": 3.83
+    },
+    "projection_1_col": {
+      "median_ms": 2.17,
+      "min_ms": 2.13,
+      "max_ms": 2.4
+    },
+    "filter_5pct": {
+      "median_ms": 1.31,
+      "min_ms": 1.24,
+      "max_ms": 1.47
+    },
+    "combined_proj_filter": {
+      "median_ms": 0.67,
+      "min_ms": 0.65,
+      "max_ms": 0.69
+    },
+    "table_reader_full": {
+      "median_ms": 13.06,
+      "min_ms": 12.06,
+      "max_ms": 13.6
+    },
+    "table_reader_proj": {
+      "median_ms": 5.26,
+      "min_ms": 5.15,
+      "max_ms": 5.38
+    },
+    "table_reader_filter": {
+      "median_ms": 12.47,
+      "min_ms": 12.26,
+      "max_ms": 12.68
+    }
+  },
+  "optimization_gains": {
+    "parallel_encoding": 3.84,
+    "projection_2cols": 3.08,
+    "projection_1col": 5.31,
+    "filter_with_pruning": 8.8,
+    "combined_proj_filter": 17.21
+  }
+}
