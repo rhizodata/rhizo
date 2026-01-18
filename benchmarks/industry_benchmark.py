@@ -196,10 +196,13 @@ def run_duckdb(df: pd.DataFrame, temp_dir: str) -> dict:
 
     conn = duckdb.connect(db_path)
 
+    # Register DataFrame so DuckDB can find it (fixes scoping issue)
+    conn.register("df_table", df)
+
     # Write
     def duckdb_write():
         conn.execute("DROP TABLE IF EXISTS test")
-        conn.execute("CREATE TABLE test AS SELECT * FROM df")
+        conn.execute("CREATE TABLE test AS SELECT * FROM df_table")
     results["write"] = benchmark(duckdb_write)
 
     # Read
