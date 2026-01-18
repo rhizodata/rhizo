@@ -40,10 +40,10 @@ pytest tests/ -v
 ### Running Tests
 
 ```bash
-# Rust tests (127 tests)
+# Rust tests (173 tests)
 cargo test --all
 
-# Python tests (153 tests)
+# Python tests (247 tests)
 pytest tests/ -v
 
 # Run a specific test file

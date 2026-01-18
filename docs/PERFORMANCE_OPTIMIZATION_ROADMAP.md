@@ -694,7 +694,7 @@ class TableReader:
 **Success Criteria:**
 - [x] Write throughput >= 300 MB/s (achieved 203.8 MB/s - 2.5x faster than Delta!)
 - [x] Read throughput >= current (174.9 MB/s maintained)
-- [x] All 352 tests pass (173 Rust + 179 Python)
+- [x] All 420 tests pass (173 Rust + 247 Python)
 - [x] Deduplication ratio maintained at 84.3%
 - [x] Branching overhead maintained at 280 bytes
 
@@ -815,7 +815,7 @@ Track these metrics after each phase (vs Delta Lake for reference):
 - [ ] `put_batch` and `get_batch` implemented and tested
 - [ ] Python bindings working
 - [ ] TableWriter/TableReader updated
-- [ ] All 295 tests passing
+- [ ] All 420 tests passing
 - [ ] Write throughput ≥ 400 MB/s (2× improvement)
 - [ ] Read throughput ≥ 350 MB/s (1.5× improvement)
 

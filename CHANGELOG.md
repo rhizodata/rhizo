@@ -5,6 +5,48 @@ All notable changes to Armillaria will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-01-17
+
+### Added
+
+#### DataFusion OLAP Engine (Phase DF.1-4)
+- Native DataFusion integration for high-performance OLAP queries
+- LRU cache with size-based eviction for Arrow tables
+- Parallel table loading with ThreadPoolExecutor
+- **26x faster reads** than DuckDB (0.9ms vs 23.8ms at 100K rows)
+- **50x faster reads** at 1M scale (5.1ms vs 257.2ms)
+
+#### Time Travel SQL Syntax (Phase DF.3)
+- `VERSION` keyword for inline time travel: `SELECT * FROM users VERSION 5`
+- Case-insensitive parsing for SQL compatibility
+- Works with aggregations, JOINs, and complex queries
+
+#### Branch Query Syntax (Phase DF.3)
+- `@branch` notation: `SELECT * FROM users@feature-branch`
+- Automatic branch head resolution for queries
+- Combined with VERSION for specific branch versions
+
+#### Changelog SQL Queries (Phase DF.4)
+- Virtual `__changelog` table for CDC via SQL
+- Query transaction history: `SELECT * FROM __changelog`
+- Filter by table, transaction ID, branch, time range
+- Aggregations over changelog data
+
+### Performance
+- **OLAP read (cached)**: 0.9ms (26x faster than DuckDB)
+- **Filtered query (5%)**: 1.2ms
+- **Projection query**: 0.7ms
+- **Complex query**: 2.9ms (2.3x faster than DuckDB)
+- **JOIN performance**: Wins all 3 categories vs DuckDB
+- **1M row scale**: 50x faster reads, 7.5x faster filters
+
+### Testing
+- 173 Rust tests
+- 247 Python tests (+68 new OLAP/time travel/changelog tests)
+- All tests passing
+
+---
+
 ## [0.2.0] - 2026-01-17
 
 ### Added

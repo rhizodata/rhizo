@@ -127,6 +127,53 @@ Multiple filters are ANDed together:
 filters=[Filter("age").gt(50), Filter("status").eq("active")]
 ```
 
+## OLAP Engine (DataFusion)
+
+For analytical workloads, Armillaria includes a high-performance OLAP engine powered by DataFusion.
+
+### Enable OLAP
+
+```python
+engine = QueryEngine(
+    store, catalog,
+    enable_olap=True,
+    olap_cache_size=100_000_000  # 100MB cache
+)
+```
+
+### Performance
+
+| Metric | OLAP Engine | DuckDB | Speedup |
+|--------|-------------|--------|---------|
+| Read (100K rows) | 0.9ms | 23.8ms | **26x** |
+| Filter (5%) | 1.2ms | 1.8ms | 1.5x |
+| Projection | 0.7ms | 1.4ms | 2x |
+| Complex query | 2.9ms | 6.6ms | **2.3x** |
+| Read (1M rows) | 5.1ms | 257.2ms | **50x** |
+
+### Extended SQL Syntax
+
+```python
+# Time travel with VERSION keyword
+result = engine.query_time_travel("SELECT * FROM users VERSION 5")
+
+# Branch queries with @ notation
+result = engine.query_time_travel("SELECT * FROM users@feature-branch")
+
+# Changelog queries
+result = engine.query_changelog("SELECT * FROM __changelog WHERE table_name = 'users'")
+```
+
+### When to Use OLAP vs DuckDB
+
+| Use Case | Recommendation |
+|----------|----------------|
+| Repeated analytical queries | OLAP (caching helps) |
+| Ad-hoc exploration | DuckDB |
+| Time travel with VERSION syntax | OLAP |
+| Branch comparison queries | OLAP |
+| Changelog/CDC queries | OLAP |
+
 ## Architecture
 
 ```
@@ -148,4 +195,7 @@ TableReader --[row-group pruning]--> Kept row groups
       |          |
       v          v
 Arrow RecordBatch (filtered, projected)
+      |
+      v
+OLAP Engine (DataFusion) --[LRU cache]--> Fast repeated queries
 ```

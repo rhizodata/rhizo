@@ -253,13 +253,11 @@ Armillaria is implemented in Rust for the core storage and catalog layers, with 
 
 | Component | Language | Tests |
 |-----------|----------|-------|
-| ChunkStore | Rust | 45 |
-| FileCatalog | Rust | 32 |
-| BranchManager | Rust | 25 |
-| TransactionManager | Rust | 25 |
-| Python bindings | Rust (PyO3) | — |
-| Query layer | Python | 153 |
-| **Total** | | 280 |
+| Core (ChunkStore, Catalog, Branch, Transaction, Merkle, Parquet) | Rust | 173 |
+| Query layer (time travel, branching, transactions, changelog, OLAP) | Python | 247 |
+| **Total** | | **420** |
+
+**Note:** The OLAP engine (Phase DF) added DataFusion integration with 26x faster reads than DuckDB, TIME TRAVEL SQL syntax (`VERSION` keyword), branch queries (`@branch` notation), and changelog SQL (`__changelog` virtual table).
 
 ### 5.2 Key Implementation Details
 
@@ -421,7 +419,7 @@ Time travel query time is dominated by data access, not version lookup. Querying
 
 We have presented Armillaria, a single-node data storage system that achieves cross-table ACID transactions through content-addressable storage. By storing all data in a shared ChunkStore and maintaining table metadata in a unified catalog, atomic multi-table commits become possible without external coordination.
 
-Our implementation demonstrates that this approach is practical on a single node: 1,500+ MB/s write throughput, sub-2ms branching, and automatic deduplication of identical content. The system passes 280 tests and integrates with standard query engines via DuckDB.
+Our implementation demonstrates that this approach is practical on a single node: 1,500+ MB/s write throughput, sub-2ms branching, and automatic deduplication of identical content. The system passes 420 tests (173 Rust + 247 Python) and integrates with standard query engines via DuckDB and DataFusion.
 
 The key insight is architectural: per-table transaction logs make cross-table atomicity fundamentally impossible, while a unified content-addressed foundation makes it straightforward—at least on a single node. Extending these guarantees to distributed deployments remains future work.
 

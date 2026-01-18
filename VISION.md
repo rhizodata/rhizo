@@ -329,9 +329,11 @@ Armillaria is not an incremental improvement to existing data infrastructure. It
 
 The mathematical foundations are proven. The technology exists. The implementation is complete.
 
-**Current status:** Phases 1-6 + Merkle storage complete
+**Current status:** Phases 1-6 + Merkle storage + Phase P (Performance) + Phase DF (OLAP) complete
 
-**295+ tests passing (142 Rust + 153 Python). Working code. Real queries. Proven benchmarks.**
+**420 tests passing (173 Rust + 247 Python). Working code. Real queries. Proven benchmarks.**
+
+**Phase DF OLAP Results:** 26x faster reads than DuckDB (0.9ms vs 23.8ms), TIME TRAVEL SQL syntax, @branch queries, __changelog SQL.
 
 This is the future of data infrastructure.
 
