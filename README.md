@@ -83,16 +83,18 @@ With the new **DataFusion-powered OLAP engine**, Rhizo delivers industry-leading
 | **Cross-table ACID** | **Yes** | No | No | No |
 | **Content Dedup** | **Yes** | No | No | No |
 | **Merkle Integrity** | **Yes** | No | No | No |
+| **Arrow Chunk Cache** | **Yes** (15x speedup) | No | No | No |
 
 ### Core Operations
 
 | Operation | Performance | Notes |
 |-----------|-------------|-------|
 | OLAP read (cached) | **0.9ms** | 26x faster than DuckDB |
+| Arrow cache read | **0.24ms** | 15x faster than uncached |
 | Write throughput | 211 MB/s | Native Rust Parquet encoding |
 | Branch creation | <10 ms | Zero-copy, 280 bytes overhead |
 | Time travel query | **0.5ms** | O(1) version lookup |
-| Cache hit rate | **97.2%** | LRU eviction |
+| Cache hit rate | **97.2%** | LRU eviction, no invalidation |
 
 ### Incremental Deduplication (Merkle Tree Storage)
 
@@ -241,9 +243,10 @@ Application Layer
 | P.1 | Parallel chunk I/O (Rayon) | 3-5x batch throughput |
 | P.2 | Memory-mapped reads | Infrastructure for zero-copy |
 | P.3 | Parallel Parquet parsing | 2.1x multi-chunk speedup |
-| **P.4** | **Native Rust Parquet encoder** | **2.3x write improvement** |
+| P.4 | Native Rust Parquet encoder | 2.3x write improvement |
+| **P.5** | **Arrow chunk cache** | **15x faster repeated reads** |
 
-Phase P.4 moved Parquet encoding from Python to Rust using `arrow-rs`, `parquet`, and `pyo3-arrow` for zero-copy Arrow FFI. Result: competitive with Delta Lake on writes.
+Phase P.5 leverages content-addressed storage for cache-friendly reads. Since chunk hashes never change, cached Arrow RecordBatches require no invalidation and are shared across tables, versions, and branches. Cache hits bypass both disk I/O and Parquet decoding.
 
 ---
 

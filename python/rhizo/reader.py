@@ -360,7 +360,12 @@ class TableReader:
                 table = self._apply_filters(table, filters)
 
             if columns is not None:
-                table = table.select(columns)
+                # Validate columns exist before selecting
+                try:
+                    table = table.select(columns)
+                except KeyError as e:
+                    # Convert KeyError to ValueError for consistency with direct path
+                    raise ValueError(str(e)) from e
 
             if table.num_rows > 0:
                 arrow_tables.append(table)
@@ -513,7 +518,10 @@ class TableReader:
                     table = self._apply_filters(table, filters)
 
                 if columns is not None:
-                    table = table.select(columns)
+                    try:
+                        table = table.select(columns)
+                    except KeyError as e:
+                        raise ValueError(str(e)) from e
 
                 if table.num_rows > 0:
                     yield table

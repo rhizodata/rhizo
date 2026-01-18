@@ -5,6 +5,30 @@ All notable changes to Rhizo will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2026-01-18
+
+### Added
+
+#### Arrow Chunk Cache (Phase P.5)
+- `ArrowChunkCache` class for caching decoded Arrow RecordBatches
+- LRU eviction with configurable size limit (default: 100MB)
+- **15x faster repeated reads** (0.24ms vs 3.6ms uncached)
+- Content-addressed caching leverages immutable chunks (no invalidation needed)
+- Cache shared across tables, versions, and branches
+- 17 new unit tests for cache functionality
+
+### Changed
+- `TableReader` now has caching enabled by default
+- New parameters: `enable_chunk_cache`, `chunk_cache_size_mb`
+- New methods: `cache_stats()`, `clear_cache()`
+
+### Performance
+- **Arrow cache read**: 0.24ms (15x faster than uncached)
+- **Cache hit rate**: 91%+ for typical workloads
+- **Memory overhead**: Configurable, default 100MB
+
+---
+
 ## [0.3.0] - 2026-01-17
 
 ### Added
