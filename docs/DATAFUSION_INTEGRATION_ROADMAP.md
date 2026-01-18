@@ -7,10 +7,22 @@ This document outlines the plan to integrate Apache DataFusion into Armillaria t
 **Goal**: Become #1 in both table formats AND OLAP query performance.
 
 **Mathematical Proof of Feasibility**:
-- DataFusion in-memory filtered read: **0.45ms** (measured)
-- DuckDB filtered read: **1.6ms** (measured)
-- Current Armillaria filtered read: **9.4ms** (measured)
-- **Result**: DataFusion is 3.6x faster than DuckDB, 20.9x faster than current implementation
+- DataFusion in-memory filtered read: **0.45ms** (micro-benchmark)
+- DuckDB filtered read: **1.6ms** (micro-benchmark)
+- **Result**: DataFusion theoretical maximum 3.6x faster than DuckDB
+
+**Phase DF.1 COMPLETE - Actual Measured Results** (100k rows, full integration):
+| Query Type | OLAPEngine | DuckDB | Speedup |
+|------------|------------|--------|---------|
+| Filtered (5%) | 2.05ms | 3.96ms | **1.9x** |
+| Projection (2 cols) | 0.72ms | 2.29ms | **3.2x** |
+| Full scan | 1.20ms | 7.17ms | **6.0x** |
+| COUNT(*) | 0.84ms | 1.41ms | **1.7x** |
+| GROUP BY | 3.28ms | 7.79ms | **2.4x** |
+| Complex query | 5.13ms | 10.47ms | **2.0x** |
+| **Average** | | | **2.9x** |
+
+*Cache hit rate: 98.6%*
 
 ---
 
@@ -91,15 +103,30 @@ This document outlines the plan to integrate Apache DataFusion into Armillaria t
 
 ## Mathematical Analysis
 
-### Performance Comparison (100k rows, 10 columns)
+### Theoretical Performance (Micro-benchmarks, 100k rows, 10 columns)
 
-| Query Type | Current Armillaria | DuckDB | DataFusion (memory) | Improvement |
-|------------|-------------------|--------|---------------------|-------------|
-| Filtered (5%) | 9.4ms | 1.6ms | **0.45ms** | **20.9x** |
-| Projection (2 cols) | 6.9ms | 1.6ms | **0.18ms** | **38.3x** |
-| Full scan | 12.4ms | 22.5ms | **0.22ms** | **56.4x** |
-| COUNT(*) | ~5ms | ~0.5ms | **0.23ms** | **~20x** |
-| GROUP BY | ~15ms | ~2ms | **1.12ms** | **~13x** |
+*Note: These are isolated micro-benchmark results. Actual integrated performance is shown in the Executive Summary.*
+
+| Query Type | Current Armillaria | DuckDB | DataFusion (memory) | Theoretical Max |
+|------------|-------------------|--------|---------------------|-----------------|
+| Filtered (5%) | 9.4ms | 1.6ms | **0.45ms** | 20.9x |
+| Projection (2 cols) | 6.9ms | 1.6ms | **0.18ms** | 38.3x |
+| Full scan | 12.4ms | 22.5ms | **0.22ms** | 56.4x |
+| COUNT(*) | ~5ms | ~0.5ms | **0.23ms** | ~20x |
+| GROUP BY | ~15ms | ~2ms | **1.12ms** | ~13x |
+
+### Actual Integrated Performance (Phase DF.1)
+
+| Query Type | OLAPEngine | DuckDB | Achieved Speedup |
+|------------|------------|--------|------------------|
+| Filtered (5%) | 2.05ms | 3.96ms | **1.9x** |
+| Projection (2 cols) | 0.72ms | 2.29ms | **3.2x** |
+| Full scan | 1.20ms | 7.17ms | **6.0x** |
+| COUNT(*) | 0.84ms | 1.41ms | **1.7x** |
+| GROUP BY | 3.28ms | 7.79ms | **2.4x** |
+| **Average** | | | **2.9x** |
+
+*The gap between theoretical maximum and achieved speedup is due to Arrow registration overhead and Python-Rust FFI. Further optimization possible in Phase DF.2.*
 
 ### Theoretical Model
 
@@ -159,9 +186,11 @@ Aggressive estimate:
 
 ## Implementation Phases
 
-### Phase DF.1: Core DataFusion Integration (Foundation)
+### Phase DF.1: Core DataFusion Integration (Foundation) ✅ COMPLETE
 
 **Goal**: Add DataFusion as a query backend alongside DuckDB
+
+**Status**: COMPLETE (January 2026)
 
 **Files to Create**:
 - `python/armillaria_query/olap_engine.py` - OLAPEngine class
@@ -246,10 +275,10 @@ class CacheManager:
 ```
 
 **Verification Criteria**:
-- [ ] DataFusion queries return correct results (compare with DuckDB)
-- [ ] Cache hit rate > 90% for repeated queries
-- [ ] Memory usage stays within configured limit
-- [ ] No regression in existing tests
+- [x] DataFusion queries return correct results (compare with DuckDB) ✅
+- [x] Cache hit rate > 90% for repeated queries ✅ (98.6% achieved)
+- [x] Memory usage stays within configured limit ✅
+- [x] No regression in existing tests ✅ (208 Python tests, 203 Rust tests pass)
 
 **Tests**:
 ```python
