@@ -368,6 +368,86 @@ class QueryEngine:
         effective_branch = branch or self._current_branch
         return self._olap.query(sql, versions=versions, branch=effective_branch)
 
+    def query_time_travel(
+        self,
+        sql: str,
+        branch: Optional[str] = None,
+    ) -> QueryResult:
+        """
+        Execute SQL with inline time travel and branch syntax.
+
+        This is a powerful method that enables querying historical versions
+        and comparing data across branches using extended SQL syntax.
+
+        Supported Syntax:
+        - `SELECT * FROM users VERSION 5` - Query version 5 of users
+        - `SELECT * FROM users@feature` - Query users from 'feature' branch
+        - `SELECT * FROM users@main VERSION 3` - Version 3 on main branch
+
+        This enables powerful analytical queries like:
+
+        ```sql
+        -- Compare current vs historical data
+        SELECT
+            curr.id,
+            curr.score AS current_score,
+            old.score AS old_score,
+            curr.score - old.score AS delta
+        FROM users AS curr
+        JOIN users VERSION 1 AS old ON curr.id = old.id
+        WHERE curr.score != old.score
+        ```
+
+        ```sql
+        -- Compare data across branches
+        SELECT
+            main.id,
+            main.value AS main_value,
+            feat.value AS feature_value
+        FROM users@main AS main
+        JOIN users@feature AS feat ON main.id = feat.id
+        WHERE main.value != feat.value
+        ```
+
+        Args:
+            sql: SQL query with VERSION and/or @branch syntax
+            branch: Default branch for tables without @branch (default: current)
+
+        Returns:
+            QueryResult with the query results
+
+        Raises:
+            RuntimeError: If OLAP engine is not available
+            IOError: If referenced tables/versions don't exist
+
+        Example:
+            >>> # Time travel to version 5
+            >>> result = engine.query_time_travel(
+            ...     "SELECT COUNT(*) FROM users VERSION 5"
+            ... )
+            >>>
+            >>> # Cross-branch comparison
+            >>> result = engine.query_time_travel('''
+            ...     SELECT m.id, m.score AS main, f.score AS feature
+            ...     FROM users@main m
+            ...     JOIN users@experiment f ON m.id = f.id
+            ... ''')
+        """
+        if self._olap is None:
+            raise RuntimeError(
+                "Time travel SQL syntax requires OLAP engine. "
+                "Ensure DataFusion is installed and enable_olap=True."
+            )
+
+        effective_branch = branch or self._current_branch
+        arrow_table = self._olap.query_time_travel(sql, branch=effective_branch)
+
+        return QueryResult(
+            arrow_table=arrow_table,
+            row_count=arrow_table.num_rows,
+            column_names=arrow_table.column_names,
+        )
+
     def olap_stats(self) -> Dict[str, Any]:
         """
         Get OLAP engine cache statistics.
@@ -439,6 +519,102 @@ class QueryEngine:
 
         effective_branch = branch or self._current_branch
         self._olap.preload(table_name, version, effective_branch)
+
+    def query_changelog(
+        self,
+        sql: str,
+        since_tx_id: Optional[int] = None,
+        since_timestamp: Optional[int] = None,
+        tables: Optional[List[str]] = None,
+        branch: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> QueryResult:
+        """
+        Execute SQL queries over the changelog (CDC/audit log).
+
+        The changelog tracks all committed transactions. This method
+        enables powerful analytics over change history:
+
+        ```sql
+        -- Get recent changes
+        SELECT * FROM __changelog ORDER BY tx_id DESC LIMIT 10
+
+        -- Find all changes to users table
+        SELECT * FROM __changelog WHERE table_name = 'users'
+
+        -- Count changes per table
+        SELECT table_name, COUNT(*) as changes
+        FROM __changelog
+        GROUP BY table_name
+        ORDER BY changes DESC
+
+        -- Find new tables created
+        SELECT DISTINCT table_name, committed_at
+        FROM __changelog
+        WHERE is_new_table = true
+        ```
+
+        Schema of __changelog:
+        - tx_id: INT64 - Transaction ID
+        - epoch_id: INT64 - Epoch ID
+        - committed_at: INT64 - Unix timestamp of commit
+        - branch: STRING - Branch name
+        - table_name: STRING - Changed table
+        - old_version: INT64 - Previous version (null if new)
+        - new_version: INT64 - New version
+        - is_new_table: BOOL - True if this created the table
+
+        Args:
+            sql: SQL query referencing __changelog table
+            since_tx_id: Only include changes after this tx_id
+            since_timestamp: Only include changes after this timestamp
+            tables: Only include changes to these tables
+            branch: Only include changes on this branch
+            limit: Max changelog entries to load (for performance)
+
+        Returns:
+            QueryResult with changelog query results
+
+        Raises:
+            RuntimeError: If OLAP engine or transaction manager unavailable
+
+        Example:
+            >>> # Find tables that changed most
+            >>> result = engine.query_changelog('''
+            ...     SELECT table_name, COUNT(*) as changes
+            ...     FROM __changelog
+            ...     GROUP BY table_name
+            ...     ORDER BY changes DESC
+            ... ''')
+            >>> print(result.to_pandas())
+        """
+        if self._olap is None:
+            raise RuntimeError(
+                "Changelog queries require OLAP engine. "
+                "Ensure DataFusion is installed and enable_olap=True."
+            )
+
+        if self.transaction_manager is None:
+            raise RuntimeError(
+                "Changelog queries require transaction_manager. "
+                "Initialize QueryEngine with transaction_manager parameter."
+            )
+
+        arrow_table = self._olap.query_changelog(
+            sql,
+            self.transaction_manager,
+            since_tx_id=since_tx_id,
+            since_timestamp=since_timestamp,
+            tables=tables,
+            branch=branch,
+            limit=limit,
+        )
+
+        return QueryResult(
+            arrow_table=arrow_table,
+            row_count=arrow_table.num_rows,
+            column_names=arrow_table.column_names,
+        )
 
     def write_table(
         self,

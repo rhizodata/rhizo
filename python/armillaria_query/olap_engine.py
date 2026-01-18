@@ -492,6 +492,7 @@ class OLAPEngine:
         sql_normalized = " ".join(sql.split())
 
         # Patterns: FROM table, JOIN table
+        # Also matches: table VERSION N, table@branch
         patterns = [
             r'\bFROM\s+(\w+)',
             r'\bJOIN\s+(\w+)',
@@ -505,11 +506,295 @@ class OLAPEngine:
         # Filter out SQL keywords
         keywords = {
             'select', 'where', 'group', 'order', 'limit', 'offset',
-            'union', 'except', 'intersect', 'having', 'as'
+            'union', 'except', 'intersect', 'having', 'as', 'version'
         }
         table_names -= keywords
 
         return list(table_names)
+
+    def _parse_extended_sql(self, sql: str) -> tuple:
+        """
+        Parse extended SQL syntax for time travel and branch queries.
+
+        Supports:
+        - `table VERSION N` - query specific version
+        - `table@branch` - query from specific branch
+
+        Args:
+            sql: SQL query with optional extended syntax
+
+        Returns:
+            Tuple of (transformed_sql, versions_dict, branches_dict)
+
+        Examples:
+            >>> _parse_extended_sql("SELECT * FROM users VERSION 5")
+            ("SELECT * FROM users", {"users": 5}, {})
+
+            >>> _parse_extended_sql("SELECT * FROM users@feature/exp")
+            ("SELECT * FROM users", {}, {"users": "feature/exp"})
+
+            >>> _parse_extended_sql("SELECT * FROM users@main VERSION 3")
+            ("SELECT * FROM users", {"users": 3}, {"users": "main"})
+        """
+        versions: Dict[str, int] = {}
+        branches: Dict[str, str] = {}
+
+        # Normalize whitespace
+        sql_normalized = " ".join(sql.split())
+        transformed_sql = sql_normalized
+
+        # Pattern 1: table VERSION N (case insensitive)
+        # Match: users VERSION 5, orders VERSION 10
+        version_pattern = r'\b(\w+)\s+VERSION\s+(\d+)\b'
+        version_matches = re.findall(version_pattern, transformed_sql, re.IGNORECASE)
+        for table_name, version_str in version_matches:
+            table_lower = table_name.lower()
+            if table_lower not in {'select', 'from', 'where', 'join', 'group', 'order'}:
+                versions[table_lower] = int(version_str)
+
+        # Remove VERSION clauses from SQL
+        transformed_sql = re.sub(
+            r'\s+VERSION\s+\d+\b',
+            '',
+            transformed_sql,
+            flags=re.IGNORECASE
+        )
+
+        # Pattern 2: table@branch (branch can have / for feature branches)
+        # Match: users@main, orders@feature/experiment
+        branch_pattern = r'\b(\w+)@([\w/\-]+)\b'
+        branch_matches = re.findall(branch_pattern, transformed_sql)
+        for table_name, branch_name in branch_matches:
+            table_lower = table_name.lower()
+            if table_lower not in {'select', 'from', 'where', 'join', 'group', 'order'}:
+                branches[table_lower] = branch_name
+
+        # Replace table@branch with just table in SQL
+        transformed_sql = re.sub(
+            r'\b(\w+)@[\w/\-]+\b',
+            r'\1',
+            transformed_sql
+        )
+
+        return transformed_sql, versions, branches
+
+    def query_time_travel(
+        self,
+        sql: str,
+        branch: Optional[str] = None,
+    ) -> pa.Table:
+        """
+        Execute a SQL query with inline time travel and branch syntax.
+
+        Supports extended SQL syntax:
+        - `SELECT * FROM users VERSION 5` - query version 5 of users
+        - `SELECT * FROM users@feature` - query users from feature branch
+        - `SELECT * FROM users@main VERSION 3` - query version 3 from main
+
+        This enables powerful data exploration:
+
+        ```sql
+        -- Compare current data with historical version
+        SELECT
+            curr.id,
+            curr.score AS current_score,
+            hist.score AS historical_score
+        FROM users curr
+        JOIN users VERSION 5 AS hist ON curr.id = hist.id
+        WHERE curr.score != hist.score
+        ```
+
+        Args:
+            sql: SQL query with optional VERSION/@ syntax
+            branch: Default branch for tables without @branch
+
+        Returns:
+            Arrow table with query results
+        """
+        # Parse extended syntax
+        transformed_sql, inline_versions, inline_branches = self._parse_extended_sql(sql)
+
+        effective_branch = branch or self._current_branch
+
+        # Extract table names from transformed SQL
+        table_names = self._extract_table_names(transformed_sql)
+
+        # Register each table with appropriate version/branch
+        for table_name in table_names:
+            # Determine branch for this table
+            table_branch = inline_branches.get(table_name, effective_branch)
+
+            # Determine version for this table
+            table_version = inline_versions.get(table_name)
+
+            self._ensure_registered(table_name, table_version, table_branch)
+
+        # Execute transformed query
+        df = self._ctx.sql(transformed_sql)
+        batches = df.collect()
+        if not batches:
+            return pa.table({})
+        return pa.Table.from_batches(batches)
+
+    def register_changelog(
+        self,
+        transaction_manager: "armillaria.PyTransactionManager",
+        since_tx_id: Optional[int] = None,
+        since_timestamp: Optional[int] = None,
+        tables: Optional[List[str]] = None,
+        branch: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> None:
+        """
+        Register the changelog as a queryable table named '__changelog'.
+
+        This enables SQL queries over the changelog data:
+
+        ```sql
+        -- Get all changes in the last 10 transactions
+        SELECT * FROM __changelog ORDER BY tx_id DESC LIMIT 10
+
+        -- Find all changes to a specific table
+        SELECT * FROM __changelog WHERE table_name = 'users'
+
+        -- Count changes per table
+        SELECT table_name, COUNT(*) as changes
+        FROM __changelog
+        GROUP BY table_name
+        ORDER BY changes DESC
+        ```
+
+        Args:
+            transaction_manager: The transaction manager with changelog data
+            since_tx_id: Only include entries after this transaction ID
+            since_timestamp: Only include entries after this Unix timestamp
+            tables: Only include changes to these tables
+            branch: Only include changes on this branch
+            limit: Maximum number of entries to include
+
+        Example:
+            >>> olap.register_changelog(tx_manager)
+            >>> result = olap.query("SELECT * FROM __changelog WHERE table_name = 'orders'")
+        """
+        # Fetch changelog entries
+        entries = transaction_manager.get_changelog(
+            since_tx_id=since_tx_id,
+            since_timestamp=since_timestamp,
+            tables=tables,
+            branch=branch,
+            limit=limit,
+        )
+
+        # Convert to Arrow table
+        changelog_table = self._changelog_to_arrow(entries)
+
+        # Deregister existing table (ignore if not exists)
+        try:
+            self._ctx.deregister_table("__changelog")
+        except Exception:
+            pass
+
+        # Handle empty changelog case - DataFusion requires at least one batch
+        if changelog_table.num_rows == 0:
+            # Register empty table with schema
+            self._ctx.register_record_batches(
+                "__changelog",
+                [[pa.RecordBatch.from_pydict(
+                    {col: [] for col in changelog_table.column_names},
+                    schema=changelog_table.schema
+                )]]
+            )
+        else:
+            self._ctx.register_record_batches("__changelog", [changelog_table.to_batches()])
+
+    def _changelog_to_arrow(self, entries: List[Any]) -> pa.Table:
+        """Convert changelog entries to Arrow table."""
+        # Build column data
+        tx_ids = []
+        epoch_ids = []
+        committed_ats = []
+        branches = []
+        table_names = []
+        old_versions = []
+        new_versions = []
+        is_new_tables = []
+
+        for entry in entries:
+            for change in entry.changes:
+                tx_ids.append(entry.tx_id)
+                epoch_ids.append(entry.epoch_id)
+                committed_ats.append(entry.committed_at)
+                branches.append(entry.branch)
+                table_names.append(change.table_name)
+                old_versions.append(change.old_version)
+                new_versions.append(change.new_version)
+                is_new_tables.append(change.is_new_table())
+
+        # Create Arrow arrays
+        return pa.table({
+            "tx_id": pa.array(tx_ids, type=pa.int64()),
+            "epoch_id": pa.array(epoch_ids, type=pa.int64()),
+            "committed_at": pa.array(committed_ats, type=pa.int64()),
+            "branch": pa.array(branches, type=pa.string()),
+            "table_name": pa.array(table_names, type=pa.string()),
+            "old_version": pa.array(old_versions, type=pa.int64()),
+            "new_version": pa.array(new_versions, type=pa.int64()),
+            "is_new_table": pa.array(is_new_tables, type=pa.bool_()),
+        })
+
+    def query_changelog(
+        self,
+        sql: str,
+        transaction_manager: "armillaria.PyTransactionManager",
+        since_tx_id: Optional[int] = None,
+        since_timestamp: Optional[int] = None,
+        tables: Optional[List[str]] = None,
+        branch: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> pa.Table:
+        """
+        Execute a SQL query over the changelog.
+
+        This is a convenience method that registers the changelog
+        and executes the query in one step.
+
+        Args:
+            sql: SQL query (use __changelog as table name)
+            transaction_manager: The transaction manager
+            since_tx_id: Filter: only entries after this tx_id
+            since_timestamp: Filter: only entries after this timestamp
+            tables: Filter: only changes to these tables
+            branch: Filter: only changes on this branch
+            limit: Maximum changelog entries to load
+
+        Returns:
+            Arrow table with query results
+
+        Example:
+            >>> # Find tables with most changes
+            >>> result = olap.query_changelog('''
+            ...     SELECT table_name, COUNT(*) as changes
+            ...     FROM __changelog
+            ...     GROUP BY table_name
+            ...     ORDER BY changes DESC
+            ... ''', tx_manager)
+        """
+        # Register changelog
+        self.register_changelog(
+            transaction_manager,
+            since_tx_id=since_tx_id,
+            since_timestamp=since_timestamp,
+            tables=tables,
+            branch=branch,
+            limit=limit,
+        )
+
+        # Execute query
+        df = self._ctx.sql(sql)
+        batches = df.collect()
+        if not batches:
+            return pa.table({})
+        return pa.Table.from_batches(batches)
 
     def __enter__(self) -> "OLAPEngine":
         return self

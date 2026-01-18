@@ -22,6 +22,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pyarrow as pa
+import pyarrow.compute as pc
 import pyarrow.parquet as pq
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "python"))
@@ -65,6 +66,29 @@ def generate_test_data(num_rows: int, seed: int = 42) -> pd.DataFrame:
         "status": np.random.choice(["active", "inactive", "pending"], num_rows),
         "flag": np.random.choice([True, False], num_rows),
     })
+
+
+def generate_join_data(num_users: int, num_orders: int, seed: int = 42) -> tuple:
+    """Generate users and orders tables for JOIN benchmarks."""
+    np.random.seed(seed)
+
+    users = pd.DataFrame({
+        "user_id": range(num_users),
+        "name": [f"user_{i}" for i in range(num_users)],
+        "email": [f"user_{i}@example.com" for i in range(num_users)],
+        "tier": np.random.choice(["free", "premium", "enterprise"], num_users),
+        "created_at": np.random.randint(0, 1_000_000, num_users),
+    })
+
+    orders = pd.DataFrame({
+        "order_id": range(num_orders),
+        "user_id": np.random.randint(0, num_users, num_orders),
+        "amount": np.random.uniform(10, 1000, num_orders),
+        "status": np.random.choice(["pending", "shipped", "delivered"], num_orders),
+        "order_date": np.random.randint(0, 1_000_000, num_orders),
+    })
+
+    return users, orders
 
 
 def get_dir_size(path: str) -> int:
@@ -275,10 +299,10 @@ def run_delta_lake(df: pd.DataFrame, temp_dir: str) -> dict:
     # Complex (read then compute)
     def delta_complex():
         data = DeltaTable(delta_path).to_pandas()
-        filtered = data[(data["score"] > 50) & (data["flag"] == True)]
+        filtered = data[(data["score"] > 50) & data["flag"]]
         return filtered.groupby(["category", "status"]).agg({
             "id": "count", "score": "mean", "amount": "sum"
-        }).sort_values("amount", ascending=False)
+        }).sort_values(by="amount", ascending=False)  # type: ignore[call-overload]
     results["complex"] = benchmark(delta_complex)
 
     # Storage
@@ -368,7 +392,7 @@ def run_parquet(df: pd.DataFrame, temp_dir: str) -> dict:
     threshold = len(df) // 20
     def parquet_filtered():
         t = pq.read_table(parquet_path)
-        return t.filter(pa.compute.less(t["id"], threshold))
+        return t.filter(pc.less(t["id"], threshold))  # type: ignore[attr-defined]
     results["filtered"] = benchmark(parquet_filtered)
 
     # Projection
@@ -385,14 +409,189 @@ def run_parquet(df: pd.DataFrame, temp_dir: str) -> dict:
     # Complex
     def parquet_complex():
         data = pq.read_table(parquet_path).to_pandas()
-        filtered = data[(data["score"] > 50) & (data["flag"] == True)]
+        filtered = data[(data["score"] > 50) & data["flag"]]
         return filtered.groupby(["category", "status"]).agg({
             "id": "count", "score": "mean", "amount": "sum"
-        }).sort_values("amount", ascending=False)
+        }).sort_values(by="amount", ascending=False)  # type: ignore[call-overload]
     results["complex"] = benchmark(parquet_complex)
 
     # Storage
     results["storage_bytes"] = get_dir_size(parquet_path)
+
+    return results
+
+
+def run_join_benchmarks(temp_dir: str, num_users: int = 10_000, num_orders: int = 100_000) -> dict:
+    """Run JOIN benchmarks across all systems."""
+    users, orders = generate_join_data(num_users, num_orders)
+    results = {}
+
+    # Armillaria OLAP
+    if SYSTEMS["armillaria_olap"]:
+        chunks_path = os.path.join(temp_dir, "join_olap_chunks")
+        catalog_path = os.path.join(temp_dir, "join_olap_catalog")
+        store = PyChunkStore(chunks_path)
+        catalog = PyCatalog(catalog_path)
+        engine = QueryEngine(store, catalog, enable_olap=True)
+        engine.write_table("users", users)
+        engine.write_table("orders", orders)
+
+        # Simple JOIN
+        results["armillaria_olap_join"] = benchmark(
+            lambda: engine.query("""
+                SELECT u.user_id, u.name, o.order_id, o.amount
+                FROM users u
+                JOIN orders o ON u.user_id = o.user_id
+            """)
+        )
+
+        # JOIN with filter
+        results["armillaria_olap_join_filter"] = benchmark(
+            lambda: engine.query("""
+                SELECT u.user_id, u.name, o.order_id, o.amount
+                FROM users u
+                JOIN orders o ON u.user_id = o.user_id
+                WHERE o.amount > 500
+            """)
+        )
+
+        # JOIN with aggregation
+        results["armillaria_olap_join_agg"] = benchmark(
+            lambda: engine.query("""
+                SELECT u.tier, COUNT(*) as order_count, SUM(o.amount) as total
+                FROM users u
+                JOIN orders o ON u.user_id = o.user_id
+                GROUP BY u.tier
+            """)
+        )
+
+    # DuckDB
+    if SYSTEMS["duckdb"]:
+        conn = duckdb.connect()
+        conn.register("users", users)
+        conn.register("orders", orders)
+        conn.execute("CREATE TABLE users_t AS SELECT * FROM users")
+        conn.execute("CREATE TABLE orders_t AS SELECT * FROM orders")
+
+        results["duckdb_join"] = benchmark(
+            lambda: conn.execute("""
+                SELECT u.user_id, u.name, o.order_id, o.amount
+                FROM users_t u
+                JOIN orders_t o ON u.user_id = o.user_id
+            """).df()
+        )
+
+        results["duckdb_join_filter"] = benchmark(
+            lambda: conn.execute("""
+                SELECT u.user_id, u.name, o.order_id, o.amount
+                FROM users_t u
+                JOIN orders_t o ON u.user_id = o.user_id
+                WHERE o.amount > 500
+            """).df()
+        )
+
+        results["duckdb_join_agg"] = benchmark(
+            lambda: conn.execute("""
+                SELECT u.tier, COUNT(*) as order_count, SUM(o.amount) as total
+                FROM users_t u
+                JOIN orders_t o ON u.user_id = o.user_id
+                GROUP BY u.tier
+            """).df()
+        )
+        conn.close()
+
+    # Delta Lake (pandas merge)
+    if SYSTEMS["delta_lake"]:
+        users_path = os.path.join(temp_dir, "join_delta_users")
+        orders_path = os.path.join(temp_dir, "join_delta_orders")
+        write_deltalake(users_path, users)
+        write_deltalake(orders_path, orders)
+
+        def delta_join():
+            u = DeltaTable(users_path).to_pandas()
+            o = DeltaTable(orders_path).to_pandas()
+            return u.merge(o, on="user_id")
+
+        def delta_join_filter():
+            u = DeltaTable(users_path).to_pandas()
+            o = DeltaTable(orders_path).to_pandas()
+            merged = u.merge(o, on="user_id")
+            return merged[merged["amount"] > 500]
+
+        def delta_join_agg():
+            u = DeltaTable(users_path).to_pandas()
+            o = DeltaTable(orders_path).to_pandas()
+            merged = u.merge(o, on="user_id")
+            return merged.groupby("tier").agg({"order_id": "count", "amount": "sum"})
+
+        results["delta_lake_join"] = benchmark(delta_join)
+        results["delta_lake_join_filter"] = benchmark(delta_join_filter)
+        results["delta_lake_join_agg"] = benchmark(delta_join_agg)
+
+    return results
+
+
+def run_scale_benchmarks(temp_dir: str) -> dict:
+    """Run benchmarks at different scales: 100K, 1M, 10M rows."""
+    results = {}
+    scales = [100_000, 1_000_000]  # Skip 10M for reasonable runtime
+
+    for scale in scales:
+        scale_label = f"{scale // 1000}K" if scale < 1_000_000 else f"{scale // 1_000_000}M"
+        print(f"    Scale {scale_label}...", end=" ", flush=True)
+
+        df = generate_test_data(scale)
+
+        # Armillaria OLAP
+        if SYSTEMS["armillaria_olap"]:
+            chunks_path = os.path.join(temp_dir, f"scale_{scale}_chunks")
+            catalog_path = os.path.join(temp_dir, f"scale_{scale}_catalog")
+            store = PyChunkStore(chunks_path)
+            catalog = PyCatalog(catalog_path)
+            engine = QueryEngine(store, catalog, enable_olap=True)
+
+            write_time = benchmark(lambda: engine.write_table("test", df), warmup=1, iterations=3)
+            engine.write_table("test", df)  # Ensure data exists
+
+            read_time = benchmark(lambda: engine.query("SELECT * FROM test"), iterations=5)
+            filter_time = benchmark(
+                lambda: engine.query(f"SELECT * FROM test WHERE id < {scale // 20}"),
+                iterations=5
+            )
+
+            results[f"armillaria_olap_{scale_label}_write"] = write_time
+            results[f"armillaria_olap_{scale_label}_read"] = read_time
+            results[f"armillaria_olap_{scale_label}_filter"] = filter_time
+            results[f"armillaria_olap_{scale_label}_storage"] = (
+                get_dir_size(chunks_path) + get_dir_size(catalog_path)
+            )
+
+        # DuckDB for comparison
+        if SYSTEMS["duckdb"]:
+            db_path = os.path.join(temp_dir, f"scale_{scale}.db")
+            conn = duckdb.connect(db_path)
+            conn.register("df", df)
+
+            write_time = benchmark(
+                lambda: conn.execute("CREATE OR REPLACE TABLE test AS SELECT * FROM df"),
+                warmup=1, iterations=3
+            )
+            conn.execute("CREATE OR REPLACE TABLE test AS SELECT * FROM df")
+
+            read_time = benchmark(lambda: conn.execute("SELECT * FROM test").df(), iterations=5)
+            filter_time = benchmark(
+                lambda: conn.execute(f"SELECT * FROM test WHERE id < {scale // 20}").df(),
+                iterations=5
+            )
+
+            results[f"duckdb_{scale_label}_write"] = write_time
+            results[f"duckdb_{scale_label}_read"] = read_time
+            results[f"duckdb_{scale_label}_filter"] = filter_time
+            results[f"duckdb_{scale_label}_storage"] = get_dir_size(db_path)
+
+            conn.close()
+
+        print("done")
 
     return results
 
@@ -456,6 +655,17 @@ def main():
         results["parquet"] = run_parquet(df, temp_dir)
         print("done")
 
+        # JOIN Benchmarks
+        print("\n  JOIN Benchmarks (10K users x 100K orders)...")
+        join_results = run_join_benchmarks(temp_dir)
+        results["join_benchmarks"] = join_results
+        print("  done")
+
+        # Scale Benchmarks
+        print("\n  Scale Benchmarks...")
+        scale_results = run_scale_benchmarks(temp_dir)
+        results["scale_benchmarks"] = scale_results
+
         # Results table
         print("\n" + "=" * 100)
         print("PERFORMANCE RESULTS (lower is better)")
@@ -505,6 +715,74 @@ def main():
                         speedup = duck_time / olap_time
                         print(f"  {metric:<15}: {olap_time:.1f}ms vs {duck_time:.1f}ms = {speedup:.1f}x faster")
 
+        # JOIN Results
+        print("\n" + "=" * 100)
+        print("JOIN BENCHMARK RESULTS (10K users x 100K orders)")
+        print("=" * 100)
+
+        join_res = results.get("join_benchmarks", {})
+        if join_res:
+            print(f"\n{'Operation':<25} {'Armillaria OLAP':>18} {'DuckDB':>18} {'Delta Lake':>18}")
+            print("-" * 80)
+
+            join_ops = [
+                ("Simple JOIN", "join"),
+                ("JOIN + Filter", "join_filter"),
+                ("JOIN + Aggregate", "join_agg"),
+            ]
+            for label, suffix in join_ops:
+                arm_val = join_res.get(f"armillaria_olap_{suffix}", "N/A")
+                duck_val = join_res.get(f"duckdb_{suffix}", "N/A")
+                delta_val = join_res.get(f"delta_lake_{suffix}", "N/A")
+
+                arm_str = f"{arm_val:.1f}ms" if isinstance(arm_val, (int, float)) else str(arm_val)
+                duck_str = f"{duck_val:.1f}ms" if isinstance(duck_val, (int, float)) else str(duck_val)
+                delta_str = f"{delta_val:.1f}ms" if isinstance(delta_val, (int, float)) else str(delta_val)
+
+                # Calculate winner
+                times = {}
+                if isinstance(arm_val, (int, float)):
+                    times["Armillaria"] = arm_val
+                if isinstance(duck_val, (int, float)):
+                    times["DuckDB"] = duck_val
+                if isinstance(delta_val, (int, float)):
+                    times["Delta"] = delta_val
+
+                winner = ""
+                if times:
+                    winner_name = min(times, key=lambda x: times[x])
+                    if isinstance(arm_val, (int, float)) and winner_name == "Armillaria":
+                        arm_str += " *"
+                    if isinstance(duck_val, (int, float)) and winner_name == "DuckDB":
+                        duck_str += " *"
+
+                print(f"{label:<25} {arm_str:>18} {duck_str:>18} {delta_str:>18}")
+
+        # Scale Results
+        print("\n" + "=" * 100)
+        print("SCALE BENCHMARK RESULTS")
+        print("=" * 100)
+
+        scale_res = results.get("scale_benchmarks", {})
+        if scale_res:
+            print(f"\n{'Scale':<10} {'System':<20} {'Write':>12} {'Read':>12} {'Filter':>12} {'Storage':>15}")
+            print("-" * 85)
+
+            for scale_label in ["100K", "1M"]:
+                for sys in ["armillaria_olap", "duckdb"]:
+                    w = scale_res.get(f"{sys}_{scale_label}_write", "N/A")
+                    r = scale_res.get(f"{sys}_{scale_label}_read", "N/A")
+                    f = scale_res.get(f"{sys}_{scale_label}_filter", "N/A")
+                    s = scale_res.get(f"{sys}_{scale_label}_storage", "N/A")
+
+                    w_str = f"{w:.1f}ms" if isinstance(w, (int, float)) else str(w)
+                    r_str = f"{r:.1f}ms" if isinstance(r, (int, float)) else str(r)
+                    f_str = f"{f:.1f}ms" if isinstance(f, (int, float)) else str(f)
+                    s_str = f"{s/1024/1024:.2f}MB" if isinstance(s, (int, float)) else str(s)
+
+                    sys_name = "Armillaria OLAP" if sys == "armillaria_olap" else "DuckDB"
+                    print(f"{scale_label:<10} {sys_name:<20} {w_str:>12} {r_str:>12} {f_str:>12} {s_str:>15}")
+
         # Winner analysis
         print("\n" + "=" * 100)
         print("WINNER BY CATEGORY")
@@ -520,7 +798,7 @@ def main():
                     times[sys] = val
 
             if times:
-                winner = min(times, key=times.get)
+                winner = min(times, key=lambda x: times[x])
                 winner_time = times[winner]
 
                 print(f"\n{metric.upper()}:")
@@ -575,7 +853,7 @@ def main():
                 if isinstance(val, (int, float)) and val != float('inf'):
                     times[sys] = val
             if times:
-                winner = min(times, key=times.get)
+                winner = min(times, key=lambda x: times[x])
                 wins[winner] += 1
 
         print("\nPerformance wins:")

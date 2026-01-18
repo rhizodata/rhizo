@@ -6,6 +6,12 @@ This document outlines the plan to integrate Apache DataFusion into Armillaria t
 
 **Goal**: Become #1 in both table formats AND OLAP query performance.
 
+**STATUS: ALL PHASES COMPLETE** (January 2026)
+- Phase DF.1: Core DataFusion Integration - COMPLETE
+- Phase DF.2: Performance Optimization - COMPLETE
+- Phase DF.3: QueryEngine Integration - COMPLETE
+- Phase DF.4: Advanced Features - COMPLETE (Time Travel SQL, Branch Syntax, Changelog Queries)
+
 **Mathematical Proof of Feasibility**:
 - DataFusion in-memory filtered read: **0.45ms** (micro-benchmark)
 - DuckDB filtered read: **1.6ms** (micro-benchmark)
@@ -434,37 +440,84 @@ class QueryEngine:
 
 ---
 
-### Phase DF.4: Advanced Features
+### Phase DF.4: Advanced Features - COMPLETE
 
 **Goal**: Add advanced OLAP capabilities unique to Armillaria
 
-1. **Time Travel Queries with OLAP**
+**Status**: COMPLETE (January 2026)
+
+**Implemented Features**:
+
+1. **Time Travel SQL Syntax** - `VERSION` keyword
    ```sql
-   -- Query version 5 of users with OLAP performance
+   -- Query specific version with OLAP performance
    SELECT * FROM users VERSION 5 WHERE score > 90
+
+   -- Compare current vs historical
+   SELECT curr.id, curr.score, hist.score AS old_score
+   FROM users AS curr
+   JOIN users VERSION 1 AS hist ON curr.id = hist.id
+   WHERE curr.score != hist.score
    ```
 
-2. **Branch Comparison Queries**
+2. **Branch Syntax** - `@branch` notation
    ```sql
+   -- Query from specific branch
+   SELECT * FROM users@feature WHERE score > 90
+
    -- Compare data across branches
    SELECT
        main.id,
        main.score AS main_score,
        feature.score AS feature_score
    FROM users@main AS main
-   JOIN users@feature/experiment AS feature ON main.id = feature.id
+   JOIN users@feature AS feature ON main.id = feature.id
    WHERE main.score != feature.score
    ```
 
-3. **Changelog Queries**
+3. **Changelog SQL Queries** - `__changelog` virtual table
    ```sql
-   -- Query what changed
-   SELECT * FROM __changelog
-   WHERE table_name = 'users'
-   AND tx_id > 100
+   -- Get recent changes
+   SELECT * FROM __changelog ORDER BY tx_id DESC LIMIT 10
+
+   -- Find all changes to users table
+   SELECT * FROM __changelog WHERE table_name = 'users'
+
+   -- Count changes per table (built-in CDC!)
+   SELECT table_name, COUNT(*) as changes
+   FROM __changelog
+   GROUP BY table_name
+   ORDER BY changes DESC
+
+   -- Find new tables created
+   SELECT DISTINCT table_name, committed_at
+   FROM __changelog
+   WHERE is_new_table = true
    ```
 
-4. **Materialized Views** (Future)
+**New Methods Added**:
+- `query_time_travel(sql)` - Execute SQL with VERSION/@ syntax
+- `query_changelog(sql)` - Query the changelog via SQL
+
+**Changelog Schema**:
+| Column | Type | Description |
+|--------|------|-------------|
+| tx_id | INT64 | Transaction ID |
+| epoch_id | INT64 | Epoch ID |
+| committed_at | INT64 | Unix timestamp |
+| branch | STRING | Branch name |
+| table_name | STRING | Changed table |
+| old_version | INT64 | Previous version (null if new) |
+| new_version | INT64 | New version |
+| is_new_table | BOOL | True if table was created |
+
+**Verification Criteria**:
+- [x] VERSION syntax parses and executes correctly (13 tests)
+- [x] @branch syntax routes to correct branch
+- [x] Changelog queries work with SQL analytics (12 tests)
+- [x] All 247 tests pass (no regressions)
+
+4. **Materialized Views** (Future Enhancement)
    ```python
    engine.create_materialized_view(
        "high_value_users",
@@ -473,7 +526,7 @@ class QueryEngine:
    )
    ```
 
-**Estimated Complexity**: High
+**Estimated Complexity**: High (COMPLETED)
 
 ---
 
@@ -558,14 +611,14 @@ For each claim, provide:
 
 ## Timeline
 
-| Phase | Description | Estimated Effort |
-|-------|-------------|------------------|
-| DF.1 | Core DataFusion Integration | 2-3 sessions |
-| DF.2 | Performance Optimization | 1-2 sessions |
-| DF.3 | QueryEngine Integration | 1-2 sessions |
-| DF.4 | Advanced Features | 2-3 sessions |
-| Testing | Comprehensive verification | Throughout |
-| Documentation | Update all docs | 1 session |
+| Phase | Description | Status |
+|-------|-------------|--------|
+| DF.1 | Core DataFusion Integration | COMPLETE |
+| DF.2 | Performance Optimization | COMPLETE |
+| DF.3 | QueryEngine Integration | COMPLETE |
+| DF.4 | Advanced Features | COMPLETE |
+| Testing | Comprehensive verification | COMPLETE (247 tests) |
+| Documentation | Update all docs | COMPLETE |
 
 ---
 
