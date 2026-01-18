@@ -1,4 +1,4 @@
-# Armillaria Continuous Integration
+# Rhizo Continuous Integration
 
 name: CI
 
@@ -62,7 +62,7 @@ jobs:
       - name: Build Python extension
         run: |
           source .venv/bin/activate
-          cd udr_python
+          cd rhizo_python
           maturin develop
 
       - name: Install query layer
