@@ -8,10 +8,11 @@ This module provides:
 - TransactionContext: ACID transactions across multiple tables
 - Subscriber: Stream changelog events with polling or callbacks
 - ChangeEvent: Individual table change within a transaction
+- Filter: Predicate filter builder for pushdown optimization
 """
 
 from .writer import TableWriter
-from .reader import TableReader
+from .reader import TableReader, Filter
 from .engine import QueryEngine
 from .transaction import TransactionContext
 from .subscriber import Subscriber, ChangeEvent
@@ -24,4 +25,5 @@ __all__ = [
     "TransactionContext",
     "Subscriber",
     "ChangeEvent",
+    "Filter",
 ]

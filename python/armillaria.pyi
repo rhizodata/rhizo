@@ -375,3 +375,116 @@ class PyParquetDecoder:
             ValueError: If a column name is not found in schema
         """
         ...
+
+    def decode_with_filter(
+        self,
+        data: bytes,
+        filters: List["PyPredicateFilter"],
+        column_indices: Optional[List[int]] = None,
+    ) -> pa.RecordBatch:
+        """Decode with predicate pushdown (row-level filtering).
+
+        This method applies filter predicates during decoding, reducing the
+        amount of data that needs to be processed for selective queries.
+
+        Mathematical Model:
+            For selectivity `s` (fraction of rows matching):
+              - Row-level filtering reduces output by factor of `s`
+              - Combined with projection: Speedup ≈ (n/k) × (1/s)
+            Example: 10 columns, query 2, 1% selectivity → up to 500x speedup
+
+        Args:
+            data: Parquet file bytes
+            filters: List of PyPredicateFilter objects
+            column_indices: Optional list of column indices to project
+
+        Returns:
+            PyArrow RecordBatch with filters applied
+
+        Example:
+            >>> decoder = PyParquetDecoder()
+            >>> filter = PyPredicateFilter("age", "gt", 50)
+            >>> result = decoder.decode_with_filter(data, [filter])
+        """
+        ...
+
+
+# =============================================================================
+# Phase R.2: Predicate Pushdown Types
+# =============================================================================
+
+from typing import Union
+
+ScalarValueType = Union[int, float, str, bool, None]
+
+class PyFilterOp:
+    """Comparison operations for filter predicates.
+
+    These map to SQL-style comparisons:
+      - "eq"  → column = value
+      - "ne"  → column != value
+      - "lt"  → column < value
+      - "le"  → column <= value
+      - "gt"  → column > value
+      - "ge"  → column >= value
+    """
+
+    def __init__(self, op: str) -> None:
+        """Create a filter operation from a string.
+
+        Args:
+            op: One of "eq", "ne", "lt", "le", "gt", "ge"
+                Also accepts symbols: "=", "==", "!=", "<>", "<", "<=", ">", ">="
+        """
+        ...
+
+
+class PyScalarValue:
+    """Scalar values for filter predicates.
+
+    Supports common types used in analytical queries:
+      - int: Integer values (64-bit)
+      - float: Floating-point values (64-bit)
+      - str: UTF-8 strings
+      - bool: Boolean values
+      - None: NULL value
+    """
+
+    def __init__(self, value: ScalarValueType) -> None:
+        """Create a scalar value.
+
+        The type is inferred from the Python value:
+          - int → Int64
+          - float → Float64
+          - str → Utf8
+          - bool → Boolean
+          - None → Null
+        """
+        ...
+
+
+class PyPredicateFilter:
+    """A predicate filter for Parquet data.
+
+    Represents a simple comparison: column <op> value
+
+    Example:
+        >>> # age > 50
+        >>> filter = PyPredicateFilter("age", "gt", 50)
+        >>> # status = 'active'
+        >>> filter = PyPredicateFilter("status", "eq", "active")
+    """
+
+    column: str
+    op: str
+    value: str
+
+    def __init__(self, column: str, op: str, value: ScalarValueType) -> None:
+        """Create a predicate filter.
+
+        Args:
+            column: Column name to filter on
+            op: Comparison operation (eq, ne, lt, le, gt, ge)
+            value: Value to compare against (int, float, str, bool, or None)
+        """
+        ...

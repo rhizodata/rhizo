@@ -3,13 +3,18 @@
 //! This module provides high-performance Parquet decoding using the Rust
 //! parquet crate, with support for parallel batch decoding via Rayon.
 
+use arrow::array::{Array, AsArray, BooleanArray};
+use arrow::compute::kernels::cmp::{eq, gt, gt_eq, lt, lt_eq, neq};
 use arrow::record_batch::RecordBatch;
 use bytes::Bytes;
-use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
+use parquet::arrow::arrow_reader::{
+    ArrowPredicateFn, ParquetRecordBatchReaderBuilder, RowFilter,
+};
 use parquet::arrow::ProjectionMask;
 use rayon::prelude::*;
 
 use super::error::ParquetError;
+use super::filter::{FilterOp, PredicateFilter, ScalarValue};
 
 /// High-performance Parquet decoder.
 ///
@@ -205,12 +210,219 @@ impl ParquetDecoder {
         // Use index-based projection
         self.decode_columns(data, &column_indices)
     }
+
+    /// Decode with predicate pushdown (row-level filtering).
+    ///
+    /// This method applies filter predicates during decoding, potentially
+    /// reducing the amount of data that needs to be processed.
+    ///
+    /// # Mathematical Model
+    ///
+    /// For selectivity `s` (fraction of rows matching):
+    ///   - Row-level filtering reduces output by factor of `s`
+    ///   - Combined with projection: Speedup ≈ (n/k) × (1/s)
+    ///
+    /// Example: 10 columns, query 2, 1% selectivity → up to 500x speedup
+    ///
+    /// # Arguments
+    /// * `data` - Parquet file bytes
+    /// * `filters` - Predicate filters to apply
+    /// * `column_indices` - Optional column projection (None = all columns)
+    ///
+    /// # Returns
+    /// * `Ok(RecordBatch)` - Decoded Arrow data with filters applied
+    /// * `Err(ParquetError)` - If decoding fails
+    pub fn decode_with_filter(
+        &self,
+        data: &[u8],
+        filters: &[PredicateFilter],
+        column_indices: Option<&[usize]>,
+    ) -> Result<RecordBatch, ParquetError> {
+        if filters.is_empty() {
+            // No filters, use regular decode
+            return match column_indices {
+                Some(cols) => self.decode_columns(data, cols),
+                None => self.decode(data),
+            };
+        }
+
+        let bytes = Bytes::copy_from_slice(data);
+        let builder = ParquetRecordBatchReaderBuilder::try_new(bytes)?;
+        let arrow_schema = builder.schema();
+        let parquet_schema = builder.parquet_schema();
+
+        // Resolve filter column names to indices and create projection mask for filters
+        let mut filter_column_indices = Vec::new();
+        for filter in filters {
+            match arrow_schema.index_of(&filter.column) {
+                Ok(idx) => {
+                    if !filter_column_indices.contains(&idx) {
+                        filter_column_indices.push(idx);
+                    }
+                }
+                Err(_) => {
+                    return Err(ParquetError::InvalidColumn(format!(
+                        "Filter column '{}' not found in schema",
+                        filter.column
+                    )));
+                }
+            }
+        }
+
+        // Create projection mask for filter columns
+        let filter_mask = ProjectionMask::leaves(parquet_schema, filter_column_indices.iter().copied());
+
+        // Clone filters for the closure
+        let filters_owned: Vec<PredicateFilter> = filters.to_vec();
+        let schema_for_closure = arrow_schema.clone();
+
+        // Create the row filter predicate
+        let predicate = ArrowPredicateFn::new(filter_mask, move |batch: RecordBatch| {
+            apply_filters(&batch, &filters_owned, &schema_for_closure)
+        });
+
+        let row_filter = RowFilter::new(vec![Box::new(predicate)]);
+
+        // Apply projection mask if specified
+        let builder = if let Some(cols) = column_indices {
+            let output_mask = ProjectionMask::leaves(parquet_schema, cols.iter().copied());
+            builder.with_projection(output_mask)
+        } else {
+            builder
+        };
+
+        // Build reader with filter
+        let reader = builder
+            .with_row_filter(row_filter)
+            .with_batch_size(self.batch_size)
+            .build()?;
+
+        // Collect all batches
+        let batches: Vec<RecordBatch> = reader.collect::<Result<Vec<_>, _>>()?;
+
+        if batches.is_empty() {
+            // Return empty batch with correct schema
+            return Err(ParquetError::EmptyData);
+        }
+
+        // If only one batch, return it directly
+        if batches.len() == 1 {
+            return Ok(batches.into_iter().next().unwrap());
+        }
+
+        // Concatenate multiple batches
+        let schema = batches[0].schema();
+        arrow::compute::concat_batches(&schema, &batches).map_err(ParquetError::Arrow)
+    }
+}
+
+/// Apply multiple filters to a record batch, returning a boolean mask.
+fn apply_filters(
+    batch: &RecordBatch,
+    filters: &[PredicateFilter],
+    schema: &arrow::datatypes::SchemaRef,
+) -> Result<BooleanArray, arrow::error::ArrowError> {
+    let num_rows = batch.num_rows();
+
+    // Start with all true
+    let mut result = BooleanArray::from(vec![true; num_rows]);
+
+    for filter in filters {
+        // Verify column exists in schema (validates filter against original schema)
+        if let Err(e) = schema.index_of(&filter.column) {
+            return Err(e);
+        }
+
+        // Get the column from the batch - find by name since indices may differ
+        let column = batch
+            .column_by_name(&filter.column)
+            .ok_or_else(|| {
+                arrow::error::ArrowError::SchemaError(format!(
+                    "Column '{}' not found in batch",
+                    filter.column
+                ))
+            })?;
+
+        // Apply the filter based on the scalar value type
+        let filter_mask = apply_single_filter(column.as_ref(), &filter.op, &filter.value)?;
+
+        // AND with existing result
+        result = arrow::compute::and(&result, &filter_mask)?;
+    }
+
+    Ok(result)
+}
+
+/// Apply a single filter to a column.
+fn apply_single_filter(
+    column: &dyn Array,
+    op: &FilterOp,
+    value: &ScalarValue,
+) -> Result<BooleanArray, arrow::error::ArrowError> {
+    use arrow::array::{Float64Array, Int32Array, Int64Array, StringArray};
+    use arrow::datatypes::DataType;
+
+    match (column.data_type(), value) {
+        (DataType::Int64, ScalarValue::Int64(v)) => {
+            let col = column.as_primitive::<arrow::datatypes::Int64Type>();
+            let scalar = Int64Array::new_scalar(*v);
+            match op {
+                FilterOp::Eq => eq(col, &scalar),
+                FilterOp::Ne => neq(col, &scalar),
+                FilterOp::Lt => lt(col, &scalar),
+                FilterOp::Le => lt_eq(col, &scalar),
+                FilterOp::Gt => gt(col, &scalar),
+                FilterOp::Ge => gt_eq(col, &scalar),
+            }
+        }
+        (DataType::Int32, ScalarValue::Int32(v)) => {
+            let col = column.as_primitive::<arrow::datatypes::Int32Type>();
+            let scalar = Int32Array::new_scalar(*v);
+            match op {
+                FilterOp::Eq => eq(col, &scalar),
+                FilterOp::Ne => neq(col, &scalar),
+                FilterOp::Lt => lt(col, &scalar),
+                FilterOp::Le => lt_eq(col, &scalar),
+                FilterOp::Gt => gt(col, &scalar),
+                FilterOp::Ge => gt_eq(col, &scalar),
+            }
+        }
+        (DataType::Float64, ScalarValue::Float64(v)) => {
+            let col = column.as_primitive::<arrow::datatypes::Float64Type>();
+            let scalar = Float64Array::new_scalar(*v);
+            match op {
+                FilterOp::Eq => eq(col, &scalar),
+                FilterOp::Ne => neq(col, &scalar),
+                FilterOp::Lt => lt(col, &scalar),
+                FilterOp::Le => lt_eq(col, &scalar),
+                FilterOp::Gt => gt(col, &scalar),
+                FilterOp::Ge => gt_eq(col, &scalar),
+            }
+        }
+        (DataType::Utf8, ScalarValue::Utf8(v)) => {
+            let col = column.as_string::<i32>();
+            let scalar = StringArray::new_scalar(v);
+            match op {
+                FilterOp::Eq => eq(col, &scalar),
+                FilterOp::Ne => neq(col, &scalar),
+                FilterOp::Lt => lt(col, &scalar),
+                FilterOp::Le => lt_eq(col, &scalar),
+                FilterOp::Gt => gt(col, &scalar),
+                FilterOp::Ge => gt_eq(col, &scalar),
+            }
+        }
+        _ => Err(arrow::error::ArrowError::SchemaError(format!(
+            "Unsupported filter: column type {:?} with value {:?}",
+            column.data_type(),
+            value
+        ))),
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::parquet::{ParquetCompression, ParquetEncoder};
+    use crate::parquet::{FilterOp, ParquetCompression, ParquetEncoder, PredicateFilter, ScalarValue};
     use arrow::array::{Float64Array, Int64Array, StringArray};
     use arrow::datatypes::{DataType, Field, Schema};
     use std::sync::Arc;
@@ -511,5 +723,166 @@ mod tests {
             assert_eq!(field.data_type(), projected.schema().field(i).data_type());
             assert_eq!(field.is_nullable(), projected.schema().field(i).is_nullable());
         }
+    }
+
+    // ========== Predicate Pushdown Tests ==========
+
+    #[test]
+    fn test_filter_int64_eq() {
+        // 1000 rows with id 0-999
+        let original = create_test_batch(1000);
+        let encoded = encode_batch(&original);
+
+        let decoder = ParquetDecoder::new();
+        let filter = PredicateFilter::new("id", FilterOp::Eq, ScalarValue::Int64(500));
+
+        let filtered = decoder.decode_with_filter(&encoded, &[filter], None).unwrap();
+
+        // Should only have 1 row where id = 500
+        assert_eq!(filtered.num_rows(), 1);
+        let ids = filtered.column(0).as_any().downcast_ref::<Int64Array>().unwrap();
+        assert_eq!(ids.value(0), 500);
+    }
+
+    #[test]
+    fn test_filter_int64_gt() {
+        // 1000 rows with id 0-999
+        let original = create_test_batch(1000);
+        let encoded = encode_batch(&original);
+
+        let decoder = ParquetDecoder::new();
+        let filter = PredicateFilter::new("id", FilterOp::Gt, ScalarValue::Int64(995));
+
+        let filtered = decoder.decode_with_filter(&encoded, &[filter], None).unwrap();
+
+        // Should have rows 996, 997, 998, 999 (4 rows)
+        assert_eq!(filtered.num_rows(), 4);
+        let ids = filtered.column(0).as_any().downcast_ref::<Int64Array>().unwrap();
+        for i in 0..4 {
+            assert!(ids.value(i) > 995);
+        }
+    }
+
+    #[test]
+    fn test_filter_float64_lt() {
+        // 100 rows with value = i * 1.5 (so 0.0, 1.5, 3.0, ...)
+        let original = create_test_batch(100);
+        let encoded = encode_batch(&original);
+
+        let decoder = ParquetDecoder::new();
+        // value < 15.0 means i * 1.5 < 15.0, i.e., i < 10
+        let filter = PredicateFilter::new("value", FilterOp::Lt, ScalarValue::Float64(15.0));
+
+        let filtered = decoder.decode_with_filter(&encoded, &[filter], None).unwrap();
+
+        // Should have rows where id < 10 (10 rows: 0-9)
+        assert_eq!(filtered.num_rows(), 10);
+        let values = filtered.column(1).as_any().downcast_ref::<Float64Array>().unwrap();
+        for i in 0..10 {
+            assert!(values.value(i) < 15.0);
+        }
+    }
+
+    #[test]
+    fn test_filter_multiple_and() {
+        // 1000 rows with id 0-999, value = i * 1.5
+        let original = create_test_batch(1000);
+        let encoded = encode_batch(&original);
+
+        let decoder = ParquetDecoder::new();
+        // id > 100 AND id < 110 → 9 rows (101-109)
+        let filters = vec![
+            PredicateFilter::new("id", FilterOp::Gt, ScalarValue::Int64(100)),
+            PredicateFilter::new("id", FilterOp::Lt, ScalarValue::Int64(110)),
+        ];
+
+        let filtered = decoder.decode_with_filter(&encoded, &filters, None).unwrap();
+
+        assert_eq!(filtered.num_rows(), 9);
+        let ids = filtered.column(0).as_any().downcast_ref::<Int64Array>().unwrap();
+        for i in 0..9 {
+            let id_val = ids.value(i);
+            assert!(id_val > 100 && id_val < 110);
+        }
+    }
+
+    #[test]
+    fn test_filter_with_projection() {
+        // 1000 rows, filter + projection
+        let original = create_test_batch(1000);
+        let encoded = encode_batch(&original);
+
+        let decoder = ParquetDecoder::new();
+        let filter = PredicateFilter::new("id", FilterOp::Ge, ScalarValue::Int64(990));
+
+        // Filter by id, but only project value column
+        let filtered = decoder.decode_with_filter(&encoded, &[filter], Some(&[1])).unwrap();
+
+        // Should have 10 rows (990-999), but only value column
+        assert_eq!(filtered.num_rows(), 10);
+        assert_eq!(filtered.num_columns(), 1);
+        assert_eq!(filtered.schema().field(0).name(), "value");
+
+        // Verify values match expected (990*1.5, 991*1.5, ...)
+        let values = filtered.column(0).as_any().downcast_ref::<Float64Array>().unwrap();
+        for i in 0..10 {
+            let expected = (990 + i) as f64 * 1.5;
+            assert!((values.value(i) - expected).abs() < 1e-10);
+        }
+    }
+
+    #[test]
+    fn test_filter_no_matches_error() {
+        let original = create_test_batch(100);
+        let encoded = encode_batch(&original);
+
+        let decoder = ParquetDecoder::new();
+        // No id is 9999
+        let filter = PredicateFilter::new("id", FilterOp::Eq, ScalarValue::Int64(9999));
+
+        let result = decoder.decode_with_filter(&encoded, &[filter], None);
+        // Should return EmptyData error when no rows match
+        assert!(matches!(result, Err(ParquetError::EmptyData)));
+    }
+
+    #[test]
+    fn test_filter_all_match() {
+        let original = create_test_batch(100);
+        let encoded = encode_batch(&original);
+
+        let decoder = ParquetDecoder::new();
+        // All ids are >= 0
+        let filter = PredicateFilter::new("id", FilterOp::Ge, ScalarValue::Int64(0));
+
+        let filtered = decoder.decode_with_filter(&encoded, &[filter], None).unwrap();
+
+        // Should return all 100 rows
+        assert_eq!(filtered.num_rows(), 100);
+    }
+
+    #[test]
+    fn test_filter_empty_filters_falls_back() {
+        let original = create_test_batch(100);
+        let encoded = encode_batch(&original);
+
+        let decoder = ParquetDecoder::new();
+
+        // No filters should act like regular decode
+        let filtered = decoder.decode_with_filter(&encoded, &[], None).unwrap();
+
+        assert_eq!(filtered.num_rows(), 100);
+        assert_eq!(filtered.num_columns(), 3);
+    }
+
+    #[test]
+    fn test_filter_invalid_column_error() {
+        let original = create_test_batch(100);
+        let encoded = encode_batch(&original);
+
+        let decoder = ParquetDecoder::new();
+        let filter = PredicateFilter::new("nonexistent", FilterOp::Eq, ScalarValue::Int64(1));
+
+        let result = decoder.decode_with_filter(&encoded, &[filter], None);
+        assert!(matches!(result, Err(ParquetError::InvalidColumn(_))));
     }
 }

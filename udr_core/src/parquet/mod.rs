@@ -40,7 +40,9 @@
 mod decoder;
 mod encoder;
 mod error;
+mod filter;
 
 pub use decoder::ParquetDecoder;
 pub use encoder::{ParquetEncoder, ParquetCompression};
 pub use error::ParquetError;
+pub use filter::{FilterOp, ScalarValue, PredicateFilter};

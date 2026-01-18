@@ -232,49 +232,156 @@ Example: 1% selectivity, 100K rows/group
   Speedup ≈ 1 / (0.01 * 100000) = 100x theoretical max
 ```
 
-### Implementation Considerations
+### Two-Level Architecture
 
-1. **Statistics Storage:** Parquet already stores min/max per row group
-2. **Predicate Types:**
-   - Equality: `column = value`
-   - Range: `column > value`, `column BETWEEN a AND b`
-   - IN: `column IN (v1, v2, v3)`
-3. **Compound Predicates:** AND/OR logic for multiple conditions
+Predicate pushdown operates at TWO levels for maximum optimization:
 
-### API Design
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        PREDICATE PUSHDOWN PIPELINE                          │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  Query: SELECT id, name FROM users WHERE age > 50                           │
+│                                                                             │
+│  Level 1: ROW GROUP PRUNING (Statistics-based)                              │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐             │
+│  │ Row Group 1     │  │ Row Group 2     │  │ Row Group 3     │             │
+│  │ age: [18, 35]   │  │ age: [32, 55]   │  │ age: [48, 72]   │             │
+│  │ max=35 < 50     │  │ max=55 >= 50    │  │ max=72 >= 50    │             │
+│  │ → SKIP          │  │ → READ          │  │ → READ          │             │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘             │
+│                                                                             │
+│  Level 2: ROW LEVEL FILTERING (ArrowPredicate)                              │
+│  ┌─────────────────────────────────────────────────────────────┐           │
+│  │ Decode only 'age' column first, apply filter, then decode   │           │
+│  │ remaining columns (id, name) only for matching rows         │           │
+│  └─────────────────────────────────────────────────────────────┘           │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Mathematical Model (Detailed)
+
+**Row Group Pruning Speedup:**
+```
+Let G = total row groups
+Let g = row groups that might contain matches (can't be pruned)
+
+Speedup_rg = G / g
+
+For uniformly distributed data with predicate "column > threshold":
+  g ≈ G × (1 - CDF(threshold))
+
+Example: age > 50 where age ~ Uniform(18, 72)
+  CDF(50) = (50-18)/(72-18) = 0.59
+  g ≈ G × 0.41
+  Speedup ≈ 2.4x just from row group pruning
+```
+
+**Combined Speedup (row group + row filtering):**
+```
+Let s = selectivity (fraction of rows matching)
+Let rg_pruned = fraction of row groups pruned
+
+Total data reduction ≈ rg_pruned + (1 - rg_pruned) × (1 - s)
+
+For highly selective queries (s = 1%):
+  If 60% row groups pruned: Total reduction = 0.6 + 0.4 × 0.99 = 99.6%
+  Speedup ≈ 250x theoretical maximum
+```
+
+### Implementation Using parquet-rs
+
+**Key APIs from parquet crate:**
+
+1. **StatisticsConverter** - Read min/max from row group metadata:
+```rust
+use parquet::arrow::arrow_reader::statistics::StatisticsConverter;
+
+let converter = StatisticsConverter::try_new("column", &arrow_schema, parquet_schema)?;
+let min_values = converter.row_group_mins(metadata.row_groups())?;
+let max_values = converter.row_group_maxes(metadata.row_groups())?;
+```
+
+2. **ArrowPredicateFn** - Row-level filtering:
+```rust
+use parquet::arrow::arrow_reader::{ArrowPredicateFn, RowFilter};
+
+let predicate = ArrowPredicateFn::new(
+    projection_mask,
+    |batch: RecordBatch| {
+        let column = batch.column(0).as_primitive::<Int64Type>();
+        gt(column, &Int64Array::new_scalar(50))
+    }
+);
+let filter = RowFilter::new(vec![Box::new(predicate)]);
+```
+
+3. **with_row_groups** - Skip entire row groups:
+```rust
+let reader = ParquetRecordBatchReaderBuilder::try_new(bytes)?
+    .with_row_groups(vec![1, 2])  // Only read row groups 1 and 2
+    .with_row_filter(filter)       // Apply row-level filter
+    .with_projection(mask)         // Combine with projection
+    .build()?;
+```
+
+### Armillaria Filter API Design
 
 ```rust
-pub struct PredicateFilter {
-    column: String,
-    op: FilterOp,
-    value: ScalarValue,
+/// Supported comparison operations for predicates.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FilterOp {
+    Eq,    // column = value
+    Ne,    // column != value
+    Lt,    // column < value
+    Le,    // column <= value
+    Gt,    // column > value
+    Ge,    // column >= value
 }
 
-pub enum FilterOp {
-    Eq,
-    Ne,
-    Lt,
-    Le,
-    Gt,
-    Ge,
-    In(Vec<ScalarValue>),
+/// A scalar value for predicate comparison.
+#[derive(Debug, Clone)]
+pub enum ScalarValue {
+    Int64(i64),
+    Float64(f64),
+    Utf8(String),
+    Boolean(bool),
+}
+
+/// A predicate filter to apply during decode.
+#[derive(Debug, Clone)]
+pub struct PredicateFilter {
+    pub column: String,
+    pub op: FilterOp,
+    pub value: ScalarValue,
 }
 
 impl ParquetDecoder {
+    /// Decode with predicate pushdown (row group pruning + row filtering).
+    ///
+    /// Mathematical Model:
+    ///   Speedup ≈ G/g × 1/s
+    ///   where G = total row groups, g = matching row groups, s = selectivity
+    ///
+    /// For 1% selectivity with good row group pruning: 50-100x speedup
     pub fn decode_with_filter(
         &self,
         data: &[u8],
         filters: &[PredicateFilter],
+        columns: Option<&[usize]>,  // Combine with projection
     ) -> Result<RecordBatch, ParquetError>;
 }
 ```
 
-### Implementation Path for R.2
+### Implementation Steps
 
-1. **Use `parquet` crate's `RowFilter`** - Built-in row group pruning
-2. **Expose filter API through Python** - `decode_with_filter(data, filters)`
-3. **Integrate with QueryEngine** - Parse SQL WHERE clause to filters
-4. **Combine with projection** - Maximum optimization
+1. **R.2.1: Add filter types** - `FilterOp`, `ScalarValue`, `PredicateFilter`
+2. **R.2.2: Row group statistics** - Read min/max, determine which to skip
+3. **R.2.3: Row-level filtering** - Apply `RowFilter` with `ArrowPredicateFn`
+4. **R.2.4: Python bindings** - Expose `decode_with_filter`
+5. **R.2.5: Integration** - Add to TableReader
+6. **R.2.6: Benchmarks** - Validate mathematical model
 
 ### Competitive Advantage
 

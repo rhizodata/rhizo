@@ -14,6 +14,7 @@ use udr_core::{
     MerkleTree, MerkleNode, DataChunk, MerkleDiff, MerkleConfig, MerkleError,
     build_tree, diff_trees, verify_tree,
     ParquetEncoder, ParquetDecoder, ParquetCompression, ParquetError,
+    FilterOp, ScalarValue, PredicateFilter,
 };
 
 // Phase 4: pyo3-arrow for zero-copy Arrow FFI
@@ -295,6 +296,219 @@ impl PyParquetDecoder {
             .decode_columns_by_name(data, &names)
             .map_err(parquet_err_to_py)?;
         PyRecordBatch::new(batch).into_pyarrow(py)
+    }
+
+    /// Decode with predicate pushdown (row-level filtering).
+    ///
+    /// This method applies filter predicates during decoding, reducing the
+    /// amount of data that needs to be processed for selective queries.
+    ///
+    /// Mathematical Model:
+    ///     For selectivity `s` (fraction of rows matching):
+    ///       - Row-level filtering reduces output by factor of `s`
+    ///       - Combined with projection: Speedup ≈ (n/k) × (1/s)
+    ///     Example: 10 columns, query 2, 1% selectivity → up to 500x speedup
+    ///
+    /// Args:
+    ///     data: Parquet file bytes
+    ///     filters: List of PyPredicateFilter objects
+    ///     column_indices: Optional list of column indices to project
+    ///
+    /// Returns:
+    ///     PyArrow RecordBatch with filters applied
+    ///
+    /// Example:
+    ///     >>> decoder = PyParquetDecoder()
+    ///     >>> filter = PyPredicateFilter("age", "gt", 50)
+    ///     >>> result = decoder.decode_with_filter(data, [filter])
+    #[pyo3(signature = (data, filters, column_indices=None))]
+    fn decode_with_filter<'py>(
+        &self,
+        py: Python<'py>,
+        data: &[u8],
+        filters: Vec<PyPredicateFilter>,
+        column_indices: Option<Vec<usize>>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        let rust_filters: Vec<PredicateFilter> = filters
+            .into_iter()
+            .map(|f| f.into_inner())
+            .collect();
+
+        let batch = self
+            .inner
+            .decode_with_filter(
+                data,
+                &rust_filters,
+                column_indices.as_deref(),
+            )
+            .map_err(parquet_err_to_py)?;
+        PyRecordBatch::new(batch).into_pyarrow(py)
+    }
+}
+
+// =============================================================================
+// Phase R.2: Predicate Pushdown Types
+// =============================================================================
+
+/// Comparison operations for filter predicates.
+///
+/// These map to SQL-style comparisons:
+///   - "eq"  → column = value
+///   - "ne"  → column != value
+///   - "lt"  → column < value
+///   - "le"  → column <= value
+///   - "gt"  → column > value
+///   - "ge"  → column >= value
+#[pyclass]
+#[derive(Clone)]
+struct PyFilterOp {
+    inner: FilterOp,
+}
+
+#[pymethods]
+impl PyFilterOp {
+    /// Create a filter operation from a string.
+    ///
+    /// Args:
+    ///     op: One of "eq", "ne", "lt", "le", "gt", "ge"
+    #[new]
+    fn new(op: &str) -> PyResult<Self> {
+        let inner = match op.to_lowercase().as_str() {
+            "eq" | "=" | "==" => FilterOp::Eq,
+            "ne" | "!=" | "<>" => FilterOp::Ne,
+            "lt" | "<" => FilterOp::Lt,
+            "le" | "<=" => FilterOp::Le,
+            "gt" | ">" => FilterOp::Gt,
+            "ge" | ">=" => FilterOp::Ge,
+            _ => return Err(PyValueError::new_err(format!(
+                "Invalid filter operation: '{}'. Use eq, ne, lt, le, gt, or ge",
+                op
+            ))),
+        };
+        Ok(Self { inner })
+    }
+
+    fn __repr__(&self) -> String {
+        format!("PyFilterOp({})", self.inner)
+    }
+
+    fn __str__(&self) -> String {
+        format!("{}", self.inner)
+    }
+}
+
+/// Scalar values for filter predicates.
+///
+/// Supports common types used in analytical queries:
+///   - int: Integer values (64-bit)
+///   - float: Floating-point values (64-bit)
+///   - str: UTF-8 strings
+///   - bool: Boolean values
+#[pyclass]
+#[derive(Clone)]
+struct PyScalarValue {
+    inner: ScalarValue,
+}
+
+#[pymethods]
+impl PyScalarValue {
+    /// Create a scalar value.
+    ///
+    /// The type is inferred from the Python value:
+    ///   - int → Int64
+    ///   - float → Float64
+    ///   - str → Utf8
+    ///   - bool → Boolean
+    ///   - None → Null
+    #[new]
+    fn new(value: &Bound<'_, PyAny>) -> PyResult<Self> {
+        let inner = if value.is_none() {
+            ScalarValue::Null
+        } else if let Ok(v) = value.extract::<bool>() {
+            ScalarValue::Boolean(v)
+        } else if let Ok(v) = value.extract::<i64>() {
+            ScalarValue::Int64(v)
+        } else if let Ok(v) = value.extract::<f64>() {
+            ScalarValue::Float64(v)
+        } else if let Ok(v) = value.extract::<String>() {
+            ScalarValue::Utf8(v)
+        } else {
+            return Err(PyValueError::new_err(
+                "Unsupported scalar type. Use int, float, str, bool, or None"
+            ));
+        };
+        Ok(Self { inner })
+    }
+
+    fn __repr__(&self) -> String {
+        format!("PyScalarValue({})", self.inner)
+    }
+
+    fn __str__(&self) -> String {
+        format!("{}", self.inner)
+    }
+}
+
+/// A predicate filter for Parquet data.
+///
+/// Represents a simple comparison: column <op> value
+///
+/// Example:
+///     >>> # age > 50
+///     >>> filter = PyPredicateFilter("age", "gt", 50)
+///     >>> # status = 'active'
+///     >>> filter = PyPredicateFilter("status", "eq", "active")
+#[pyclass]
+#[derive(Clone)]
+struct PyPredicateFilter {
+    inner: PredicateFilter,
+}
+
+#[pymethods]
+impl PyPredicateFilter {
+    /// Create a predicate filter.
+    ///
+    /// Args:
+    ///     column: Column name to filter on
+    ///     op: Comparison operation (eq, ne, lt, le, gt, ge)
+    ///     value: Value to compare against (int, float, str, bool, or None)
+    #[new]
+    fn new(column: String, op: &str, value: &Bound<'_, PyAny>) -> PyResult<Self> {
+        let filter_op = PyFilterOp::new(op)?;
+        let scalar_value = PyScalarValue::new(value)?;
+
+        Ok(Self {
+            inner: PredicateFilter::new(column, filter_op.inner, scalar_value.inner),
+        })
+    }
+
+    #[getter]
+    fn column(&self) -> String {
+        self.inner.column.clone()
+    }
+
+    #[getter]
+    fn op(&self) -> String {
+        format!("{}", self.inner.op)
+    }
+
+    #[getter]
+    fn value(&self) -> String {
+        format!("{}", self.inner.value)
+    }
+
+    fn __repr__(&self) -> String {
+        format!("PyPredicateFilter({})", self.inner)
+    }
+
+    fn __str__(&self) -> String {
+        format!("{}", self.inner)
+    }
+}
+
+impl PyPredicateFilter {
+    fn into_inner(self) -> PredicateFilter {
+        self.inner
     }
 }
 
@@ -1506,6 +1720,11 @@ fn armillaria(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Phase 4: Native Parquet (zero-copy Arrow FFI)
     m.add_class::<PyParquetEncoder>()?;
     m.add_class::<PyParquetDecoder>()?;
+
+    // Phase R.2: Predicate Pushdown
+    m.add_class::<PyFilterOp>()?;
+    m.add_class::<PyScalarValue>()?;
+    m.add_class::<PyPredicateFilter>()?;
 
     Ok(())
 }
