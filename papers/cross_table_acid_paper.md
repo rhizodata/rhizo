@@ -72,7 +72,7 @@ Current formats chose per-table logs for good reasons: simplicity, independence,
 
 ### 2.3 Content-Addressable Storage: A Different Foundation
 
-We observe that content-addressable storage (CAS) provides a natural foundation for multi-table transactions. In CAS, data is identified by its cryptographic hash rather than its location:
+We observe that content-addressable storage (CAS) provides a natural foundation for multi-table transactions. In CAS, data is identified by its cryptographic hash rather than its location. We use BLAKE3 [13], a modern cryptographic hash function optimized for speed:
 
 ```
 chunk_id = BLAKE3(content)
@@ -167,6 +167,18 @@ $$\text{Conflict}(T_i, T_j) = (W_i \cap W_j \neq \emptyset) \land (\text{concurr
 
 Where W_i is the write set of transaction i. **Currently, conflict detection operates at table granularity**—if two transactions both write to the same table, one must abort. Row-level conflict detection is planned for future work.
 
+#### Defense-in-Depth: Three-Layer Protection
+
+Rather than relying on a single conflict detection mechanism, Rhizo employs three independent layers [12]:
+
+| Layer | Mechanism | What It Catches |
+|-------|-----------|-----------------|
+| 1. `check_conflicts` | Compare against recently committed transactions | Early detection of overlapping writes |
+| 2. `validate_snapshot` | Verify read snapshot hasn't changed | Tables modified since transaction start |
+| 3. Catalog version enforcement | Reject out-of-sequence versions | Ultimate safety net, prevents duplicate commits |
+
+This layered approach ensures safety even under edge cases. For example, if Layer 1's recently-committed list is cleared at epoch boundaries, Layers 2 and 3 still catch conflicts. We verified this property through explicit testing of the epoch-boundary scenario.
+
 ### 3.4 Zero-Copy Branching
 
 A branch is simply a named pointer to a set of table versions:
@@ -187,6 +199,22 @@ This enables workflows difficult in current lakehouse formats:
 - **Safe experimentation**: Branch production, experiment, discard or merge
 - **What-if analysis**: Create branches for different scenarios
 - **Code review for data**: Branch, transform, diff, review, merge
+
+### 3.5 Cache Correctness via Content Addressing
+
+Content-addressable storage provides a unique property: **invalidation-free caching**. Traditional caches require complex invalidation logic when underlying data changes. With CAS, this problem disappears.
+
+**Theorem:** If `hash(data) = h`, then any future request for hash `h` returns identical data.
+
+**Proof:** Content addressing means the hash IS the identifier. The same hash always identifies the same content. Unlike pointer-based addressing, there is no indirection that could become stale.
+
+**Implications for caching:**
+- Cached Arrow RecordBatches never need invalidation
+- Cache shared across tables (same data = same hash)
+- Cache shared across versions (unchanged chunks = same hash)
+- Cache shared across branches (branched data = same hash until modified)
+
+This enables aggressive caching with zero correctness risk. Our Arrow chunk cache achieves **15x speedup** on repeated reads with **91%+ hit rates** in typical workloads. The cache operates at the decoded RecordBatch level, eliminating both disk I/O and Parquet decoding on hits.
 
 ---
 
@@ -253,9 +281,9 @@ Rhizo is implemented in Rust for the core storage and catalog layers, with Pytho
 
 | Component | Language | Tests |
 |-----------|----------|-------|
-| Core (ChunkStore, Catalog, Branch, Transaction, Merkle, Parquet) | Rust | 173 |
+| Core (ChunkStore, Catalog, Branch, Transaction, Merkle, Parquet) | Rust | 204 |
 | Query layer (time travel, branching, transactions, changelog, OLAP) | Python | 247 |
-| **Total** | | **420** |
+| **Total** | | **451** |
 
 **Note:** The OLAP engine (Phase DF) added DataFusion integration with 26x faster reads than DuckDB, TIME TRAVEL SQL syntax (`VERSION` keyword), branch queries (`@branch` notation), and changelog SQL (`__changelog` virtual table).
 
@@ -355,7 +383,21 @@ These results demonstrate **O(change) storage** instead of O(n) per version. For
 
 Time travel query time is dominated by data access, not version lookup. Querying version 1 takes the same time as version 20.
 
-### 6.5 Comparison with Existing Formats
+### 6.5 OLAP Engine Performance
+
+The DataFusion-powered OLAP engine [15] with Arrow [14] integration achieves significant performance improvements:
+
+| Metric | Rhizo OLAP | DuckDB | Speedup |
+|--------|------------|--------|---------|
+| Read (100K rows) | 0.9ms | 23.8ms | **26x** |
+| Filter (5%) | 1.2ms | 1.8ms | 1.5x |
+| Projection | 0.7ms | 1.4ms | 2x |
+| Complex query | 2.9ms | 6.6ms | **2.3x** |
+| Read (1M rows) | 5.1ms | 257.2ms | **50x** |
+
+The Arrow chunk cache (Section 3.5) contributes significantly to these results, achieving 0.24ms reads on cache hits (15x faster than uncached).
+
+### 6.6 Comparison with Existing Formats
 
 | Feature | Rhizo | Delta Lake | Iceberg | Hudi |
 |---------|------------|------------|---------|------|
@@ -419,11 +461,11 @@ Time travel query time is dominated by data access, not version lookup. Querying
 
 We have presented Rhizo, a single-node data storage system that achieves cross-table ACID transactions through content-addressable storage. By storing all data in a shared ChunkStore and maintaining table metadata in a unified catalog, atomic multi-table commits become possible without external coordination.
 
-Our implementation demonstrates that this approach is practical on a single node: 1,500+ MB/s write throughput, sub-2ms branching, and automatic deduplication of identical content. The system passes 420 tests (173 Rust + 247 Python) and integrates with standard query engines via DuckDB and DataFusion.
+Our implementation demonstrates that this approach is practical on a single node: 1,500+ MB/s write throughput, sub-2ms branching, and automatic deduplication of identical content. The system passes 451 tests (204 Rust + 247 Python) and integrates with standard query engines via DuckDB and DataFusion.
 
 The key insight is architectural: per-table transaction logs make cross-table atomicity fundamentally impossible, while a unified content-addressed foundation makes it straightforward—at least on a single node. Extending these guarantees to distributed deployments remains future work.
 
-Rhizo is open source under the MIT license at: https://github.com/aquadantheman/unifieddataruntime
+Rhizo is open source under the MIT license at: https://github.com/aquadantheman/rhizo
 
 ---
 
@@ -450,6 +492,14 @@ Rhizo is open source under the MIT license at: https://github.com/aquadantheman/
 [10] DVC (Data Version Control). https://dvc.org/
 
 [11] Benet, J. (2014). IPFS - Content Addressed, Versioned, P2P File System. arXiv:1407.3561.
+
+[12] Schneier, B. (2000). Secrets and Lies: Digital Security in a Networked World. Wiley. (Defense-in-depth security principle)
+
+[13] O'Connor, J., et al. (2020). BLAKE3: One function, fast everywhere. https://blake3.io/
+
+[14] Apache Arrow. https://arrow.apache.org/
+
+[15] Apache DataFusion. https://datafusion.apache.org/
 
 ---
 
