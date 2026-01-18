@@ -1,0 +1,48 @@
+{
+  "metadata": {
+    "timestamp": "2026-01-17 21:28:09",
+    "num_rows": 100000,
+    "systems": [
+      "armillaria",
+      "parquet",
+      "delta_lake",
+      "iceberg",
+      "duckdb",
+      "hudi"
+    ]
+  },
+  "results": {
+    "armillaria": {
+      "write": 52.83,
+      "read": 12.97,
+      "time_travel": 12.74,
+      "filtered": 9.52,
+      "projection": 6.92,
+      "storage_bytes": 3850538
+    },
+    "delta_lake": {
+      "write": 68.36,
+      "read": 21.62,
+      "time_travel": 18.41,
+      "filtered": 14.19,
+      "projection": 10.09,
+      "storage_bytes": 39702319
+    },
+    "duckdb": {
+      "write": Infinity,
+      "read": Infinity,
+      "time_travel": "N/A",
+      "filtered": Infinity,
+      "projection": Infinity,
+      "storage_bytes": 12288
+    },
+    "parquet": {
+      "write": 51.88,
+      "read": 5.3,
+      "time_travel": "N/A",
+      "filtered": 5.76,
+      "projection": 3.32,
+      "storage_bytes": 3907499
+    }
+  }
+}
