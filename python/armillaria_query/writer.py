@@ -141,7 +141,13 @@ class TableWriter:
         chunks = self._chunk_table(table)
 
         # Serialize all chunks to Parquet bytes
-        parquet_chunks = [self._to_parquet_bytes(chunk) for chunk in chunks]
+        # Use parallel encoding for multiple chunks if native encoder available
+        if len(chunks) > 1 and self._native_encoder is not None:
+            # Convert all chunks to batches for parallel encoding via Rayon
+            batches = [chunk.combine_chunks().to_batches()[0] for chunk in chunks]
+            parquet_chunks = [bytes(b) for b in self._native_encoder.encode_batch(batches)]
+        else:
+            parquet_chunks = [self._to_parquet_bytes(chunk) for chunk in chunks]
         total_bytes = sum(len(p) for p in parquet_chunks)
 
         # Store all chunks in parallel using batch operation
@@ -200,7 +206,13 @@ class TableWriter:
         chunks = self._chunk_table(table)
 
         # Serialize all chunks to Parquet bytes
-        parquet_chunks = [self._to_parquet_bytes(chunk) for chunk in chunks]
+        # Use parallel encoding for multiple chunks if native encoder available
+        if len(chunks) > 1 and self._native_encoder is not None:
+            # Convert all chunks to batches for parallel encoding via Rayon
+            batches = [chunk.combine_chunks().to_batches()[0] for chunk in chunks]
+            parquet_chunks = [bytes(b) for b in self._native_encoder.encode_batch(batches)]
+        else:
+            parquet_chunks = [self._to_parquet_bytes(chunk) for chunk in chunks]
         total_bytes = sum(len(p) for p in parquet_chunks)
 
         # Store all chunks in parallel using batch operation
