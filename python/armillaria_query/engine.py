@@ -22,6 +22,7 @@ import pyarrow as pa
 
 from .reader import TableReader
 from .writer import TableWriter, WriteResult
+from .olap_engine import OLAPEngine, is_datafusion_available
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -148,6 +149,8 @@ class QueryEngine:
         verify_integrity: bool = False,
         branch_manager: Optional["armillaria.PyBranchManager"] = None,
         transaction_manager: Optional["armillaria.PyTransactionManager"] = None,
+        enable_olap: bool = True,
+        olap_cache_size: int = 1_000_000_000,
     ):
         """
         Initialize the QueryEngine.
@@ -160,6 +163,11 @@ class QueryEngine:
                            If None, operates in branchless mode (backward compatible).
             transaction_manager: Optional PyTransactionManager for ACID transactions.
                                 If None, transaction() will raise RuntimeError.
+            enable_olap: If True and DataFusion is available, use OLAPEngine for
+                        faster analytical queries. Falls back to DuckDB if OLAP
+                        fails or is unavailable. (default: True)
+            olap_cache_size: Maximum cache size for OLAPEngine in bytes.
+                            Only used if enable_olap=True. (default: 1GB)
         """
         self.store = store
         self.catalog = catalog
@@ -180,23 +188,46 @@ class QueryEngine:
         # Active transaction tracking (for nested transaction prevention)
         self._active_tx: Optional[int] = None
 
+        # OLAP Engine (DataFusion-based) for faster analytical queries
+        self._olap: Optional[OLAPEngine] = None
+        if enable_olap and is_datafusion_available():
+            try:
+                self._olap = OLAPEngine(
+                    store=store,
+                    catalog=catalog,
+                    branch_manager=branch_manager,
+                    max_cache_size_bytes=olap_cache_size,
+                    verify_integrity=verify_integrity,
+                )
+            except Exception:
+                # If OLAP initialization fails, continue without it
+                self._olap = None
+
     def query(
         self,
         sql: str,
         versions: Optional[Dict[str, int]] = None,
         params: Optional[List[Any]] = None,
         branch: Optional[str] = None,
+        use_olap: bool = True,
     ) -> QueryResult:
         """
         Execute a SQL query with optional time travel and branching.
+
+        By default, uses the OLAPEngine (DataFusion) for faster analytical queries
+        if available, with automatic fallback to DuckDB if OLAP fails or is unavailable.
 
         Args:
             sql: SQL query string
             versions: Dict mapping table names to specific versions.
                       If a table is not in this dict, branch head or latest is used.
-            params: Optional query parameters for prepared statements
+            params: Optional query parameters for prepared statements.
+                   Note: params are only supported with DuckDB (use_olap=False).
             branch: Branch to query from. If None, uses current_branch.
                    Only used if branch_manager is configured.
+            use_olap: If True and OLAPEngine is available, use DataFusion for
+                     faster execution. Falls back to DuckDB on failure.
+                     Set to False to force DuckDB path. (default: True)
 
         Returns:
             QueryResult with Arrow table and metadata
@@ -206,31 +237,52 @@ class QueryEngine:
             duckdb.Error: If SQL is invalid
 
         Example:
-            >>> # Query latest on current branch
+            >>> # Query latest on current branch (uses OLAP if available)
             >>> engine.query("SELECT * FROM users")
+            >>>
+            >>> # Force DuckDB path (e.g., for parameterized queries)
+            >>> engine.query("SELECT * FROM users WHERE id = ?", params=[123], use_olap=False)
             >>>
             >>> # Query on specific branch
             >>> engine.query("SELECT * FROM users", branch="feature/test")
             >>>
             >>> # Time travel (overrides branch)
             >>> engine.query("SELECT * FROM users", versions={"users": 5})
-            >>>
-            >>> # Multiple tables at different versions
-            >>> engine.query(
-            ...     "SELECT u.name, o.total FROM users u JOIN orders o ON u.id = o.user_id",
-            ...     versions={"users": 5, "orders": 10}
-            ... )
         """
         versions = versions or {}
         effective_branch = branch or self._current_branch
 
+        # Try OLAP path if enabled and available (params not supported in OLAP)
+        if use_olap and self._olap is not None and params is None:
+            try:
+                arrow_table = self._olap.query(sql, versions=versions, branch=effective_branch)
+                return QueryResult(
+                    arrow_table=arrow_table,
+                    row_count=arrow_table.num_rows,
+                    column_names=arrow_table.column_names,
+                )
+            except Exception:
+                # Fall back to DuckDB on any OLAP error
+                pass
+
+        # DuckDB path (fallback or explicit)
+        return self._query_duckdb(sql, versions, params, effective_branch)
+
+    def _query_duckdb(
+        self,
+        sql: str,
+        versions: Dict[str, int],
+        params: Optional[List[Any]],
+        branch: str,
+    ) -> QueryResult:
+        """Execute query using DuckDB backend."""
         # Extract table names from query
         table_names = self._extract_table_names(sql)
 
         # Register each table with the appropriate version
         for table_name in table_names:
             version = versions.get(table_name)  # None means resolve via branch/latest
-            self._ensure_registered(table_name, version, effective_branch)
+            self._ensure_registered(table_name, version, branch)
 
         # Execute query
         if params:
@@ -265,6 +317,128 @@ class QueryEngine:
     ) -> pa.Table:
         """Execute query and return Arrow Table."""
         return self.query(sql, versions, params, branch).to_arrow()
+
+    # =========================================================================
+    # OLAP Engine Operations
+    # =========================================================================
+
+    @property
+    def olap_enabled(self) -> bool:
+        """Check if OLAP engine is enabled and available."""
+        return self._olap is not None
+
+    def olap_query(
+        self,
+        sql: str,
+        versions: Optional[Dict[str, int]] = None,
+        branch: Optional[str] = None,
+    ) -> pa.Table:
+        """
+        Execute query using OLAP engine (DataFusion) only.
+
+        Unlike query(), this method does NOT fall back to DuckDB.
+        Use this when you specifically need OLAP performance characteristics.
+
+        Args:
+            sql: SQL query string
+            versions: Dict mapping table names to specific versions
+            branch: Branch to query from (default: current branch)
+
+        Returns:
+            Arrow table with query results
+
+        Raises:
+            RuntimeError: If OLAP engine is not available
+            Exception: If query execution fails
+
+        Example:
+            >>> # Force OLAP path for analytics
+            >>> result = engine.olap_query('''
+            ...     SELECT category, COUNT(*), AVG(amount)
+            ...     FROM orders
+            ...     GROUP BY category
+            ... ''')
+        """
+        if self._olap is None:
+            raise RuntimeError(
+                "OLAP engine not available. "
+                "Ensure DataFusion is installed and enable_olap=True."
+            )
+
+        effective_branch = branch or self._current_branch
+        return self._olap.query(sql, versions=versions, branch=effective_branch)
+
+    def olap_stats(self) -> Dict[str, Any]:
+        """
+        Get OLAP engine cache statistics.
+
+        Returns:
+            Dict with cache metrics including:
+            - enabled: Whether OLAP is enabled
+            - hits: Number of cache hits
+            - misses: Number of cache misses
+            - hit_rate: Hit rate (0.0 to 1.0)
+            - current_size_mb: Current cache size in MB
+            - max_size_mb: Maximum cache size in MB
+            - entry_count: Number of cached tables
+
+        Example:
+            >>> stats = engine.olap_stats()
+            >>> print(f"Cache hit rate: {stats['hit_rate']:.1%}")
+        """
+        if self._olap is None:
+            return {
+                "enabled": False,
+                "hits": 0,
+                "misses": 0,
+                "hit_rate": 0.0,
+                "current_size_mb": 0.0,
+                "max_size_mb": 0.0,
+                "entry_count": 0,
+            }
+
+        stats = self._olap.cache_stats()
+        stats["enabled"] = True
+        return stats
+
+    def olap_clear_cache(self, table_name: Optional[str] = None) -> None:
+        """
+        Clear the OLAP cache.
+
+        Args:
+            table_name: If specified, only clear this table's cache.
+                       If None, clear entire cache.
+
+        Raises:
+            RuntimeError: If OLAP engine is not available
+        """
+        if self._olap is None:
+            raise RuntimeError("OLAP engine not available")
+
+        self._olap.clear_cache(table_name)
+
+    def olap_preload(
+        self,
+        table_name: str,
+        version: Optional[int] = None,
+        branch: Optional[str] = None,
+    ) -> None:
+        """
+        Preload a table into the OLAP cache for faster queries.
+
+        Args:
+            table_name: Name of the table to preload
+            version: Specific version (None for latest/branch head)
+            branch: Branch to load from (default: current branch)
+
+        Raises:
+            RuntimeError: If OLAP engine is not available
+        """
+        if self._olap is None:
+            raise RuntimeError("OLAP engine not available")
+
+        effective_branch = branch or self._current_branch
+        self._olap.preload(table_name, version, effective_branch)
 
     def write_table(
         self,
@@ -303,6 +477,10 @@ class QueryEngine:
 
         # Invalidate cache for this table (force reload on next query)
         self._invalidate_cache(table_name)
+
+        # Also invalidate OLAP cache
+        if self._olap is not None:
+            self._olap.clear_cache(table_name)
 
         return result
 
