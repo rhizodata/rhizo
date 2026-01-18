@@ -274,7 +274,7 @@ class OLAPEngine:
                        If None, clear entire cache.
         """
         if table_name:
-            count = self._cache.invalidate(table_name)
+            self._cache.invalidate(table_name)
             # Also unregister from DataFusion
             self._unregister_table(table_name)
         else:
