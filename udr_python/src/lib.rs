@@ -344,6 +344,39 @@ impl PyParquetDecoder {
             .map_err(parquet_err_to_py)?;
         PyRecordBatch::new(batch).into_pyarrow(py)
     }
+
+    /// Get row-group pruning statistics for a filtered decode.
+    ///
+    /// This is useful for debugging and understanding pruning effectiveness.
+    /// Row-group pruning uses min/max statistics to skip entire row groups
+    /// that cannot contain matching rows, before doing any decoding.
+    ///
+    /// Args:
+    ///     data: Parquet file bytes
+    ///     filters: List of PyPredicateFilter objects
+    ///
+    /// Returns:
+    ///     Tuple of (total_row_groups, pruned_row_groups, kept_row_groups)
+    ///
+    /// Example:
+    ///     >>> decoder = PyParquetDecoder()
+    ///     >>> filter = PyPredicateFilter("id", "gt", 9000)
+    ///     >>> total, pruned, kept = decoder.get_pruning_stats(data, [filter])
+    ///     >>> print(f"Pruned {pruned}/{total} row groups ({100*pruned/total:.1f}%)")
+    fn get_pruning_stats(
+        &self,
+        data: &[u8],
+        filters: Vec<PyPredicateFilter>,
+    ) -> PyResult<(usize, usize, usize)> {
+        let rust_filters: Vec<PredicateFilter> = filters
+            .into_iter()
+            .map(|f| f.into_inner())
+            .collect();
+
+        self.inner
+            .get_pruning_stats(data, &rust_filters)
+            .map_err(parquet_err_to_py)
+    }
 }
 
 // =============================================================================

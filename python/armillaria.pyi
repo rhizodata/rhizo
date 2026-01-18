@@ -382,16 +382,24 @@ class PyParquetDecoder:
         filters: List["PyPredicateFilter"],
         column_indices: Optional[List[int]] = None,
     ) -> pa.RecordBatch:
-        """Decode with predicate pushdown (row-level filtering).
+        """Decode with predicate pushdown (row-level filtering and row-group pruning).
 
-        This method applies filter predicates during decoding, reducing the
-        amount of data that needs to be processed for selective queries.
+        This method applies filter predicates during decoding using a two-level
+        optimization strategy:
+
+        1. **Row Group Pruning**: Check min/max statistics to skip entire row groups
+           that cannot contain matching rows.
+
+        2. **Row-Level Filtering**: For row groups that might contain matches,
+           apply filters during decoding to skip non-matching rows.
 
         Mathematical Model:
             For selectivity `s` (fraction of rows matching):
+              - Row group pruning can skip G/g row groups based on statistics
               - Row-level filtering reduces output by factor of `s`
-              - Combined with projection: Speedup ≈ (n/k) × (1/s)
-            Example: 10 columns, query 2, 1% selectivity → up to 500x speedup
+              - Combined with projection: Speedup ≈ (G/g) × (n/k) × (1/s)
+            Example: 10 row groups, 1 contains data, 10 columns, query 2, 1% selectivity
+                     → up to 5000x speedup
 
         Args:
             data: Parquet file bytes
@@ -405,6 +413,32 @@ class PyParquetDecoder:
             >>> decoder = PyParquetDecoder()
             >>> filter = PyPredicateFilter("age", "gt", 50)
             >>> result = decoder.decode_with_filter(data, [filter])
+        """
+        ...
+
+    def get_pruning_stats(
+        self,
+        data: bytes,
+        filters: List["PyPredicateFilter"],
+    ) -> Tuple[int, int, int]:
+        """Get row-group pruning statistics for a filtered decode.
+
+        This is useful for debugging and understanding pruning effectiveness.
+        Row-group pruning uses min/max statistics to skip entire row groups
+        that cannot contain matching rows, before doing any decoding.
+
+        Args:
+            data: Parquet file bytes
+            filters: List of PyPredicateFilter objects
+
+        Returns:
+            Tuple of (total_row_groups, pruned_row_groups, kept_row_groups)
+
+        Example:
+            >>> decoder = PyParquetDecoder()
+            >>> filter = PyPredicateFilter("id", "gt", 9000)
+            >>> total, pruned, kept = decoder.get_pruning_stats(data, [filter])
+            >>> print(f"Pruned {pruned}/{total} row groups ({100*pruned/total:.1f}%)")
         """
         ...
 

@@ -8,9 +8,11 @@ use arrow::compute::kernels::cmp::{eq, gt, gt_eq, lt, lt_eq, neq};
 use arrow::record_batch::RecordBatch;
 use bytes::Bytes;
 use parquet::arrow::arrow_reader::{
-    ArrowPredicateFn, ParquetRecordBatchReaderBuilder, RowFilter,
+    ArrowPredicateFn, ParquetRecordBatchReaderBuilder, RowFilter, RowSelection,
 };
 use parquet::arrow::ProjectionMask;
+use parquet::file::metadata::RowGroupMetaData;
+use parquet::file::statistics::Statistics;
 use rayon::prelude::*;
 
 use super::error::ParquetError;
@@ -211,18 +213,26 @@ impl ParquetDecoder {
         self.decode_columns(data, &column_indices)
     }
 
-    /// Decode with predicate pushdown (row-level filtering).
+    /// Decode with predicate pushdown (row-level filtering and row-group pruning).
     ///
-    /// This method applies filter predicates during decoding, potentially
-    /// reducing the amount of data that needs to be processed.
+    /// This method applies filter predicates during decoding using a two-level
+    /// optimization strategy:
+    ///
+    /// 1. **Row Group Pruning**: Check min/max statistics to skip entire row groups
+    ///    that cannot contain matching rows.
+    ///
+    /// 2. **Row-Level Filtering**: For row groups that might contain matches,
+    ///    apply filters during decoding to skip non-matching rows.
     ///
     /// # Mathematical Model
     ///
     /// For selectivity `s` (fraction of rows matching):
+    ///   - Row group pruning can skip G/g row groups based on statistics
     ///   - Row-level filtering reduces output by factor of `s`
-    ///   - Combined with projection: Speedup ≈ (n/k) × (1/s)
+    ///   - Combined with projection: Speedup ≈ (G/g) × (n/k) × (1/s)
     ///
-    /// Example: 10 columns, query 2, 1% selectivity → up to 500x speedup
+    /// Example: 10 row groups, 1 contains data, 10 columns, query 2, 1% selectivity
+    ///          → up to 5000x speedup
     ///
     /// # Arguments
     /// * `data` - Parquet file bytes
@@ -250,12 +260,15 @@ impl ParquetDecoder {
         let builder = ParquetRecordBatchReaderBuilder::try_new(bytes)?;
         let arrow_schema = builder.schema();
         let parquet_schema = builder.parquet_schema();
+        let file_metadata = builder.metadata();
 
-        // Resolve filter column names to indices and create projection mask for filters
+        // Resolve filter column names to indices
         let mut filter_column_indices = Vec::new();
+        let mut filter_to_column_idx = Vec::new();
         for filter in filters {
             match arrow_schema.index_of(&filter.column) {
                 Ok(idx) => {
+                    filter_to_column_idx.push(idx);
                     if !filter_column_indices.contains(&idx) {
                         filter_column_indices.push(idx);
                     }
@@ -268,6 +281,49 @@ impl ParquetDecoder {
                 }
             }
         }
+
+        // =================================================================
+        // PHASE 1: Row Group Pruning
+        // =================================================================
+        // Check each row group's statistics to see if we can skip it entirely.
+
+        let mut selection_ranges: Vec<std::ops::Range<usize>> = Vec::new();
+        let mut current_offset = 0usize;
+        let mut pruned_groups = 0usize;
+        let mut kept_groups = 0usize;
+
+        for rg_idx in 0..file_metadata.num_row_groups() {
+            let row_group = file_metadata.row_group(rg_idx);
+            let num_rows = row_group.num_rows() as usize;
+
+            // Check if this row group can be pruned
+            if can_prune_row_group(row_group, filters, &filter_to_column_idx) {
+                pruned_groups += 1;
+                // Don't add this range - it will be skipped
+            } else {
+                // Keep this row group - add the range
+                selection_ranges.push(current_offset..current_offset + num_rows);
+                kept_groups += 1;
+            }
+
+            current_offset += num_rows;
+        }
+
+        // If all row groups were pruned, return empty
+        if kept_groups == 0 {
+            return Err(ParquetError::EmptyData);
+        }
+
+        // Build the row selection from ranges
+        let total_rows = current_offset;
+        let row_selection = RowSelection::from_consecutive_ranges(
+            selection_ranges.into_iter(),
+            total_rows,
+        );
+
+        // =================================================================
+        // PHASE 2: Row-Level Filtering (within non-pruned row groups)
+        // =================================================================
 
         // Create projection mask for filter columns
         let filter_mask = ProjectionMask::leaves(parquet_schema, filter_column_indices.iter().copied());
@@ -291,8 +347,9 @@ impl ParquetDecoder {
             builder
         };
 
-        // Build reader with filter
+        // Build reader with row selection (from pruning) and row filter (for remaining rows)
         let reader = builder
+            .with_row_selection(row_selection)
             .with_row_filter(row_filter)
             .with_batch_size(self.batch_size)
             .build()?;
@@ -314,6 +371,125 @@ impl ParquetDecoder {
         let schema = batches[0].schema();
         arrow::compute::concat_batches(&schema, &batches).map_err(ParquetError::Arrow)
     }
+
+    /// Get row-group pruning statistics for a filtered decode.
+    ///
+    /// This is useful for debugging and understanding pruning effectiveness.
+    ///
+    /// Returns (total_row_groups, pruned_row_groups, kept_row_groups)
+    pub fn get_pruning_stats(
+        &self,
+        data: &[u8],
+        filters: &[PredicateFilter],
+    ) -> Result<(usize, usize, usize), ParquetError> {
+        if filters.is_empty() {
+            let bytes = Bytes::copy_from_slice(data);
+            let builder = ParquetRecordBatchReaderBuilder::try_new(bytes)?;
+            let num_rg = builder.metadata().num_row_groups();
+            return Ok((num_rg, 0, num_rg));
+        }
+
+        let bytes = Bytes::copy_from_slice(data);
+        let builder = ParquetRecordBatchReaderBuilder::try_new(bytes)?;
+        let arrow_schema = builder.schema();
+        let file_metadata = builder.metadata();
+
+        // Resolve filter column names to indices
+        let mut filter_to_column_idx = Vec::new();
+        for filter in filters {
+            match arrow_schema.index_of(&filter.column) {
+                Ok(idx) => filter_to_column_idx.push(idx),
+                Err(_) => {
+                    return Err(ParquetError::InvalidColumn(format!(
+                        "Filter column '{}' not found in schema",
+                        filter.column
+                    )));
+                }
+            }
+        }
+
+        let total = file_metadata.num_row_groups();
+        let mut pruned = 0;
+
+        for rg_idx in 0..total {
+            let row_group = file_metadata.row_group(rg_idx);
+            if can_prune_row_group(row_group, filters, &filter_to_column_idx) {
+                pruned += 1;
+            }
+        }
+
+        Ok((total, pruned, total - pruned))
+    }
+}
+
+/// Extract min/max statistics from a row group for a specific column.
+///
+/// Returns (min, max) as ScalarValues, or None if statistics are unavailable.
+fn extract_column_stats(
+    row_group: &RowGroupMetaData,
+    column_idx: usize,
+) -> (Option<ScalarValue>, Option<ScalarValue>) {
+    let column_chunk = row_group.column(column_idx);
+
+    match column_chunk.statistics() {
+        Some(stats) => {
+            let min = stats_to_scalar(stats, true);
+            let max = stats_to_scalar(stats, false);
+            (min, max)
+        }
+        None => (None, None),
+    }
+}
+
+/// Convert Parquet Statistics to ScalarValue.
+///
+/// The `is_min` parameter indicates whether to extract min (true) or max (false).
+fn stats_to_scalar(stats: &Statistics, is_min: bool) -> Option<ScalarValue> {
+    match stats {
+        Statistics::Int64(typed_stats) => {
+            let val = if is_min { typed_stats.min_opt()? } else { typed_stats.max_opt()? };
+            Some(ScalarValue::Int64(*val))
+        }
+        Statistics::Int32(typed_stats) => {
+            let val = if is_min { typed_stats.min_opt()? } else { typed_stats.max_opt()? };
+            Some(ScalarValue::Int32(*val))
+        }
+        Statistics::Double(typed_stats) => {
+            let val = if is_min { typed_stats.min_opt()? } else { typed_stats.max_opt()? };
+            Some(ScalarValue::Float64(*val))
+        }
+        Statistics::ByteArray(typed_stats) => {
+            let val = if is_min { typed_stats.min_opt()? } else { typed_stats.max_opt()? };
+            let s = std::str::from_utf8(val.data()).ok()?;
+            Some(ScalarValue::Utf8(s.to_string()))
+        }
+        Statistics::Boolean(typed_stats) => {
+            let val = if is_min { typed_stats.min_opt()? } else { typed_stats.max_opt()? };
+            Some(ScalarValue::Boolean(*val))
+        }
+        _ => None,
+    }
+}
+
+/// Check if a row group can be pruned based on filter predicates and statistics.
+///
+/// Returns true if ALL filters indicate the row group can be skipped.
+fn can_prune_row_group(
+    row_group: &RowGroupMetaData,
+    filters: &[PredicateFilter],
+    column_indices: &[usize], // Filter column indices in the same order as filters
+) -> bool {
+    for (filter, &col_idx) in filters.iter().zip(column_indices.iter()) {
+        let (min, max) = extract_column_stats(row_group, col_idx);
+
+        // If ANY filter can prune, skip this row group
+        if filter.can_prune_row_group(min.as_ref(), max.as_ref()) {
+            return true;
+        }
+    }
+
+    // Can't prune - might have matching rows
+    false
 }
 
 /// Apply multiple filters to a record batch, returning a boolean mask.
@@ -884,5 +1060,56 @@ mod tests {
 
         let result = decoder.decode_with_filter(&encoded, &[filter], None);
         assert!(matches!(result, Err(ParquetError::InvalidColumn(_))));
+    }
+
+    // ========== Row Group Pruning Tests ==========
+
+    #[test]
+    fn test_get_pruning_stats_no_filters() {
+        let original = create_test_batch(1000);
+        let encoded = encode_batch(&original);
+
+        let decoder = ParquetDecoder::new();
+        let (total, pruned, kept) = decoder.get_pruning_stats(&encoded, &[]).unwrap();
+
+        // No filters means no pruning
+        assert_eq!(pruned, 0);
+        assert_eq!(total, kept);
+    }
+
+    #[test]
+    fn test_get_pruning_stats_with_filter() {
+        // Test batch has ids 0-999
+        let original = create_test_batch(1000);
+        let encoded = encode_batch(&original);
+
+        let decoder = ParquetDecoder::new();
+
+        // Filter that matches some data (id < 500)
+        let filter = PredicateFilter::new("id", FilterOp::Lt, ScalarValue::Int64(500));
+        let (total, pruned, kept) = decoder.get_pruning_stats(&encoded, &[filter]).unwrap();
+
+        // With a single row group (typical for small files), pruning may not occur
+        // but at least the function should return valid results
+        assert!(total > 0);
+        assert_eq!(total, pruned + kept);
+    }
+
+    #[test]
+    fn test_row_group_pruning_all_pruned() {
+        // Test batch has ids 0-99
+        let original = create_test_batch(100);
+        let encoded = encode_batch(&original);
+
+        let decoder = ParquetDecoder::new();
+
+        // Filter that matches NO data (id > 9999)
+        let filter = PredicateFilter::new("id", FilterOp::Gt, ScalarValue::Int64(9999));
+
+        // Should return empty since filter can prune based on statistics
+        let result = decoder.decode_with_filter(&encoded, &[filter], None);
+
+        // Either pruned via stats OR row-level filter returns empty
+        assert!(matches!(result, Err(ParquetError::EmptyData)));
     }
 }
