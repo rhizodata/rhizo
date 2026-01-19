@@ -14,7 +14,7 @@ Thank you for your interest in contributing to Rhizo! This document provides gui
 
 ```bash
 # Clone the repository
-git clone https://github.com/aquadantheman/rhizo.git
+git clone https://github.com/Aquadantheman/rhizo.git
 cd rhizo
 
 # Create a virtual environment
@@ -40,10 +40,10 @@ pytest tests/ -v
 ### Running Tests
 
 ```bash
-# Rust tests (204 tests)
+# Rust tests (370 tests)
 cargo test --all
 
-# Python tests (247 tests)
+# Python tests (262 tests)
 pytest tests/ -v
 
 # Run a specific test file
@@ -75,10 +75,15 @@ rhizo/
 │       ├── catalog/        # Versioned file catalog
 │       ├── branch/         # Git-like branching
 │       ├── transaction/    # Cross-table ACID transactions
-│       └── changelog/      # Change tracking
-├── rhizo_python/         # PyO3 bindings (builds 'rhizo' module)
-├── python/             # Python query layer (rhizo-query)
+│       ├── changelog/      # Change tracking
+│       ├── merkle/         # Merkle tree deduplication
+│       ├── algebraic/      # Algebraic merge operations
+│       └── distributed/    # Coordination-free transactions
+├── rhizo_python/         # PyO3 bindings (builds '_rhizo' module)
+├── python/             # Python query layer
 │   └── rhizo/
+│       ├── engine.py       # QueryEngine (DuckDB-based)
+│       └── olap_engine.py  # OLAPEngine (DataFusion-based)
 ├── tests/              # Python test suite
 └── examples/           # Usage examples
 ```
