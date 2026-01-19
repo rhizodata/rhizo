@@ -27,8 +27,9 @@ use rhizo_core::{
     SimulatedCluster, SimulationConfig, SimulationStats, NetworkCondition,
 };
 
-// Phase 4: pyo3-arrow for zero-copy Arrow FFI
-use pyo3_arrow::PyRecordBatch;
+// Phase 4: Arrow pyarrow for zero-copy FFI
+use arrow_pyarrow::{ToPyArrow, FromPyArrow};
+use arrow::record_batch::RecordBatch;
 
 /// Convert ChunkStoreError to appropriate Python exception
 fn chunk_err_to_py(e: ChunkStoreError) -> PyErr {
@@ -141,7 +142,7 @@ fn parquet_err_to_py(e: ParquetError) -> PyErr {
 
 /// High-performance Parquet encoder using Rust's parquet crate.
 ///
-/// Provides zero-copy Arrow data transfer from Python via pyo3-arrow,
+/// Provides zero-copy Arrow data transfer from Python via Arrow's pyarrow FFI,
 /// and parallel encoding of multiple batches using Rayon.
 #[pyclass]
 struct PyParquetEncoder {
@@ -174,8 +175,9 @@ impl PyParquetEncoder {
     ///
     /// Returns:
     ///     bytes: Parquet-encoded data
-    fn encode(&self, batch: PyRecordBatch) -> PyResult<Vec<u8>> {
-        let rust_batch = batch.into_inner();
+    fn encode(&self, batch: Bound<'_, PyAny>) -> PyResult<Vec<u8>> {
+        let rust_batch = RecordBatch::from_pyarrow_bound(&batch)
+            .map_err(|e| PyValueError::new_err(format!("Invalid RecordBatch: {}", e)))?;
         self.inner.encode(&rust_batch).map_err(parquet_err_to_py)
     }
 
@@ -189,8 +191,12 @@ impl PyParquetEncoder {
     ///
     /// Returns:
     ///     List[bytes]: Parquet-encoded data for each batch
-    fn encode_batch(&self, batches: Vec<PyRecordBatch>) -> PyResult<Vec<Vec<u8>>> {
-        let rust_batches: Vec<_> = batches.into_iter().map(|b| b.into_inner()).collect();
+    fn encode_batch(&self, batches: Vec<Bound<'_, PyAny>>) -> PyResult<Vec<Vec<u8>>> {
+        let rust_batches: Vec<_> = batches
+            .iter()
+            .map(|b| RecordBatch::from_pyarrow_bound(b))
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| PyValueError::new_err(format!("Invalid RecordBatch: {}", e)))?;
         self.inner
             .encode_batch(&rust_batches)
             .map_err(parquet_err_to_py)
@@ -199,7 +205,7 @@ impl PyParquetEncoder {
 
 /// High-performance Parquet decoder using Rust's parquet crate.
 ///
-/// Provides zero-copy Arrow data transfer to Python via pyo3-arrow,
+/// Provides zero-copy Arrow data transfer to Python via Arrow's pyarrow FFI,
 /// and parallel decoding of multiple chunks using Rayon.
 #[pyclass]
 struct PyParquetDecoder {
@@ -225,7 +231,7 @@ impl PyParquetDecoder {
     ///     PyArrow RecordBatch (zero-copy transfer)
     fn decode<'py>(&self, py: Python<'py>, data: &[u8]) -> PyResult<Bound<'py, PyAny>> {
         let batch = self.inner.decode(data).map_err(parquet_err_to_py)?;
-        PyRecordBatch::new(batch).into_pyarrow(py)
+        batch.to_pyarrow(py).map_err(|e| PyValueError::new_err(e.to_string()))
     }
 
     /// Decode multiple Parquet chunks in parallel.
@@ -250,7 +256,7 @@ impl PyParquetDecoder {
 
         batches
             .into_iter()
-            .map(|batch| PyRecordBatch::new(batch).into_pyarrow(py))
+            .map(|batch| batch.to_pyarrow(py).map_err(|e| PyValueError::new_err(e.to_string())))
             .collect()
     }
 
@@ -279,7 +285,7 @@ impl PyParquetDecoder {
             .inner
             .decode_columns(data, &column_indices)
             .map_err(parquet_err_to_py)?;
-        PyRecordBatch::new(batch).into_pyarrow(py)
+        batch.to_pyarrow(py).map_err(|e| PyValueError::new_err(e.to_string()))
     }
 
     /// Decode only specific columns by name (projection pushdown).
@@ -308,7 +314,7 @@ impl PyParquetDecoder {
             .inner
             .decode_columns_by_name(data, &names)
             .map_err(parquet_err_to_py)?;
-        PyRecordBatch::new(batch).into_pyarrow(py)
+        batch.to_pyarrow(py).map_err(|e| PyValueError::new_err(e.to_string()))
     }
 
     /// Decode with predicate pushdown (row-level filtering).
@@ -355,7 +361,7 @@ impl PyParquetDecoder {
                 column_indices.as_deref(),
             )
             .map_err(parquet_err_to_py)?;
-        PyRecordBatch::new(batch).into_pyarrow(py)
+        batch.to_pyarrow(py).map_err(|e| PyValueError::new_err(e.to_string()))
     }
 
     /// Get row-group pruning statistics for a filtered decode.

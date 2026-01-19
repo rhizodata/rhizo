@@ -14,10 +14,6 @@ rhizo_core = { path = "../rhizo_core" }
 serde_json = "1.0"
 
 # Phase 4: Native Arrow/Parquet with zero-copy FFI
-# Use version 0.14 which matches arrow 57, disable chrono-tz to avoid IntoPyObject bug
-pyo3-arrow = { version = "0.14", default-features = false }
-
-# Force arrow-array to use same version without chrono-tz
-[dependencies.arrow-array]
-version = "57"
-default-features = false
+# Use arrow-pyarrow for zero-copy Python interop
+arrow = "57"
+arrow-pyarrow = "57"
