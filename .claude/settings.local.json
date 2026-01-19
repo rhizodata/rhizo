@@ -1,7 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(git -C \"C:\\\\Users\\\\linde\\\\dev\\\\unifieddataruntime\" push)"
-    ]
-  }
-}
