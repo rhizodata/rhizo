@@ -1,5 +1,5 @@
 """
-Integration tests for the Unified Data Runtime Python bindings.
+Integration tests for the Rhizo Python bindings.
 
 Run with: pytest tests/test_rhizo.py -v
 Requires: pip install maturin pytest

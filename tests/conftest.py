@@ -1,5 +1,5 @@
 """
-Pytest configuration for UDR tests.
+Pytest configuration for Rhizo tests.
 
 This file ensures the python package is on the path before tests run.
 """
