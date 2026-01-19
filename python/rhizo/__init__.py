@@ -66,6 +66,10 @@ from _rhizo import (
     PyMergeAnalysis,
     PyMergeOutcome,
     algebraic_merge,
+    # Distributed types (coordination-free transactions)
+    PyNodeId,
+    PyCausalOrder,
+    PyVectorClock,
 )
 
 __version__ = "0.4.0"
@@ -116,4 +120,8 @@ __all__ = [
     "PyMergeAnalysis",
     "PyMergeOutcome",
     "algebraic_merge",
+    # Distributed types
+    "PyNodeId",
+    "PyCausalOrder",
+    "PyVectorClock",
 ]

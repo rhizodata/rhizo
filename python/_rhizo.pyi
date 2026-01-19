@@ -770,3 +770,183 @@ def analyze_merge(
         Analysis indicating which tables can be auto-merged
     """
     ...
+
+
+# ============================================================================
+# Distributed Types (Coordination-Free Transactions)
+# ============================================================================
+
+
+class PyNodeId:
+    """Node identifier for distributed systems.
+
+    Each node in a distributed Rhizo deployment should have a unique ID.
+
+    Example:
+        >>> node_sf = PyNodeId("san-francisco")
+        >>> node_tokyo = PyNodeId("tokyo")
+    """
+
+    def __init__(self, id: str) -> None:
+        """Create a new node identifier.
+
+        Args:
+            id: Unique string identifier for this node.
+        """
+        ...
+
+    def __str__(self) -> str:
+        """Return the node ID as a string."""
+        ...
+
+    def __repr__(self) -> str:
+        ...
+
+    def __eq__(self, other: "PyNodeId") -> bool:
+        ...
+
+    def __hash__(self) -> int:
+        ...
+
+
+class PyCausalOrder:
+    """Causal ordering relationship between two events.
+
+    Attributes:
+        order: One of "before", "after", "concurrent", or "equal"
+    """
+
+    order: str
+
+    def needs_merge(self) -> bool:
+        """Check if merge is needed (concurrent events require merge)."""
+        ...
+
+    def should_apply(self) -> bool:
+        """Check if update should be applied (other is newer or concurrent)."""
+        ...
+
+    def __str__(self) -> str:
+        ...
+
+    def __repr__(self) -> str:
+        ...
+
+
+class PyVectorClock:
+    """Vector clock for causality tracking in distributed systems.
+
+    Vector clocks enable determining whether events happened-before
+    each other or are concurrent (requiring algebraic merge).
+
+    Example:
+        >>> node_a = PyNodeId("sf")
+        >>> node_b = PyNodeId("tokyo")
+        >>>
+        >>> # Each node has its own clock
+        >>> clock_a = PyVectorClock()
+        >>> clock_a.tick(node_a)  # Local operation
+        >>>
+        >>> clock_b = PyVectorClock()
+        >>> clock_b.tick(node_b)  # Local operation
+        >>>
+        >>> # These are concurrent!
+        >>> clock_a.concurrent_with(clock_b)  # True
+        >>>
+        >>> # After node A receives message from B:
+        >>> clock_a.merge(clock_b)
+        >>> clock_a.tick(node_a)
+        >>>
+        >>> # Now A is causally after B
+        >>> clock_b.happened_before(clock_a)  # True
+    """
+
+    def __init__(self) -> None:
+        """Create a new, empty vector clock."""
+        ...
+
+    @staticmethod
+    def with_node(node_id: PyNodeId, time: int) -> "PyVectorClock":
+        """Create a clock with a single node's time initialized."""
+        ...
+
+    def tick(self, node_id: PyNodeId) -> None:
+        """Increment this node's logical time.
+
+        Call this before performing a local operation that should be tracked.
+        """
+        ...
+
+    def get(self, node_id: PyNodeId) -> int:
+        """Get the logical time for a specific node."""
+        ...
+
+    def set(self, node_id: PyNodeId, time: int) -> None:
+        """Set the logical time for a specific node."""
+        ...
+
+    def merge(self, other: "PyVectorClock") -> None:
+        """Merge another vector clock into this one.
+
+        After merging, this clock will have the component-wise maximum.
+        Call this when receiving a message from another node.
+        """
+        ...
+
+    def happened_before(self, other: "PyVectorClock") -> bool:
+        """Check if this clock happened strictly before another clock."""
+        ...
+
+    def happened_after(self, other: "PyVectorClock") -> bool:
+        """Check if this clock happened strictly after another clock."""
+        ...
+
+    def concurrent_with(self, other: "PyVectorClock") -> bool:
+        """Check if two clocks are concurrent.
+
+        Concurrent events need algebraic merging.
+        """
+        ...
+
+    def compare(self, other: "PyVectorClock") -> PyCausalOrder:
+        """Compare two clocks and return the causal relationship."""
+        ...
+
+    def node_count(self) -> int:
+        """Get the number of nodes with entries in this clock."""
+        ...
+
+    def is_empty(self) -> bool:
+        """Check if this clock is empty (no nodes have ticked)."""
+        ...
+
+    def sum(self) -> int:
+        """Get the sum of all logical times."""
+        ...
+
+    @staticmethod
+    def max(a: "PyVectorClock", b: "PyVectorClock") -> "PyVectorClock":
+        """Create a merged copy of two clocks (max of each component)."""
+        ...
+
+    def ticked(self, node_id: PyNodeId) -> "PyVectorClock":
+        """Return a copy with incremented time for the given node."""
+        ...
+
+    def to_json(self) -> str:
+        """Serialize to JSON string."""
+        ...
+
+    @staticmethod
+    def from_json(json: str) -> "PyVectorClock":
+        """Deserialize from JSON string."""
+        ...
+
+    def __str__(self) -> str:
+        ...
+
+    def __repr__(self) -> str:
+        ...
+
+    def __eq__(self, other: "PyVectorClock") -> bool:
+        ...

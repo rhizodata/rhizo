@@ -3,6 +3,7 @@ pub mod branch;
 pub mod catalog;
 pub mod changelog;
 pub mod chunk_store;
+pub mod distributed;
 pub mod merkle;
 pub mod parquet;
 pub mod transaction;
@@ -30,3 +31,5 @@ pub use transaction::{
     RecoveryReport, TableLevelConflictDetector, TableWrite, TransactionError, TransactionLog,
     TransactionManager, TransactionRecord, TransactionStatus, TxId, WriteGranularity,
 };
+
+pub use distributed::{CausalOrder, NodeId, VectorClock};

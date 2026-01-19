@@ -19,6 +19,8 @@ use rhizo_core::{
     // Algebraic types
     OpType, AlgebraicValue, AlgebraicMerger, MergeResult,
     TableAlgebraicSchema, AlgebraicSchemaRegistry,
+    // Distributed types
+    VectorClock, NodeId, CausalOrder,
 };
 
 // Phase 4: pyo3-arrow for zero-copy Arrow FFI
@@ -2177,6 +2179,228 @@ impl PyMergeOutcome {
     }
 }
 
+// ============================================================================
+// Distributed Types (Coordination-Free Transactions)
+// ============================================================================
+
+/// Node identifier for distributed systems.
+#[pyclass]
+#[derive(Clone)]
+pub struct PyNodeId {
+    inner: NodeId,
+}
+
+#[pymethods]
+impl PyNodeId {
+    #[new]
+    fn new(id: &str) -> Self {
+        Self {
+            inner: NodeId::new(id),
+        }
+    }
+
+    fn __str__(&self) -> String {
+        self.inner.as_str().to_string()
+    }
+
+    fn __repr__(&self) -> String {
+        format!("NodeId('{}')", self.inner.as_str())
+    }
+
+    fn __eq__(&self, other: &PyNodeId) -> bool {
+        self.inner == other.inner
+    }
+
+    fn __hash__(&self) -> u64 {
+        use std::hash::{Hash, Hasher};
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        self.inner.as_str().hash(&mut hasher);
+        hasher.finish()
+    }
+}
+
+/// Causal ordering relationship between events.
+#[pyclass]
+#[derive(Clone)]
+pub struct PyCausalOrder {
+    #[pyo3(get)]
+    order: String,
+}
+
+impl From<CausalOrder> for PyCausalOrder {
+    fn from(order: CausalOrder) -> Self {
+        let order_str = match order {
+            CausalOrder::Before => "before",
+            CausalOrder::After => "after",
+            CausalOrder::Concurrent => "concurrent",
+            CausalOrder::Equal => "equal",
+        };
+        Self {
+            order: order_str.to_string(),
+        }
+    }
+}
+
+#[pymethods]
+impl PyCausalOrder {
+    /// Check if merge is needed (concurrent events require merge).
+    fn needs_merge(&self) -> bool {
+        self.order == "concurrent"
+    }
+
+    /// Check if update should be applied (other is newer or concurrent).
+    fn should_apply(&self) -> bool {
+        self.order == "before" || self.order == "concurrent"
+    }
+
+    fn __str__(&self) -> String {
+        self.order.clone()
+    }
+
+    fn __repr__(&self) -> String {
+        format!("CausalOrder('{}')", self.order)
+    }
+}
+
+/// Vector clock for causality tracking in distributed systems.
+///
+/// Vector clocks enable determining whether events happened-before
+/// each other or are concurrent (requiring algebraic merge).
+///
+/// Example:
+///     >>> node_a = PyNodeId("sf")
+///     >>> node_b = PyNodeId("tokyo")
+///     >>> clock_a = PyVectorClock()
+///     >>> clock_a.tick(node_a)
+///     >>> clock_b = PyVectorClock()
+///     >>> clock_b.tick(node_b)
+///     >>> clock_a.concurrent_with(clock_b)  # True - need to merge!
+#[pyclass]
+#[derive(Clone)]
+pub struct PyVectorClock {
+    inner: VectorClock,
+}
+
+#[pymethods]
+impl PyVectorClock {
+    #[new]
+    fn new() -> Self {
+        Self {
+            inner: VectorClock::new(),
+        }
+    }
+
+    /// Create a clock with a single node's time initialized.
+    #[staticmethod]
+    fn with_node(node_id: &PyNodeId, time: u64) -> Self {
+        Self {
+            inner: VectorClock::with_node(&node_id.inner, time),
+        }
+    }
+
+    /// Increment this node's logical time.
+    ///
+    /// Call this before performing a local operation that should be tracked.
+    fn tick(&mut self, node_id: &PyNodeId) {
+        self.inner.tick(&node_id.inner);
+    }
+
+    /// Get the logical time for a specific node.
+    fn get(&self, node_id: &PyNodeId) -> u64 {
+        self.inner.get(&node_id.inner)
+    }
+
+    /// Set the logical time for a specific node.
+    fn set(&mut self, node_id: &PyNodeId, time: u64) {
+        self.inner.set(&node_id.inner, time);
+    }
+
+    /// Merge another vector clock into this one.
+    ///
+    /// After merging, this clock will have the component-wise maximum.
+    fn merge(&mut self, other: &PyVectorClock) {
+        self.inner.merge(&other.inner);
+    }
+
+    /// Check if this clock happened strictly before another clock.
+    fn happened_before(&self, other: &PyVectorClock) -> bool {
+        self.inner.happened_before(&other.inner)
+    }
+
+    /// Check if this clock happened strictly after another clock.
+    fn happened_after(&self, other: &PyVectorClock) -> bool {
+        self.inner.happened_after(&other.inner)
+    }
+
+    /// Check if two clocks are concurrent (neither happened before the other).
+    ///
+    /// Concurrent events may need algebraic merging.
+    fn concurrent_with(&self, other: &PyVectorClock) -> bool {
+        self.inner.concurrent_with(&other.inner)
+    }
+
+    /// Compare two clocks and return the causal relationship.
+    fn compare(&self, other: &PyVectorClock) -> PyCausalOrder {
+        PyCausalOrder::from(self.inner.compare(&other.inner))
+    }
+
+    /// Get the number of nodes with entries in this clock.
+    fn node_count(&self) -> usize {
+        self.inner.node_count()
+    }
+
+    /// Check if this clock is empty (no nodes have ticked).
+    fn is_empty(&self) -> bool {
+        self.inner.is_empty()
+    }
+
+    /// Get the sum of all logical times.
+    fn sum(&self) -> u64 {
+        self.inner.sum()
+    }
+
+    /// Create a merged copy of two clocks (max of each component).
+    #[staticmethod]
+    fn max(a: &PyVectorClock, b: &PyVectorClock) -> PyVectorClock {
+        PyVectorClock {
+            inner: VectorClock::max(&a.inner, &b.inner),
+        }
+    }
+
+    /// Return a copy with incremented time for the given node.
+    fn ticked(&self, node_id: &PyNodeId) -> PyVectorClock {
+        PyVectorClock {
+            inner: self.inner.ticked(&node_id.inner),
+        }
+    }
+
+    /// Serialize to JSON string.
+    fn to_json(&self) -> PyResult<String> {
+        serde_json::to_string(&self.inner)
+            .map_err(|e| PyValueError::new_err(format!("Serialization error: {}", e)))
+    }
+
+    /// Deserialize from JSON string.
+    #[staticmethod]
+    fn from_json(json: &str) -> PyResult<PyVectorClock> {
+        let inner: VectorClock = serde_json::from_str(json)
+            .map_err(|e| PyValueError::new_err(format!("Deserialization error: {}", e)))?;
+        Ok(PyVectorClock { inner })
+    }
+
+    fn __str__(&self) -> String {
+        self.inner.to_string()
+    }
+
+    fn __repr__(&self) -> String {
+        format!("VectorClock({})", self.inner)
+    }
+
+    fn __eq__(&self, other: &PyVectorClock) -> bool {
+        self.inner == other.inner
+    }
+}
+
 /// Analyze merge compatibility using algebraic schemas.
 ///
 /// Args:
@@ -2249,6 +2473,11 @@ fn _rhizo(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyMergeOutcome>()?;
     m.add_function(wrap_pyfunction!(algebraic_merge, m)?)?;
     m.add_function(wrap_pyfunction!(analyze_merge, m)?)?;
+
+    // Distributed (Coordination-Free Transactions)
+    m.add_class::<PyNodeId>()?;
+    m.add_class::<PyCausalOrder>()?;
+    m.add_class::<PyVectorClock>()?;
 
     Ok(())
 }
