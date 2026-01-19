@@ -52,6 +52,7 @@ BENCHMARK_NOTES.md
 
 # Benchmark results (machine-specific, regenerated on each run)
 /benchmarks/results/
+comparison_results.json
 
 # Archived benchmarks (historical, kept locally)
 /benchmarks/archive/
