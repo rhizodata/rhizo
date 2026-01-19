@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Armillaria Demo: Corruption-Proof Storage
+Rhizo Demo: Corruption-Proof Storage
 
 This demo shows how content-addressable storage makes your data tamper-evident.
 
@@ -10,7 +10,7 @@ The Problem:
     - Accidental overwrites corrupt without warning
     - Malicious tampering leaves no trace
 
-The Armillaria Solution:
+The Rhizo Solution:
     Every chunk is named by its BLAKE3 hash. If even one bit changes,
     the hash won't match. Corruption is impossible to hide.
 
@@ -76,11 +76,11 @@ def corrupt_file(path: str) -> None:
 
 def main():
     print(r"""
-     _                _ _ _            _
-    / \   _ __ _ __ _(_) | | __ _ _ __(_) __ _
-   / _ \ | '__| '_ ` _ \ | | / _` | '__| |/ _` |
-  / ___ \| |  | | | | | | | | (_| | |  | | (_| |
- /_/   \_\_|  |_| |_| |_|_|_|\__,_|_|  |_|\__,_|
+  ____  _     _
+ |  _ \| |__ (_)_______
+ | |_) | '_ \| |_  / _ \
+ |  _ <| | | | |/ / (_) |
+ |_| \_\_| |_|_/___\___/
 
     Corruption-Proof Storage Demo
     "Trust, but verify. Automatically."
@@ -92,7 +92,7 @@ def main():
     print(f"Storage: {base_dir}")
 
     try:
-        # Initialize Armillaria with integrity verification ENABLED
+        # Initialize Rhizo with integrity verification ENABLED
         store = _rhizo.PyChunkStore(chunks_dir)
         catalog = _rhizo.PyCatalog(os.path.join(base_dir, "catalog"))
 
@@ -186,7 +186,7 @@ We'll corrupt one of the chunk files directly.
         # ============================================================
 
         print("""
-Now when we try to read the data, Armillaria will:
+Now when we try to read the data, Rhizo will:
 1. Read the chunk file
 2. Compute BLAKE3 hash of what it read
 3. Compare against the expected hash (filename)
@@ -206,7 +206,7 @@ This is automatic. No special verification step needed.
             error_msg = str(e)
             print("\nCORRUPTION DETECTED!")
             print(f"\nError: {error_msg[:200]}...")
-            print("\nArmillaria refused to serve corrupted data.")
+            print("\nRhizo refused to serve corrupted data.")
             print("Your application KNOWS something is wrong.")
 
         # ============================================================
@@ -232,7 +232,7 @@ Without content-addressable storage, here's what happens:
    - Restore corrupted backups
    - Data permanently lost
 
-With Armillaria:
+With Rhizo:
    - Every read is automatically verified
    - Corruption caught immediately
    - No separate integrity checks needed
@@ -290,7 +290,7 @@ What we demonstrated:
    - Automatic, exact deduplication
    - Enables efficient backup and recovery
 
-This is why Armillaria uses content-addressable storage.
+This is why Rhizo uses content-addressable storage.
 Your data integrity is guaranteed by mathematics, not trust.
         """)
 

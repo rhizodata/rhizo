@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Armillaria Demo: Zero-Copy Data Branching
+Rhizo Demo: Zero-Copy Data Branching
 
 This demo shows Git-like branching for your data - without copying anything.
 
@@ -10,7 +10,7 @@ The Problem:
     2. Run experiments on a sample (not representative)
     3. YOLO on production (risky)
 
-The Armillaria Solution:
+The Rhizo Solution:
     Create a branch instantly. Zero storage overhead. Full isolation.
     Experiment freely. Merge when ready. Delete if not.
 
@@ -71,11 +71,11 @@ def wait_for_input(prompt: str = "Press Enter to continue...") -> None:
 
 def main():
     print(r"""
-     _                _ _ _            _
-    / \   _ __ _ __ _(_) | | __ _ _ __(_) __ _
-   / _ \ | '__| '_ ` _ \ | | / _` | '__| |/ _` |
-  / ___ \| |  | | | | | | | | (_| | |  | | (_| |
- /_/   \_\_|  |_| |_| |_|_|_|\__,_|_|  |_|\__,_|
+  ____  _     _
+ |  _ \| |__ (_)_______
+ | |_) | '_ \| |_  / _ \
+ |  _ <| | | | |/ / (_) |
+ |_| \_\_| |_|_/___\___/
 
     Zero-Copy Data Branching Demo
     "Git for your data. No copies required."
@@ -86,7 +86,7 @@ def main():
     print(f"Storage: {base_dir}")
 
     try:
-        # Initialize Armillaria
+        # Initialize Rhizo
         store = _rhizo.PyChunkStore(os.path.join(base_dir, "chunks"))
         catalog = _rhizo.PyCatalog(os.path.join(base_dir, "catalog"))
         branches = _rhizo.PyBranchManager(os.path.join(base_dir, "branches"))
@@ -130,7 +130,7 @@ Traditional approach to experiment safely:
   2. Wait for copy to complete...
   3. Storage doubles immediately
 
-Armillaria approach:
+Rhizo approach:
   1. Create branch (instant, zero-copy)
   2. Done.
         """)
@@ -275,7 +275,7 @@ Traditional approach (copy entire dataset):
   Copy:       {format_bytes(storage_after_initial)} (duplicate)
   Total:      {format_bytes(storage_after_initial * 2)}
 
-Armillaria approach:
+Rhizo approach:
   Total:      {format_bytes(final_storage)}
   Savings:    {format_bytes(storage_after_initial * 2 - final_storage)} ({100 * (1 - final_storage / (storage_after_initial * 2)):.0f}% less!)
         """)
@@ -303,7 +303,7 @@ What we demonstrated:
    - Create branch, experiment, merge or delete
    - Git-like workflow for data
 
-This is what makes Armillaria unique.
+This is what makes Rhizo unique.
 Data versioning should be this simple.
         """)
 

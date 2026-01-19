@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Unified Batch/Stream Demo - Showcase Armillaria's changelog and subscription capabilities.
+Unified Batch/Stream Demo - Showcase Rhizo's changelog and subscription capabilities.
 
-This demo shows the key innovation of Armillaria: unified batch and stream semantics.
+This demo shows the key innovation of Rhizo: unified batch and stream semantics.
 Instead of separate systems for "what is the data?" and "what changed?",
-Armillaria provides both through a single, consistent interface.
+Rhizo provides both through a single, consistent interface.
 
 The Five Patterns Demonstrated:
 1. Batch Query: "What is the current state?"
@@ -29,7 +29,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'python'))
 
 import pandas as pd
 
-# Import Armillaria components
+# Import Rhizo components
 import rhizo
 import _rhizo
 from rhizo import QueryEngine, Subscriber, ChangeEvent
@@ -49,11 +49,11 @@ def print_subsection(title: str):
 
 def main():
     print(r"""
-     _                _ _ _            _
-    / \   _ __ _ __ _(_) | | __ _ _ __(_) __ _
-   / _ \ | '__| '_ ` _ \ | | / _` | '__| |/ _` |
-  / ___ \| |  | | | | | | | | (_| | |  | | (_| |
- /_/   \_\_|  |_| |_| |_|_|_|\__,_|_|  |_|\__,_|
+  ____  _     _
+ |  _ \| |__ (_)_______
+ | |_) | '_ \| |_  / _ \
+ |  _ <| | | | |/ / (_) |
+ |_| \_\_| |_|_/___\___/
 
     Unified Batch/Stream Demo
     "One system for both. No compromises."
@@ -68,7 +68,7 @@ def main():
 
     print(f"Storage location: {temp_dir}")
     print("""
-This demo shows how Armillaria unifies batch and streaming workloads:
+This demo shows how Rhizo unifies batch and streaming workloads:
 
   BATCH:  "What is the state?"     -> engine.query()
   STREAM: "What changed?"          -> engine.get_changes() / engine.subscribe()
@@ -77,7 +77,7 @@ Same data. Same guarantees. One system.
 """)
 
     try:
-        # Initialize Armillaria components with full transaction support
+        # Initialize Rhizo components with full transaction support
         store = _rhizo.PyChunkStore(chunks_dir)
         catalog = _rhizo.PyCatalog(catalog_dir)
         branches = _rhizo.PyBranchManager(branches_dir)
@@ -299,9 +299,9 @@ This pattern enables:
         print_section("Summary: Unified Batch/Stream")
 
         print("""
-Armillaria provides BOTH batch and stream semantics through ONE system:
+Rhizo provides BOTH batch and stream semantics through ONE system:
 
-  BEFORE Armillaria (fragmented):
+  BEFORE Rhizo (fragmented):
   +-----------------+     +------------------+
   |   PostgreSQL    | --> |      Kafka       | --> downstream
   | (current state) |     | (change events)  |
@@ -311,9 +311,9 @@ Armillaria provides BOTH batch and stream semantics through ONE system:
     Batch queries          Stream processing
     (different API)        (different API)
 
-  WITH Armillaria (unified):
+  WITH Rhizo (unified):
   +------------------------------------------+
-  |                   Armillaria                |
+  |                   Rhizo                |
   |                                          |
   |  engine.query()     ->  "What is state?" |
   |  engine.get_changes() -> "What changed?" |

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Armillaria Demo: Cross-Table ACID Transactions
+Rhizo Demo: Cross-Table ACID Transactions
 
 This demo shows something Delta Lake, Iceberg, and Hudi CANNOT do:
 atomic transactions across multiple tables.
@@ -12,7 +12,7 @@ The Problem:
     - Manual saga patterns
     - Or just hope nothing fails mid-way
 
-The Armillaria Solution:
+The Rhizo Solution:
     True cross-table ACID. All tables commit together, or all rollback.
     No external infrastructure. No hope required.
 
@@ -62,11 +62,11 @@ def wait_for_input(prompt: str = "Press Enter to continue...") -> None:
 
 def main():
     print(r"""
-     _                _ _ _            _
-    / \   _ __ _ __ _(_) | | __ _ _ __(_) __ _
-   / _ \ | '__| '_ ` _ \ | | / _` | '__| |/ _` |
-  / ___ \| |  | | | | | | | | (_| | |  | | (_| |
- /_/   \_\_|  |_| |_| |_|_|_|\__,_|_|  |_|\__,_|
+  ____  _     _
+ |  _ \| |__ (_)_______
+ | |_) | '_ \| |_  / _ \
+ |  _ <| | | | |/ / (_) |
+ |_| \_\_| |_|_/___\___/
 
     Cross-Table ACID Transactions Demo
     "What Delta Lake and Iceberg can't do."
@@ -77,7 +77,7 @@ def main():
     print(f"Storage: {base_dir}")
 
     try:
-        # Initialize Armillaria
+        # Initialize Rhizo
         store = _rhizo.PyChunkStore(os.path.join(base_dir, "chunks"))
         catalog = _rhizo.PyCatalog(os.path.join(base_dir, "catalog"))
         branches = _rhizo.PyBranchManager(os.path.join(base_dir, "branches"))
@@ -207,7 +207,7 @@ Scenario: Bob (id=2) tries to place an order for $999.
 But something goes wrong mid-transaction!
 
 In Delta Lake/Iceberg: Partial commit disaster.
-In Armillaria: Everything rolls back. Data stays consistent.
+In Rhizo: Everything rolls back. Data stays consistent.
         """)
 
         wait_for_input("Press Enter to execute the failing transaction...")
@@ -267,7 +267,7 @@ In Armillaria: Everything rolls back. Data stays consistent.
         # ============================================================
 
         print("""
-What you'd have to do WITHOUT Armillaria:
+What you'd have to do WITHOUT Rhizo:
 
 Delta Lake / Iceberg (single-table transactions):
 ```python
@@ -301,7 +301,7 @@ except:
     # Hope you got the compensation right!
 ```
 
-Armillaria (built-in cross-table ACID):
+Rhizo (built-in cross-table ACID):
 ```python
 with engine.transaction() as tx:
     tx.write_table("customers", updated)
@@ -332,10 +332,10 @@ What we demonstrated:
 
 4. NO EXTERNAL INFRASTRUCTURE
    - No Kafka, no Spark transactions, no saga patterns
-   - Just Python and Armillaria
+   - Just Python and Rhizo
 
 This is what Delta Lake and Iceberg cannot do.
-This is why Armillaria exists.
+This is why Rhizo exists.
         """)
 
     finally:

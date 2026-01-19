@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Full Competition Benchmark: Armillaria vs All Competitors
+Full Competition Benchmark: Rhizo vs All Competitors
 
 Compares against:
 - Delta Lake (deltalake)
@@ -26,7 +26,7 @@ import numpy as np
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-# Armillaria
+# Rhizo
 import rhizo
 import _rhizo
 from rhizo import QueryEngine
@@ -104,11 +104,11 @@ atexit.register(_cleanup_on_exit)
 
 
 # =============================================================================
-# Armillaria Benchmarks
+# Rhizo Benchmarks
 # =============================================================================
 
 def benchmark_rhizo(df: pd.DataFrame, path: str, num_versions: int = 5) -> dict:
-    """Full Armillaria benchmark suite."""
+    """Full Rhizo benchmark suite."""
     results = {}
 
     store = _rhizo.PyChunkStore(os.path.join(path, "chunks"))
@@ -327,7 +327,7 @@ def run_full_benchmark():
 
     print("=" * 80)
     print("FULL COMPETITION BENCHMARK")
-    print("Armillaria vs Delta Lake vs Iceberg vs Hudi")
+    print("Rhizo vs Delta Lake vs Iceberg vs Hudi")
     print("=" * 80)
 
     rows = 100_000
@@ -343,8 +343,8 @@ def run_full_benchmark():
 
     all_results = {}
 
-    # Armillaria
-    print("Running Armillaria benchmark...")
+    # Rhizo
+    print("Running Rhizo benchmark...")
     with tempfile.TemporaryDirectory() as tmpdir:
         all_results["Rhizo"] = benchmark_rhizo(df, tmpdir, num_versions)
     print("  Done")
@@ -449,7 +449,7 @@ def run_full_benchmark():
     print("FEATURE COMPARISON MATRIX")
     print("=" * 80)
     print("""
-| Feature                    | Armillaria | Delta Lake | Iceberg | Hudi | LakeFS | Nessie | DVC |
+| Feature                    | Rhizo | Delta Lake | Iceberg | Hudi | LakeFS | Nessie | DVC |
 |----------------------------|------------|------------|---------|------|--------|--------|-----|
 | Single-table ACID          | Yes        | Yes        | Yes     | Yes  | No     | No     | No  |
 | Cross-table ACID           | YES        | No         | No      | No   | No     | No     | No  |
@@ -465,7 +465,7 @@ def run_full_benchmark():
 | Production Maturity        | New        | Mature     | Mature  | Mature| Mature | Mature | Mature |
 
 * Iceberg branching requires Nessie catalog
-** Armillaria cloud storage planned
+** Rhizo cloud storage planned
 
 UNIQUE TO ARMILLARIA:
 - Cross-table ACID transactions

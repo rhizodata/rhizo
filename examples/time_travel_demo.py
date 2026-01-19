@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Time Travel Demo - Showcase Armillaria's versioning and query capabilities.
+Time Travel Demo - Showcase Rhizo's versioning and query capabilities.
 
 This demo shows:
 1. Writing data with automatic versioning
@@ -22,7 +22,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'python'))
 
 import pandas as pd
 
-# Import Armillaria components
+# Import Rhizo components
 import rhizo
 import _rhizo
 from rhizo import QueryEngine
@@ -37,11 +37,11 @@ def print_section(title: str):
 
 def main():
     print(r"""
-     _                _ _ _            _
-    / \   _ __ _ __ _(_) | | __ _ _ __(_) __ _
-   / _ \ | '__| '_ ` _ \ | | / _` | '__| |/ _` |
-  / ___ \| |  | | | | | | | | (_| | |  | | (_| |
- /_/   \_\_|  |_| |_| |_|_|_|\__,_|_|  |_|\__,_|
+  ____  _     _
+ |  _ \| |__ (_)_______
+ | |_) | '_ \| |_  / _ \
+ |  _ <| | | | |/ / (_) |
+ |_| \_\_| |_|_/___\___/
 
     Time Travel Demo
     "Query any version. Instantly."
@@ -55,7 +55,7 @@ def main():
     print(f"Storage location: {temp_dir}")
 
     try:
-        # Initialize Armillaria components
+        # Initialize Rhizo components
         store = _rhizo.PyChunkStore(chunks_dir)
         catalog = _rhizo.PyCatalog(catalog_dir)
         engine = QueryEngine(store, catalog)

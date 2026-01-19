@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Armillaria Demo: One Platform to Replace Them All
+Rhizo Demo: One Platform to Replace Them All
 
-This demo shows how Armillaria unifies capabilities that typically require
+This demo shows how Rhizo unifies capabilities that typically require
 multiple separate systems stacked together.
 
 The Traditional Stack:
@@ -12,8 +12,8 @@ The Traditional Stack:
     - External checksums: Data integrity (manual process)
     - Saga patterns: Cross-table transactions (DIY or prayer)
 
-The Armillaria Stack:
-    - Armillaria: All of the above. In one library. No infrastructure.
+The Rhizo Stack:
+    - Rhizo: All of the above. In one library. No infrastructure.
 
 Run: python examples/unified_platform_demo.py
 """
@@ -82,11 +82,11 @@ def get_directory_size(path: str) -> int:
 
 def main():
     print(r"""
-     _                _ _ _            _
-    / \   _ __ _ __ _(_) | | __ _ _ __(_) __ _
-   / _ \ | '__| '_ ` _ \ | | / _` | '__| |/ _` |
-  / ___ \| |  | | | | | | | | (_| | |  | | (_| |
- /_/   \_\_|  |_| |_| |_|_|_|\__,_|_|  |_|\__,_|
+  ____  _     _
+ |  _ \| |__ (_)_______
+ | |_) | '_ \| |_  / _ \
+ |  _ <| | | | |/ / (_) |
+ |_| \_\_| |_|_/___\___/
 
     Unified Data Platform Demo
     "Replace the whole stack. Keep the simplicity."
@@ -97,7 +97,7 @@ def main():
     print(f"Storage: {base_dir}")
 
     try:
-        # Initialize Armillaria with ALL features
+        # Initialize Rhizo with ALL features
         store = _rhizo.PyChunkStore(os.path.join(base_dir, "chunks"))
         catalog = _rhizo.PyCatalog(os.path.join(base_dir, "catalog"))
         branches = _rhizo.PyBranchManager(os.path.join(base_dir, "branches"))
@@ -147,14 +147,14 @@ What you typically need for modern data engineering:
 Total infrastructure: 5+ systems, multiple servers, complex ops
         """)
 
-        wait_for_input("Press Enter to see the Armillaria alternative...")
+        wait_for_input("Press Enter to see the Rhizo alternative...")
 
         # ============================================================
         print_header("THE ARMILLARIA ALTERNATIVE")
         # ============================================================
 
         print("""
-Armillaria: A single library that includes:
+Rhizo: A single library that includes:
         """)
         print_check("Table versioning with time travel")
         print_check("Zero-copy branching (like Git)")
@@ -218,7 +218,7 @@ This requires atomic updates to:
 - orders (create record)
 
 Delta Lake/Iceberg: 3 separate commits. Hope nothing fails!
-Armillaria: One transaction. All or nothing.
+Rhizo: One transaction. All or nothing.
         """)
 
         wait_for_input("Press Enter to execute the transaction...")
@@ -271,7 +271,7 @@ Armillaria: One transaction. All or nothing.
 Scenario: Test a new loyalty discount algorithm
 
 Traditional approach: Copy entire dataset, run experiment, delete copy
-Armillaria approach: Branch (instant), experiment, merge or delete
+Rhizo approach: Branch (instant), experiment, merge or delete
         """)
 
         wait_for_input("Press Enter to create an experiment branch...")
@@ -325,7 +325,7 @@ Armillaria approach: Branch (instant), experiment, merge or delete
         print("""
 Scenario: Auditor needs to see data as it was before the transaction
 
-With Armillaria, every write is versioned. Just query the past.
+With Rhizo, every write is versioned. Just query the past.
         """)
 
         wait_for_input("Press Enter to query historical data...")
@@ -444,7 +444,7 @@ Integrity checks: Manual                Integrity checks: Automatic
         # ============================================================
 
         print("""
-Armillaria provides:
+Rhizo provides:
 
 1. VERSIONED TABLES
    Time travel, schema tracking, audit history

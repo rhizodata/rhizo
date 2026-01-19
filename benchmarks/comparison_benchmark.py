@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Competitive Benchmark: Armillaria vs Delta Lake vs Iceberg
+Competitive Benchmark: Rhizo vs Delta Lake vs Iceberg
 
 This benchmark compares core operations across data lakehouse formats.
 Results are for internal analysis - understand the gaps and opportunities.
@@ -19,7 +19,7 @@ import numpy as np
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-# Armillaria
+# Rhizo
 import rhizo
 import _rhizo
 from rhizo import QueryEngine
@@ -29,7 +29,7 @@ import deltalake
 from deltalake import DeltaTable, write_deltalake
 
 # Note: PyIceberg requires a catalog (REST, Hive, etc.) - skip for now
-# We'll compare Armillaria vs Delta Lake primarily
+# We'll compare Rhizo vs Delta Lake primarily
 
 
 @dataclass
@@ -56,7 +56,7 @@ def generate_test_data(rows: int) -> pd.DataFrame:
 
 
 def benchmark_rhizo_write(df: pd.DataFrame, path: str) -> BenchmarkResult:
-    """Benchmark Armillaria write."""
+    """Benchmark Rhizo write."""
     store = _rhizo.PyChunkStore(os.path.join(path, "chunks"))
     catalog = _rhizo.PyCatalog(os.path.join(path, "catalog"))
     engine = QueryEngine(store, catalog)
@@ -100,7 +100,7 @@ def benchmark_delta_write(df: pd.DataFrame, path: str) -> BenchmarkResult:
 
 
 def benchmark_rhizo_read(path: str) -> BenchmarkResult:
-    """Benchmark Armillaria read."""
+    """Benchmark Rhizo read."""
     store = _rhizo.PyChunkStore(os.path.join(path, "chunks"))
     catalog = _rhizo.PyCatalog(os.path.join(path, "catalog"))
     engine = QueryEngine(store, catalog)
@@ -146,7 +146,7 @@ def benchmark_delta_read(path: str) -> BenchmarkResult:
 
 
 def benchmark_rhizo_versioning(df: pd.DataFrame, path: str, num_versions: int) -> BenchmarkResult:
-    """Benchmark Armillaria multi-version write."""
+    """Benchmark Rhizo multi-version write."""
     store = _rhizo.PyChunkStore(os.path.join(path, "chunks"))
     catalog = _rhizo.PyCatalog(os.path.join(path, "catalog"))
     engine = QueryEngine(store, catalog)
@@ -214,7 +214,7 @@ def benchmark_delta_versioning(df: pd.DataFrame, path: str, num_versions: int) -
 
 
 def benchmark_rhizo_time_travel(path: str, version: int) -> BenchmarkResult:
-    """Benchmark Armillaria time travel query."""
+    """Benchmark Rhizo time travel query."""
     store = _rhizo.PyChunkStore(os.path.join(path, "chunks"))
     catalog = _rhizo.PyCatalog(os.path.join(path, "catalog"))
     engine = QueryEngine(store, catalog)
@@ -252,7 +252,7 @@ def benchmark_delta_time_travel(path: str, version: int) -> BenchmarkResult:
 
 
 def benchmark_rhizo_branching(df: pd.DataFrame, path: str) -> BenchmarkResult:
-    """Benchmark Armillaria branch creation."""
+    """Benchmark Rhizo branch creation."""
     store = _rhizo.PyChunkStore(os.path.join(path, "chunks"))
     catalog = _rhizo.PyCatalog(os.path.join(path, "catalog"))
     branches = _rhizo.PyBranchManager(os.path.join(path, "branches"))
@@ -318,7 +318,7 @@ def run_comparison_benchmarks():
     results = []
 
     print("=" * 80)
-    print("Armillaria vs Delta Lake Benchmark")
+    print("Rhizo vs Delta Lake Benchmark")
     print("=" * 80)
     print()
 
@@ -340,7 +340,7 @@ def run_comparison_benchmarks():
             r1 = benchmark_rhizo_write(df, rhizo_path)
             r2 = benchmark_delta_write(df, delta_path)
             results.extend([r1, r2])
-            print(f"Armillaria: {r1.duration_ms:.1f}ms ({r1.throughput_mb_s:.1f} MB/s)")
+            print(f"Rhizo: {r1.duration_ms:.1f}ms ({r1.throughput_mb_s:.1f} MB/s)")
             print(f"Delta Lake: {r2.duration_ms:.1f}ms ({r2.throughput_mb_s:.1f} MB/s)")
 
             # Read benchmarks
@@ -348,7 +348,7 @@ def run_comparison_benchmarks():
             r3 = benchmark_rhizo_read(rhizo_path)
             r4 = benchmark_delta_read(delta_path)
             results.extend([r3, r4])
-            print(f"Armillaria: {r3.duration_ms:.1f}ms ({r3.throughput_mb_s:.1f} MB/s)")
+            print(f"Rhizo: {r3.duration_ms:.1f}ms ({r3.throughput_mb_s:.1f} MB/s)")
             print(f"Delta Lake: {r4.duration_ms:.1f}ms ({r4.throughput_mb_s:.1f} MB/s)")
 
     # Versioning benchmark (10 versions, 5% change each)
@@ -367,12 +367,12 @@ def run_comparison_benchmarks():
         r6 = benchmark_delta_versioning(df, delta_path, 10)
         results.extend([r5, r6])
 
-        print(f"\nArmillaria: {r5.duration_ms:.1f}ms, Storage: {r5.size_mb:.2f} MB")
+        print(f"\nRhizo: {r5.duration_ms:.1f}ms, Storage: {r5.size_mb:.2f} MB")
         print(f"Delta Lake: {r6.duration_ms:.1f}ms, Storage: {r6.size_mb:.2f} MB")
 
         theoretical_naive = df.memory_usage(deep=True).sum() / 1024 / 1024 * 10
         print(f"\nNaive storage (10 full copies): {theoretical_naive:.2f} MB")
-        print(f"Armillaria dedup ratio: {(1 - r5.size_mb / theoretical_naive) * 100:.1f}%")
+        print(f"Rhizo dedup ratio: {(1 - r5.size_mb / theoretical_naive) * 100:.1f}%")
         print(f"Delta dedup ratio: {(1 - r6.size_mb / theoretical_naive) * 100:.1f}%")
 
     # Time travel benchmark
@@ -408,14 +408,14 @@ def run_comparison_benchmarks():
         r7 = benchmark_rhizo_time_travel(rhizo_path, 1)
         r8 = benchmark_delta_time_travel(delta_path, 0)
         results.extend([r7, r8])
-        print(f"Armillaria: {r7.duration_ms:.1f}ms")
+        print(f"Rhizo: {r7.duration_ms:.1f}ms")
         print(f"Delta Lake: {r8.duration_ms:.1f}ms")
 
         print("\nQuerying version 5 (latest):")
         r9 = benchmark_rhizo_time_travel(rhizo_path, 5)
         r10 = benchmark_delta_time_travel(delta_path, 4)
         results.extend([r9, r10])
-        print(f"Armillaria: {r9.duration_ms:.1f}ms")
+        print(f"Rhizo: {r9.duration_ms:.1f}ms")
         print(f"Delta Lake: {r10.duration_ms:.1f}ms")
 
     # Branching benchmark
@@ -434,9 +434,9 @@ def run_comparison_benchmarks():
         r12 = benchmark_delta_branching(df, delta_path)
         results.extend([r11, r12])
 
-        print(f"\nArmillaria: {r11.duration_ms:.1f}ms, Branch size: {r11.size_mb * 1024:.0f} bytes")
+        print(f"\nRhizo: {r11.duration_ms:.1f}ms, Branch size: {r11.size_mb * 1024:.0f} bytes")
         print(f"Delta Lake: {r12.duration_ms:.1f}ms, Branch size: {r12.size_mb:.2f} MB (full copy)")
-        print(f"\nArmillaria branch overhead: {r11.size_mb * 1024:.0f} bytes")
+        print(f"\nRhizo branch overhead: {r11.size_mb * 1024:.0f} bytes")
         print(f"Delta Lake branch overhead: {r12.size_mb * 1024 * 1024:.0f} bytes")
         print(f"Ratio: {r12.size_mb / r11.size_mb if r11.size_mb > 0 else 'N/A'}x more storage for Delta")
 
@@ -445,20 +445,20 @@ def run_comparison_benchmarks():
     print("SUMMARY: Feature Comparison")
     print("=" * 80)
     print("""
-| Feature                  | Armillaria | Delta Lake | Winner      |
+| Feature                  | Rhizo | Delta Lake | Winner      |
 |--------------------------|------------|------------|-------------|
 | Single-table ACID        | Yes        | Yes        | Tie         |
-| Cross-table ACID         | Yes        | No         | Armillaria  |
+| Cross-table ACID         | Yes        | No         | Rhizo  |
 | Time Travel              | Yes        | Yes        | Tie         |
-| Zero-copy Branching      | Yes        | No         | Armillaria  |
-| Content Deduplication    | Yes        | No         | Armillaria  |
-| Incremental Dedup        | Yes (95%)  | No         | Armillaria  |
-| Built-in Integrity       | Yes        | No         | Armillaria  |
+| Zero-copy Branching      | Yes        | No         | Rhizo  |
+| Content Deduplication    | Yes        | No         | Rhizo  |
+| Incremental Dedup        | Yes (95%)  | No         | Rhizo  |
+| Built-in Integrity       | Yes        | No         | Rhizo  |
 | Cloud Storage (S3/GCS)   | No*        | Yes        | Delta Lake  |
 | Ecosystem/Adoption       | New        | Mature     | Delta Lake  |
 | Production Hardening     | Months     | Years      | Delta Lake  |
 
-* Armillaria cloud storage planned but not yet implemented
+* Rhizo cloud storage planned but not yet implemented
 """)
 
     return results
