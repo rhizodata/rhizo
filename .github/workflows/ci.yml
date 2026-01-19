@@ -7,6 +7,13 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:  # Manual trigger from GitHub UI
+  schedule:
+    - cron: '0 9 * * 1'  # Weekly on Monday 9am UTC - catch dependency issues
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true  # Cancel outdated runs to save resources
 
 env:
   CARGO_TERM_COLOR: always
