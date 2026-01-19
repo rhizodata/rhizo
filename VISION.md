@@ -37,15 +37,7 @@ Modern organizations don't have *a* data system—they have *many*:
 
 ### What Lakehouse Formats Can't Fix
 
-Delta Lake, Apache Iceberg, and Apache Hudi are significant progress, but they share fundamental limitations:
-
-| Limitation | Why It Can't Be Fixed Incrementally |
-|------------|-------------------------------------|
-| Single-table transactions only | Each table has its own transaction log with no coordination protocol |
-| 50-100ms latency floor | Built on object storage; physical constraint |
-| Batch-stream semantic gap | File-based immutability model |
-| No cross-table deduplication | Path-based file identity, not content identity |
-| Small file problem | Requires explicit compaction; operational burden |
+Delta Lake, Iceberg, and Hudi are progress, but their architecture has fundamental limits: single-table transactions, no cross-table deduplication, batch-stream gaps. These aren't bugs—they're consequences of path-based storage and per-table transaction logs.
 
 **Rhizo doesn't improve these formats—it replaces the architecture that makes these limitations inevitable.**
 
@@ -134,23 +126,7 @@ Replication:        None              →      Read replicas
 
 ### Storage Efficiency
 
-**Deduplication Math (Proven with Benchmarks):**
-- 5% change = 95% chunk reuse (measured)
-- 10% change = 90% chunk reuse (measured)
-- 30 daily versions with 5% daily change rate → **~92% savings vs naive storage**
-
-**Merkle Tree Storage (Implemented):**
-| Change Percentage | Chunk Reuse | Storage Savings |
-|-------------------|-------------|-----------------|
-| 1% | 98.8% | ~49% vs naive |
-| 5% | 95.0% | ~47% vs naive |
-| 10% | 90.0% | ~45% vs naive |
-
-**O(change) storage** — only changed chunks are stored, not full copies.
-
-**Collision probability with BLAKE3:**
-- At 10^15 chunks (exabyte scale): P(collision) ≈ 10^-47
-- Effectively zero for any practical system
+Content-addressing enables **O(change) storage** — only changed chunks are stored, not full copies. With 5% daily changes across 30 versions, you get ~92% storage savings vs naive copies. See [README benchmarks](./README.md#incremental-deduplication-merkle-tree-storage) for measured results.
 
 ---
 
@@ -215,127 +191,41 @@ Several technologies have matured that make Rhizo feasible:
 
 ## Competitive Positioning
 
-### vs. Delta Lake / Iceberg / Hudi
+See [README benchmarks](./README.md#benchmarks) for detailed performance comparisons.
 
-| | Lakehouse Formats | Rhizo |
-|---|---|---|
-| Transaction scope | Single table | Cross-table |
-| Deduplication | Per-table | Global |
-| Branching | Limited/none | Git-like |
-| Batch/stream | Separate semantics | Unified |
-| Storage backend | Object storage only | Pluggable |
-
-### vs. Traditional Databases
-
-| | Traditional DB | Rhizo |
-|---|---|---|
-| Analytical queries | Poor performance | DuckDB-powered |
-| Historical queries | Point-in-time recovery only | Full time travel |
-| Horizontal scaling | Complex sharding | Content-addressed distribution |
-| Storage efficiency | No deduplication | Automatic deduplication |
-
-### vs. Building In-House
-
-| | In-House Build | Rhizo |
-|---|---|---|
-| Development effort | Years, large team | Weeks, small team |
-| Maintenance burden | Ongoing | Community-supported |
-| Risk | High | Proven foundations |
-| Standards compliance | Variable | Arrow, Parquet, SQL |
+**The short version:**
+- vs **Lakehouses** (Delta, Iceberg, Hudi): They can't do cross-table ACID or global deduplication. Architectural limit.
+- vs **Traditional DBs**: They can't do analytical queries at OLAP speed or zero-cost time travel.
+- vs **Building In-House**: Years of work, ongoing maintenance, variable quality. Or just use Rhizo.
 
 ---
 
-## The Path Forward
+## What's Been Built
 
-### Phase 4 (Next): Git for Data
+All core capabilities are complete and tested:
 
-Branch creation, diff, merge—applied to data tables.
+- **Git for Data** — Branch, diff, merge for tables. 280 bytes per branch.
+- **Cross-Table ACID** — Atomic commits across your entire data estate.
+- **Unified Batch/Stream** — Same API for "what is" and "what changed."
+- **Coordination-Free Transactions** — 31,000x faster than consensus for algebraic workloads.
 
-```python
-# Create a branch
-manager.create_branch("feature/new-scoring", from_branch="main")
-
-# Work on the branch (isolated from main)
-engine.checkout("feature/new-scoring")
-engine.write_table("scores", improved_scores)
-
-# Compare
-diff = manager.diff("main", "feature/new-scoring")
-print(f"Tables changed: {diff.changed_tables}")
-
-# Merge when ready
-manager.merge("feature/new-scoring", into="main")
-```
-
-### Phase 5: ACID Across Everything
-
-True multi-table transactions with snapshot isolation.
-
-```python
-with udr.transaction() as tx:
-    customers = tx.read("customers")
-    orders = tx.read("orders")
-
-    tx.write("customers", updated_customers)
-    tx.write("orders", updated_orders)
-    tx.write("audit_log", audit_entry)
-
-    # All succeed or all fail
-```
-
-### Phase 6: Unified Batch/Stream
-
-One API for both paradigms.
-
-```python
-# Batch: What's the current state?
-current = engine.query("SELECT * FROM events")
-
-# Stream: What's changed?
-for change in engine.subscribe("events", since_version=100):
-    process(change)
-```
-
----
-
-## Call to Action
-
-**For Data Engineers:**
-- Stop building pipelines; start building insights
-- Experiment freely with zero-copy branching
-- Trust your queries with cross-table transactions
-
-**For Data Leaders:**
-- Reduce infrastructure cost through deduplication
-- Accelerate time-to-insight by eliminating pipeline delays
-- Future-proof with open standards
-
-**For the Industry:**
-- Data infrastructure should be unified, not fragmented
-- Content addressing is the foundation for the next generation
-- The technology exists; we just need to build it
+See [README](./README.md#quick-start) for code examples and usage.
 
 ---
 
 ## Summary
 
-Rhizo is not an incremental improvement to existing data infrastructure. It's a fundamental rearchitecting based on content-addressable storage, enabling capabilities that are impossible with current approaches:
+Rhizo rearchitects data infrastructure around content-addressable storage. This enables:
 
-- **Cross-table ACID transactions** (impossible with lakehouse formats)
-- **Zero-copy branching** (impossible with path-based storage)
-- **Global deduplication** (impossible without content addressing)
-- **Merkle tree storage** with O(change) deduplication (proven: 5% change = 95% reuse)
-- **Unified batch/stream** (impossible with file-based immutability)
+- **Cross-table ACID transactions**
+- **Zero-copy branching** (280 bytes per branch)
+- **Global deduplication** (5% change = 95% reuse)
+- **Unified batch/stream semantics**
+- **Coordination-free distributed transactions**
 
-The mathematical foundations are proven. The technology exists. The implementation is complete.
+All core phases complete. 632 tests passing (370 Rust + 262 Python).
 
-**Current status:** Phases 1-6 + Merkle storage + Phase P (Performance) + Phase DF (OLAP) complete
-
-**420 tests passing (173 Rust + 247 Python). Working code. Real queries. Proven benchmarks.**
-
-**Phase DF OLAP Results:** 26x faster reads than DuckDB (0.9ms vs 23.8ms), TIME TRAVEL SQL syntax, @branch queries, __changelog SQL.
-
-This is the future of data infrastructure.
+**Measured results:** 31,000x faster than consensus, 97,943x less energy, 26x faster OLAP than DuckDB, 52,500x smaller branches than Delta Lake.
 
 ---
 
