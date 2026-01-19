@@ -8,6 +8,16 @@ Query layer for [Rhizo](https://rhizodata.dev) - versioned data with SQL, time t
 pip install rhizo
 ```
 
+### From Source
+
+```bash
+git clone https://github.com/rhizodata/rhizo.git
+cd rhizo/python
+pip install -e .
+```
+
+Note: Requires `rhizo-core` (Rust) to be built first. See the main [README](https://github.com/rhizodata/rhizo) for full build instructions.
+
 ## Quick Start
 
 ```python
