@@ -1,0 +1,87 @@
+name: Publish to PyPI
+
+on:
+  release:
+    types: [published]
+
+env:
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  # Build and publish rhizo-core (Rust bindings)
+  publish-core:
+    name: Publish rhizo-core
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Build wheels
+        uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.os == 'ubuntu-latest' && 'x86_64' || '' }}
+          args: --release --out dist
+          working-directory: rhizo_python
+          manylinux: auto
+
+      - name: Upload wheels
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-${{ matrix.os }}
+          path: rhizo_python/dist
+
+  # Publish all wheels to PyPI
+  publish-core-pypi:
+    name: Publish rhizo-core to PyPI
+    needs: publish-core
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write  # For trusted publishing
+    steps:
+      - name: Download all wheels
+        uses: actions/download-artifact@v4
+        with:
+          pattern: wheels-*
+          path: dist
+          merge-multiple: true
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
+
+  # Build and publish rhizo (Python package)
+  publish-python:
+    name: Publish rhizo
+    needs: publish-core-pypi  # Wait for core to be available
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write  # For trusted publishing
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install build tools
+        run: pip install build
+
+      - name: Build package
+        run: python -m build
+        working-directory: python
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: python/dist/
