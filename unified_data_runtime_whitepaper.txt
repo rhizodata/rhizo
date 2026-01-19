@@ -245,7 +245,7 @@ Content-addressable storage enables embarrassingly parallel reads. Each chunk ca
 The concepts described in this paper have been implemented as Rhizo, an open-source reference implementation available at github.com/rhizodata/rhizo. Rhizo demonstrates that the Unified Data Runtime architecture is not merely theoretical but practically achievable with modest engineering effort.
 The implementation validates all core architectural concepts:
 1. Content-addressable storage enabling zero-copy branching (verified)
-2. Cross-table ACID transactions with 3-layer conflict protection (451 tests passing)
+2. Cross-table ACID transactions with 3-layer conflict protection (632 tests passing)
 3. Time travel queries with constant cost regardless of version depth (benchmarked)
 4. Unified batch and streaming over changelog abstraction (implemented)
 5. DataFusion-based OLAP engine achieving 26x-50x faster performance than DuckDB
@@ -279,7 +279,7 @@ Layer 1 (check_conflicts): Validates write sets don't overlap with concurrent tr
 Layer 2 (validate_snapshot): Ensures read snapshot hasn't been invalidated
 Layer 3 (catalog version): Atomic version increment prevents phantom commits
 
-Transactions read from their snapshot (versions at transaction start), buffer writes, and commit atomically. Even if epoch boundary cleanup removes historical data, Layer 3 catches any conflicts missed by Layers 1-2. This design has been verified with 451 tests including edge cases.
+Transactions read from their snapshot (versions at transaction start), buffer writes, and commit atomically. Even if epoch boundary cleanup removes historical data, Layer 3 catches any conflicts missed by Layers 1-2. This design has been verified with 632 tests including edge cases.
 7.3.4 Branch Manager
 Branches are mappings from table names to version numbers. Creating a branch copies only the mapping; all data is shared through content addressing.
 Merging compares version histories: fast-forward when possible, conflict detection when histories diverge. This mirrors Git semantics applied to data.
@@ -307,7 +307,7 @@ Verified Properties:
 - Write scaling: O(n) complexity confirmed through benchmark suite
 - Time travel independence: Constant-time queries across version depths (verified)
 - Zero-copy branching: Branch creation with zero data duplication (verified)
-- Cross-table ACID: 3-layer conflict protection with 451 tests passing
+- Cross-table ACID: 3-layer conflict protection with 632 tests passing
 - Cache correctness: Content addressing provides invalidation-free caching (proven)
 
 Performance Benchmarks:

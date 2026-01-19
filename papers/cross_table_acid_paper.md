@@ -6,7 +6,7 @@
 
 ## Abstract
 
-Modern data lakehouse formats (Delta Lake, Iceberg, Hudi) provide versioning and ACID guarantees for individual tables but cannot atomically commit changes across multiple tables. This limitation forces practitioners to choose between data consistency and architectural flexibility. We present Rhizo, a single-node storage system that achieves cross-table ACID transactions through content-addressable storage and a unified metadata catalog. Our approach requires no coordination service, operates at O(t) complexity for t-table transactions, and maintains backward compatibility with existing query engines. On commodity hardware, we measure 1,500+ MB/s write throughput, sub-2ms branch creation regardless of dataset size, and automatic deduplication of identical data. The system is implemented in Rust with Python bindings and passes 280 tests across both languages. We discuss limitations including single-node deployment and table-level conflict detection, and outline paths to distributed operation.
+Modern data lakehouse formats (Delta Lake, Iceberg, Hudi) provide versioning and ACID guarantees for individual tables but cannot atomically commit changes across multiple tables. This limitation forces practitioners to choose between data consistency and architectural flexibility. We present Rhizo, a single-node storage system that achieves cross-table ACID transactions through content-addressable storage and a unified metadata catalog. Our approach requires no coordination service, operates at O(t) complexity for t-table transactions, and maintains backward compatibility with existing query engines. On commodity hardware, we measure 1,500+ MB/s write throughput, sub-2ms branch creation regardless of dataset size, and automatic deduplication of identical data. The system is implemented in Rust with Python bindings and passes 632 tests across both languages. We discuss limitations including single-node deployment and table-level conflict detection, and outline paths to distributed operation.
 
 ---
 
@@ -281,9 +281,9 @@ Rhizo is implemented in Rust for the core storage and catalog layers, with Pytho
 
 | Component | Language | Tests |
 |-----------|----------|-------|
-| Core (ChunkStore, Catalog, Branch, Transaction, Merkle, Parquet) | Rust | 204 |
-| Query layer (time travel, branching, transactions, changelog, OLAP) | Python | 247 |
-| **Total** | | **451** |
+| Core (ChunkStore, Catalog, Branch, Transaction, Merkle, Parquet, Algebraic, Distributed) | Rust | 370 |
+| Query layer (time travel, branching, transactions, changelog, OLAP, coordination-free) | Python | 262 |
+| **Total** | | **632** |
 
 **Note:** The OLAP engine (Phase DF) added DataFusion integration with 26x faster reads than DuckDB, TIME TRAVEL SQL syntax (`VERSION` keyword), branch queries (`@branch` notation), and changelog SQL (`__changelog` virtual table).
 
@@ -461,7 +461,7 @@ The Arrow chunk cache (Section 3.5) contributes significantly to these results, 
 
 We have presented Rhizo, a single-node data storage system that achieves cross-table ACID transactions through content-addressable storage. By storing all data in a shared ChunkStore and maintaining table metadata in a unified catalog, atomic multi-table commits become possible without external coordination.
 
-Our implementation demonstrates that this approach is practical on a single node: 1,500+ MB/s write throughput, sub-2ms branching, and automatic deduplication of identical content. The system passes 451 tests (204 Rust + 247 Python) and integrates with standard query engines via DuckDB and DataFusion.
+Our implementation demonstrates that this approach is practical on a single node: 1,500+ MB/s write throughput, sub-2ms branching, and automatic deduplication of identical content. The system passes 632 tests (370 Rust + 262 Python) and integrates with standard query engines via DuckDB and DataFusion.
 
 The key insight is architectural: per-table transaction logs make cross-table atomicity fundamentally impossible, while a unified content-addressed foundation makes it straightforward—at least on a single node. Extending these guarantees to distributed deployments remains future work.
 

@@ -313,7 +313,7 @@ The algebraic classification system is implemented in Rhizo with the following c
 - Schema lookups achieve ~9 million ops/sec via HashMap
 - All operations maintain mathematical guarantees (commutativity, idempotency)
 
-**Test Coverage**: 306 tests covering:
+**Test Coverage**: 632 tests covering:
 - All operation types with integer, float, and set values
 - Commutativity and idempotency property verification
 - Overflow handling with checked arithmetic
