@@ -1,5 +1,5 @@
 """
-Industry Benchmark: Armillaria vs All Major Data Lakehouse Formats
+Industry Benchmark: Rhizo vs All Major Data Lakehouse Formats
 
 Compares against:
 - Delta Lake (Databricks)
@@ -27,7 +27,7 @@ import pyarrow.parquet as pq
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "python"))
 
-# Armillaria
+# Rhizo
 from _rhizo import PyChunkStore, PyCatalog
 from rhizo import TableWriter, TableReader, Filter
 
@@ -115,7 +115,7 @@ def benchmark(func, warmup: int = 1, iterations: int = 5):
 
 
 def run_rhizo(df: pd.DataFrame, temp_dir: str) -> dict:
-    """Benchmark Armillaria."""
+    """Benchmark Rhizo."""
     results = {}
 
     chunks_path = os.path.join(temp_dir, "arm_chunks")
@@ -273,7 +273,7 @@ def format_value(val, unit="ms"):
 
 def main():
     print("=" * 90)
-    print("INDUSTRY BENCHMARK: Armillaria vs Major Data Lakehouse Systems")
+    print("INDUSTRY BENCHMARK: Rhizo vs Major Data Lakehouse Systems")
     print("=" * 90)
 
     # Show available systems
@@ -295,7 +295,7 @@ def main():
         print("\n" + "-" * 90)
         print("Running benchmarks...")
 
-        print("  Armillaria...", end=" ", flush=True)
+        print("  Rhizo...", end=" ", flush=True)
         results["rhizo"] = run_rhizo(df, temp_dir)
         print("done")
 
@@ -392,7 +392,7 @@ def main():
                     row += f"{'NO':>15}"
             print(row)
 
-        # Armillaria-specific wins
+        # Rhizo-specific wins
         print("\n" + "=" * 90)
         print("ARMILLARIA EXCLUSIVE ADVANTAGES")
         print("=" * 90)
@@ -433,7 +433,7 @@ Performance advantages:
 
         print(f"""
 CONCLUSION:
-  Armillaria combines competitive performance with UNIQUE features that
+  Rhizo combines competitive performance with UNIQUE features that
   Delta Lake, Iceberg, Hudi, and DuckDB simply don't have:
 
   - Git-like branching for data
@@ -442,7 +442,7 @@ CONCLUSION:
   - Built-in change tracking
   - Cryptographic integrity verification
 
-  This makes Armillaria ideal for:
+  This makes Rhizo ideal for:
   - ML/AI pipelines (branch experiments)
   - Audit-critical applications (integrity verification)
   - Multi-table analytics (cross-table ACID)

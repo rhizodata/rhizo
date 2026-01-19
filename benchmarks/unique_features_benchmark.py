@@ -1,5 +1,5 @@
 """
-Comprehensive Competitive Benchmark: Armillaria vs Delta Lake
+Comprehensive Competitive Benchmark: Rhizo vs Delta Lake
 
 Extended metrics:
 1. Write/Read performance
@@ -8,7 +8,7 @@ Extended metrics:
 4. Deduplication
 5. Multi-version overhead
 6. Transaction performance
-7. Branching (Armillaria-only)
+7. Branching (Rhizo-only)
 8. CDC/Changelog
 9. Integrity verification
 
@@ -31,7 +31,7 @@ import pyarrow.parquet as pq
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "python"))
 
-# Armillaria imports
+# Rhizo imports
 from rhizo import (
     PyChunkStore, PyCatalog, PyBranchManager, PyTransactionManager,
     PyMerkleConfig, merkle_build_tree, merkle_verify_tree
@@ -95,7 +95,7 @@ def benchmark(func, warmup: int = 1, iterations: int = 5):
 def main():
     print("=" * 80)
     print("COMPREHENSIVE COMPETITIVE BENCHMARK")
-    print("Armillaria vs Delta Lake - Full Feature Comparison")
+    print("Rhizo vs Delta Lake - Full Feature Comparison")
     print("=" * 80)
 
     num_rows = 100_000
@@ -112,7 +112,7 @@ def main():
         "feature_comparison": {},
     }
 
-    # Armillaria paths
+    # Rhizo paths
     arm_chunks = os.path.join(temp_dir, "arm_chunks")
     arm_catalog = os.path.join(temp_dir, "arm_catalog")
     arm_branches = os.path.join(temp_dir, "arm_branches")
@@ -129,7 +129,7 @@ def main():
         print("SECTION 1: BASIC PERFORMANCE")
         print("=" * 80)
 
-        # Armillaria setup
+        # Rhizo setup
         store = PyChunkStore(arm_chunks)
         catalog = PyCatalog(arm_catalog)
         writer = TableWriter(store, catalog)
@@ -139,7 +139,7 @@ def main():
         print("\n--- Write Performance ---")
         arm_write = benchmark(lambda: writer.write("test_table", df))
         results["rhizo"]["write_ms"] = arm_write
-        print(f"  Armillaria: {arm_write:.2f}ms")
+        print(f"  Rhizo: {arm_write:.2f}ms")
 
         if DELTA_AVAILABLE:
             delta_write = benchmark(lambda: write_deltalake(delta_path, df, mode="overwrite"))
@@ -150,7 +150,7 @@ def main():
         print("\n--- Read Performance ---")
         arm_read = benchmark(lambda: reader.read_arrow("test_table"))
         results["rhizo"]["read_ms"] = arm_read
-        print(f"  Armillaria: {arm_read:.2f}ms")
+        print(f"  Rhizo: {arm_read:.2f}ms")
 
         if DELTA_AVAILABLE:
             delta_read = benchmark(lambda: DeltaTable(delta_path).to_pandas())
@@ -171,7 +171,7 @@ def main():
 
         arm_storage = get_dir_size(arm_chunks) + get_dir_size(arm_catalog)
         results["rhizo"]["storage_5_versions_bytes"] = arm_storage
-        print(f"  Armillaria: {arm_storage / 1024 / 1024:.2f} MB")
+        print(f"  Rhizo: {arm_storage / 1024 / 1024:.2f} MB")
 
         if DELTA_AVAILABLE:
             delta_multi_path = os.path.join(temp_dir, "delta_multi")
@@ -182,7 +182,7 @@ def main():
             print(f"  Delta Lake: {delta_storage / 1024 / 1024:.2f} MB")
 
         # =================================================================
-        # SECTION 3: DEDUPLICATION (Armillaria-only feature)
+        # SECTION 3: DEDUPLICATION (Rhizo-only feature)
         # =================================================================
         print("\n" + "=" * 80)
         print("SECTION 3: CONTENT-ADDRESSABLE DEDUPLICATION")
@@ -200,7 +200,7 @@ def main():
         results["rhizo"]["dedup_actual_bytes"] = dedup_storage
         results["rhizo"]["dedup_naive_bytes"] = naive_storage
 
-        print(f"  Armillaria (with dedup): {dedup_storage / 1024 / 1024:.2f} MB")
+        print(f"  Rhizo (with dedup): {dedup_storage / 1024 / 1024:.2f} MB")
         print(f"  Without dedup would be: ~{naive_storage / 1024 / 1024:.2f} MB")
         print(f"  Space saved: {(1 - dedup_storage/naive_storage) * 100:.1f}%")
         results["rhizo"]["dedup_savings_pct"] = round((1 - dedup_storage/naive_storage) * 100, 1)
@@ -218,7 +218,7 @@ def main():
         print("\n--- Read historical version (v2 of 5) ---")
         arm_tt = benchmark(lambda: reader.read_arrow("versioned_table", version=2))
         results["rhizo"]["time_travel_ms"] = arm_tt
-        print(f"  Armillaria: {arm_tt:.2f}ms (O(1) catalog lookup)")
+        print(f"  Rhizo: {arm_tt:.2f}ms (O(1) catalog lookup)")
 
         if DELTA_AVAILABLE:
             delta_tt = benchmark(lambda: DeltaTable(delta_multi_path, version=1).to_pandas())
@@ -247,9 +247,9 @@ def main():
 
         arm_tx = benchmark(arm_transaction)
         results["rhizo"]["transaction_ms"] = arm_tx
-        print(f"  Armillaria: {arm_tx:.2f}ms")
+        print(f"  Rhizo: {arm_tx:.2f}ms")
 
-        print("\n--- Cross-Table Transaction (Armillaria-only) ---")
+        print("\n--- Cross-Table Transaction (Rhizo-only) ---")
         def arm_multi_table_tx():
             tx_counter[0] += 1
             tx_id = tx_mgr.begin()
@@ -260,15 +260,15 @@ def main():
 
         arm_multi_tx = benchmark(arm_multi_table_tx)
         results["rhizo"]["multi_table_tx_ms"] = arm_multi_tx
-        print(f"  Armillaria (3 tables atomic): {arm_multi_tx:.2f}ms")
+        print(f"  Rhizo (3 tables atomic): {arm_multi_tx:.2f}ms")
         print(f"  Delta Lake: NOT SUPPORTED (single-table only)")
         results["delta_lake"]["multi_table_tx_ms"] = "N/A"
 
         # =================================================================
-        # SECTION 6: GIT-LIKE BRANCHING (Armillaria-only)
+        # SECTION 6: GIT-LIKE BRANCHING (Rhizo-only)
         # =================================================================
         print("\n" + "=" * 80)
-        print("SECTION 6: GIT-LIKE BRANCHING (Armillaria-only)")
+        print("SECTION 6: GIT-LIKE BRANCHING (Rhizo-only)")
         print("=" * 80)
 
         print("\n--- Branch Operations ---")
@@ -299,15 +299,15 @@ def main():
         print("\n--- Query Changelog ---")
         arm_changelog = benchmark(lambda: tx_mgr.get_changelog(limit=100))
         results["rhizo"]["changelog_query_ms"] = arm_changelog
-        print(f"  Armillaria get_changelog(): {arm_changelog:.2f}ms")
+        print(f"  Rhizo get_changelog(): {arm_changelog:.2f}ms")
         print(f"  Delta Lake: Requires CDF setup, not built-in")
         results["delta_lake"]["changelog_query_ms"] = "Requires setup"
 
         # =================================================================
-        # SECTION 8: MERKLE TREE INTEGRITY (Armillaria-only)
+        # SECTION 8: MERKLE TREE INTEGRITY (Rhizo-only)
         # =================================================================
         print("\n" + "=" * 80)
-        print("SECTION 8: DATA INTEGRITY VERIFICATION (Armillaria-only)")
+        print("SECTION 8: DATA INTEGRITY VERIFICATION (Rhizo-only)")
         print("=" * 80)
 
         # Build merkle tree for some data
@@ -338,7 +338,7 @@ def main():
         print("=" * 80)
 
         print("""
-                                    Armillaria    Delta Lake
+                                    Rhizo    Delta Lake
                                     ----------    ----------""")
 
         comparisons = [
@@ -371,7 +371,7 @@ def main():
         print("FEATURE MATRIX")
         print("-" * 80)
         print("""
-Feature                           Armillaria    Delta Lake
+Feature                           Rhizo    Delta Lake
 --------------------------------  ----------    ----------
 ACID Transactions                     YES           YES
 Cross-table Atomicity                 YES           NO
@@ -387,7 +387,7 @@ Spark Integration                     NO            YES
 ** Schema evolution planned for future release
 """)
 
-        print("\nVERDICT: Armillaria provides MORE features AND better performance!")
+        print("\nVERDICT: Rhizo provides MORE features AND better performance!")
         print("         The only advantages Delta has are ecosystem maturity and Spark integration.")
 
         # Save results

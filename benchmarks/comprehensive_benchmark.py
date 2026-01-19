@@ -1,9 +1,9 @@
 """
-Comprehensive Benchmark: Armillaria OLAP vs All Major Systems
+Comprehensive Benchmark: Rhizo OLAP vs All Major Systems
 
 Compares:
-- Armillaria (OLAP/DataFusion) - NEW high-performance path
-- Armillaria (DuckDB backend) - Fallback path
+- Rhizo (OLAP/DataFusion) - NEW high-performance path
+- Rhizo (DuckDB backend) - Fallback path
 - Delta Lake (Databricks)
 - DuckDB (embedded analytics)
 - Raw Parquet (baseline)
@@ -27,7 +27,7 @@ import pyarrow.parquet as pq
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "python"))
 
-# Armillaria
+# Rhizo
 from _rhizo import PyChunkStore, PyCatalog
 from rhizo import QueryEngine, TableWriter, is_datafusion_available
 
@@ -128,7 +128,7 @@ def benchmark(func, warmup: int = 2, iterations: int = 10):
 
 
 def run_rhizo_olap(df: pd.DataFrame, temp_dir: str) -> dict:
-    """Benchmark Armillaria with OLAP (DataFusion)."""
+    """Benchmark Rhizo with OLAP (DataFusion)."""
     if not SYSTEMS["rhizo_olap"]:
         return {"error": "DataFusion not installed"}
 
@@ -197,7 +197,7 @@ def run_rhizo_olap(df: pd.DataFrame, temp_dir: str) -> dict:
 
 
 def run_rhizo_duckdb(df: pd.DataFrame, temp_dir: str) -> dict:
-    """Benchmark Armillaria with DuckDB backend (use_olap=False)."""
+    """Benchmark Rhizo with DuckDB backend (use_olap=False)."""
     results = {}
 
     chunks_path = os.path.join(temp_dir, "arm_duck_chunks")
@@ -426,7 +426,7 @@ def run_join_benchmarks(temp_dir: str, num_users: int = 10_000, num_orders: int 
     users, orders = generate_join_data(num_users, num_orders)
     results = {}
 
-    # Armillaria OLAP
+    # Rhizo OLAP
     if SYSTEMS["rhizo_olap"]:
         chunks_path = os.path.join(temp_dir, "join_olap_chunks")
         catalog_path = os.path.join(temp_dir, "join_olap_catalog")
@@ -542,7 +542,7 @@ def run_scale_benchmarks(temp_dir: str) -> dict:
 
         df = generate_test_data(scale)
 
-        # Armillaria OLAP
+        # Rhizo OLAP
         if SYSTEMS["rhizo_olap"]:
             chunks_path = os.path.join(temp_dir, f"scale_{scale}_chunks")
             catalog_path = os.path.join(temp_dir, f"scale_{scale}_catalog")
@@ -613,7 +613,7 @@ def format_value(val, unit="ms"):
 
 def main():
     print("=" * 100)
-    print("COMPREHENSIVE BENCHMARK: Armillaria OLAP vs Major Data Systems")
+    print("COMPREHENSIVE BENCHMARK: Rhizo OLAP vs Major Data Systems")
     print("=" * 100)
 
     # Show available systems
@@ -635,11 +635,11 @@ def main():
         print("\n" + "-" * 100)
         print("Running benchmarks...")
 
-        print("  Armillaria (OLAP/DataFusion)...", end=" ", flush=True)
+        print("  Rhizo (OLAP/DataFusion)...", end=" ", flush=True)
         results["rhizo_olap"] = run_rhizo_olap(df, temp_dir)
         print("done")
 
-        print("  Armillaria (DuckDB backend)...", end=" ", flush=True)
+        print("  Rhizo (DuckDB backend)...", end=" ", flush=True)
         results["rhizo_duckdb"] = run_rhizo_duckdb(df, temp_dir)
         print("done")
 
@@ -705,7 +705,7 @@ def main():
         duck = results.get("duckdb", {})
 
         if olap and duck:
-            print("\nArmillaria OLAP vs Standalone DuckDB:")
+            print("\nRhizo OLAP vs Standalone DuckDB:")
             perf_metrics = ["read", "filtered", "projection", "aggregation", "complex"]
             for metric in perf_metrics:
                 olap_time = olap.get(metric)
@@ -722,7 +722,7 @@ def main():
 
         join_res = results.get("join_benchmarks", {})
         if join_res:
-            print(f"\n{'Operation':<25} {'Armillaria OLAP':>18} {'DuckDB':>18} {'Delta Lake':>18}")
+            print(f"\n{'Operation':<25} {'Rhizo OLAP':>18} {'DuckDB':>18} {'Delta Lake':>18}")
             print("-" * 80)
 
             join_ops = [
@@ -780,7 +780,7 @@ def main():
                     f_str = f"{f:.1f}ms" if isinstance(f, (int, float)) else str(f)
                     s_str = f"{s/1024/1024:.2f}MB" if isinstance(s, (int, float)) else str(s)
 
-                    sys_name = "Armillaria OLAP" if sys == "rhizo_olap" else "DuckDB"
+                    sys_name = "Rhizo OLAP" if sys == "rhizo_olap" else "DuckDB"
                     print(f"{scale_label:<10} {sys_name:<20} {w_str:>12} {r_str:>12} {f_str:>12} {s_str:>15}")
 
         # Winner analysis
@@ -863,11 +863,11 @@ def main():
 
         # OLAP stats
         if "cache_hit_rate" in olap:
-            print(f"\nArmillaria OLAP cache hit rate: {olap['cache_hit_rate']*100:.1f}%")
+            print(f"\nRhizo OLAP cache hit rate: {olap['cache_hit_rate']*100:.1f}%")
 
         print("""
 CONCLUSION:
-  Armillaria with OLAP (DataFusion) delivers:
+  Rhizo with OLAP (DataFusion) delivers:
   - 2-9x faster queries than standalone DuckDB
   - Competitive with or faster than Delta Lake
   - PLUS unique features no other system has:
