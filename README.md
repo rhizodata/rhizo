@@ -1,40 +1,39 @@
 # Rhizo
 
-**Named after the largest organism on Earth — a 2,400-year-old honey fungus spanning 2,385 acres, connecting an entire forest underground.**
+*From the rhizome — a root system with no center, where any point connects to any other.*
 
-Rhizo is a next-generation data infrastructure that unifies transactional, analytical, and streaming workloads through content-addressable storage, cross-table ACID transactions, and Git-like versioning.
+In 1980, Deleuze and Guattari contrasted the rhizome with the tree: hierarchies vs networks, central authority vs emergent coherence. Traditional databases are trees — leaders, followers, coordination. Rhizo is rhizomatic: every node commits locally, consistency emerges mathematically.
 
-[![CI](https://github.com/aquadantheman/unifieddataruntime/actions/workflows/ci.yml/badge.svg)](https://github.com/aquadantheman/unifieddataruntime/actions/workflows/ci.yml)
+**The first database where coordination is optional.**
+
+| Metric | Rhizo | Industry Standard | Improvement |
+|--------|-------|-------------------|-------------|
+| Transaction latency | 0.022ms | 100ms (consensus) | **31,000x faster** |
+| Energy per transaction | 2.2e-11 kWh | 2.1e-6 kWh | **97,943x less** |
+| Branch overhead | 280 bytes | 14.7 MB (Delta Lake) | **52,500x smaller** |
+| OLAP queries | 0.9ms | 23ms (DuckDB) | **26x faster** |
+
+[![CI](https://github.com/Aquadantheman/rhizo/actions/workflows/ci.yml/badge.svg)](https://github.com/Aquadantheman/rhizo/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Rust](https://img.shields.io/badge/rust-306%20tests-blue)](https://github.com/aquadantheman/unifieddataruntime)
-[![Python](https://img.shields.io/badge/python-247%20tests-blue)](https://github.com/aquadantheman/unifieddataruntime)
+[![Rust](https://img.shields.io/badge/rust-370%20tests-blue)](https://github.com/Aquadantheman/rhizo)
+[![Python](https://img.shields.io/badge/python-262%20tests-blue)](https://github.com/Aquadantheman/rhizo)
 
 ---
 
 ## The Problem
 
-Modern data infrastructure is fragmented. Organizations maintain separate systems for transactional workloads, analytical processing, streaming computation, and ML feature stores. The result: **60-80% of data engineering effort goes to integration and pipeline maintenance** rather than generating insights.
+Distributed databases require consensus. Consensus adds latency, complexity, and energy cost — even when the operation doesn't need it.
 
-Existing lakehouse formats (Delta Lake, Iceberg, Hudi) improve single-table versioning but cannot solve:
+Lakehouses (Delta Lake, Iceberg, Hudi) improve storage but can't solve:
 
-| Limitation | Why It Matters |
-|------------|----------------|
-| Single-table transactions only | Cannot atomically update customers + orders + audit log |
-| No cross-table deduplication | Same data stored multiple times across tables |
-| No branching | Cannot safely experiment on production data |
-| Batch-stream semantic gap | Different APIs, different guarantees |
+| Limitation | What It Costs You |
+|------------|-------------------|
+| Single-table transactions | No atomic updates across related data |
+| No deduplication | Paying for storage you don't need |
+| No real branching | Can't experiment without copying everything |
+| Consensus overhead | 100ms+ latency on every write |
 
-## The Solution
-
-Rhizo replaces the architecture that makes these limitations inevitable.
-
-| Capability | What It Enables |
-|------------|-----------------|
-| **Content-Addressable Storage** | Automatic deduplication, corruption detection, zero-copy operations |
-| **Cross-Table ACID Transactions** | Atomic updates across your entire data estate |
-| **Time Travel** | Query any historical version instantly |
-| **Git-like Branching** | Experiment safely, merge when ready |
-| **Unified Batch/Stream** | One semantic model for all workloads |
+Rhizo can.
 
 ---
 
@@ -129,7 +128,12 @@ With the new **DataFusion-powered OLAP engine**, Rhizo delivers industry-leading
 ### Installation
 
 ```bash
-pip install rhizo-query
+# Coming soon: pip install rhizo
+
+# For now, install from source:
+git clone https://github.com/Aquadantheman/rhizo.git
+cd rhizo
+pip install -e .
 ```
 
 ### Basic Usage
@@ -235,7 +239,7 @@ Application Layer
 | Phase A: Merkle Storage | O(change) deduplication via Merkle trees | Complete |
 | **Phase P: Performance** | Native Rust Parquet, parallel I/O | **Complete** |
 
-**All phases complete. 451 tests passing (204 Rust + 247 Python).**
+**All phases complete. 632 tests passing (370 Rust + 262 Python).**
 
 ### Performance Optimization Journey
 
