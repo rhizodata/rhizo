@@ -2,9 +2,7 @@
 
 This document summarizes the performance optimizations implemented in Rhizo and how to use them effectively.
 
-## Performance Phases
-
-### Phase R.1: Projection Pushdown
+## Projection Pushdown
 **Speedup: 3-5x** (when reading subset of columns)
 
 Only decode the columns you need. The speedup is approximately `n/k` where `n` is total columns and `k` is requested columns.
@@ -17,7 +15,7 @@ table = reader.read_arrow("my_table")
 table = reader.read_arrow("my_table", columns=["id", "name", "score"])
 ```
 
-### Phase R.2: Predicate Pushdown
+## Predicate Pushdown
 **Speedup: ~2-9x** (depending on selectivity and row-group distribution)
 
 Filter rows during decoding rather than after. Uses min/max statistics to skip entire row groups.
@@ -32,7 +30,7 @@ table = reader.read_arrow(
 )
 ```
 
-### Phase R.3: Row-Group Pruning
+## Row-Group Pruning
 **Speedup: 8-10x** (when filter can eliminate row groups)
 
 Automatically enabled with predicate pushdown. Works best when:
@@ -50,7 +48,7 @@ total, pruned, kept = decoder.get_pruning_stats(data, [filter])
 print(f"Pruned {pruned}/{total} row groups ({100*pruned/total:.0f}%)")
 ```
 
-### Phase R.4: Parallel Encoding
+## Parallel Encoding
 **Speedup: 3-4x** (for multi-chunk writes)
 
 Automatically enabled when writing data that splits into multiple chunks. Uses Rayon for parallel Parquet encoding.
@@ -200,7 +198,7 @@ Arrow RecordBatch (filtered, projected)
 OLAP Engine (DataFusion) --[LRU cache]--> Fast repeated queries
 ```
 
-## Arrow Chunk Cache (Phase P.5)
+## Arrow Chunk Cache
 
 **Speedup: 15x** for repeated reads
 
