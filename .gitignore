@@ -26,7 +26,7 @@ Thumbs.db
 *.swp
 *.swo
 
-# UDR runtime data (not source controlled)
+# Runtime data (not source controlled)
 /data/
 
 # Test artifacts
@@ -38,21 +38,12 @@ htmlcov/
 *.zip
 *.log
 
-# Internal planning docs (not for public repo)
+# Internal docs (not for public repo)
 /internal/
-PHASE*_PLAN.md
-KILLER_DEMOS.md
-LOTITUDE_MIGRATION.md
-math_verification.md
-UDR_ACTION_PLAN.md
 
 # Local proof/demo directories
 /proof/
-BENCHMARK_NOTES.md
 
-# Benchmark results (machine-specific, regenerated on each run)
+# Benchmark results (machine-specific)
 /benchmarks/results/
-comparison_results.json
-
-# Archived benchmarks (historical, kept locally)
 /benchmarks/archive/
