@@ -14,6 +14,10 @@ from typing import TYPE_CHECKING, Optional, List, Callable, Iterator
 import time
 import threading
 
+from .logging import get_logger
+
+_logger = get_logger(__name__)
+
 if TYPE_CHECKING:
     import _rhizo
 
@@ -268,7 +272,6 @@ class Subscriber:
                 if not entries:
                     time.sleep(self._poll_interval)
             except Exception as e:
-                # Log error but continue
-                # In production, might want an error callback
-                print(f"Subscriber error: {e}")
+                # Log error but continue processing
+                _logger.warning("Subscriber error: %s", e)
                 time.sleep(self._poll_interval)

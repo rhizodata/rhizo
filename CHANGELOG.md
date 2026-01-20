@@ -5,6 +5,31 @@ All notable changes to Rhizo will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.2] - 2026-01-20
+
+### Changed
+
+#### Production Safety Defaults
+- **Integrity verification enabled by default**: `verify_integrity=True` is now the default for all read operations
+  - Mathematical foundation: BLAKE3 collision probability (4.3×10⁻⁴⁸) is 10³⁵× less likely than RAM bit flips
+  - The only practical risk is storage corruption, so verification should be opt-out, not opt-in
+  - Override with `RHIZO_VERIFY_INTEGRITY=false` environment variable or `verify_integrity=False` parameter
+- **Performance note**: Verification adds ~70% read overhead; disable in trusted environments for maximum speed
+
+### Added
+
+#### Structured Logging Infrastructure
+- **New `rhizo.logging` module**: Centralized logging configuration with environment-based control
+- **`RHIZO_LOG_LEVEL` environment variable**: Set to `DEBUG`, `INFO`, `WARNING`, `ERROR`, or `CRITICAL` (default: `WARNING`)
+- **Silent exception handlers now log**: OLAP fallbacks, deregistration errors, and subscriber errors are logged instead of silently swallowed
+- **Zero overhead when disabled**: Default `WARNING` level produces no output for normal operations
+
+### Documentation
+- **PERFORMANCE.md**: Added "Configuration" section documenting environment variables
+- Updated docstrings for `verify_integrity` parameter across all modules
+
+---
+
 ## [0.5.1] - 2026-01-20
 
 ### Improved

@@ -27,6 +27,9 @@ except ImportError:
 
 from .cache import CacheManager, CacheKey, CacheStats
 from .reader import TableReader
+from .logging import get_logger
+
+_logger = get_logger(__name__)
 
 # Default integrity verification: True for safety, override with RHIZO_VERIFY_INTEGRITY=false
 _DEFAULT_VERIFY_INTEGRITY = os.environ.get("RHIZO_VERIFY_INTEGRITY", "true").lower() != "false"
@@ -451,8 +454,8 @@ class OLAPEngine:
         try:
             # DataFusion supports deregister_table
             self._ctx.deregister_table(table_lower)
-        except Exception:
-            pass  # Table wasn't registered or deregister not supported
+        except Exception as e:
+            _logger.debug("Deregister table %s: %s", table_lower, e)
 
     def _resolve_version(
         self,
@@ -696,8 +699,8 @@ class OLAPEngine:
         # Deregister existing table (ignore if not exists)
         try:
             self._ctx.deregister_table("__changelog")
-        except Exception:
-            pass
+        except Exception as e:
+            _logger.debug("Deregister __changelog: %s", e)
 
         # Handle empty changelog case - DataFusion requires at least one batch
         if changelog_table.num_rows == 0:

@@ -24,6 +24,9 @@ import pyarrow as pa
 from .reader import TableReader
 from .writer import TableWriter, WriteResult
 from .olap_engine import OLAPEngine, is_datafusion_available
+from .logging import get_logger
+
+_logger = get_logger(__name__)
 
 # Default integrity verification: True for safety, override with RHIZO_VERIFY_INTEGRITY=false
 _DEFAULT_VERIFY_INTEGRITY = os.environ.get("RHIZO_VERIFY_INTEGRITY", "true").lower() != "false"
@@ -204,8 +207,9 @@ class QueryEngine:
                     max_cache_size_bytes=olap_cache_size,
                     verify_integrity=verify_integrity,
                 )
-            except Exception:
-                # If OLAP initialization fails, continue without it
+            except Exception as e:
+                # If OLAP initialization fails, continue without it (DuckDB fallback)
+                _logger.warning("OLAP initialization failed: %s. Using DuckDB fallback.", e)
                 self._olap = None
 
     def query(
@@ -266,9 +270,9 @@ class QueryEngine:
                     row_count=arrow_table.num_rows,
                     column_names=arrow_table.column_names,
                 )
-            except Exception:
+            except Exception as e:
                 # Fall back to DuckDB on any OLAP error
-                pass
+                _logger.debug("OLAP query failed: %s. Falling back to DuckDB.", e)
 
         # DuckDB path (fallback or explicit)
         return self._query_duckdb(sql, versions, params, effective_branch)
@@ -1108,8 +1112,8 @@ class QueryEngine:
         # Try to unregister from DuckDB (may not exist)
         try:
             self._conn.unregister(table_lower)
-        except Exception:
-            pass  # Table wasn't registered
+        except Exception as e:
+            _logger.debug("Table %s not registered in DuckDB: %s", table_lower, e)
 
     def _invalidate_cache(self, table_name: str) -> None:
         """Invalidate cache for a table (called after writes)."""

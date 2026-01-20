@@ -308,3 +308,50 @@ python benchmarks/comprehensive_benchmark.py
 # Energy measurements (requires codecarbon)
 python benchmarks/energy_benchmark.py
 ```
+
+---
+
+## Configuration
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `RHIZO_VERIFY_INTEGRITY` | `true` | Enable chunk hash verification on read. Set to `false` for faster reads in trusted environments. |
+| `RHIZO_LOG_LEVEL` | `WARNING` | Logging level: `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL` |
+
+### Integrity Verification
+
+By default, Rhizo verifies chunk integrity on every read using BLAKE3 hashing. This provides:
+- **Corruption detection**: Any storage corruption is caught immediately
+- **Tamper evidence**: Modifications break the hash→content link
+
+**Mathematical foundation**: BLAKE3 collision probability is 4.3×10⁻⁴⁸ at exabyte scale, which is 10³⁵× less likely than undetected RAM bit flips. The only practical risk is storage corruption, not hash collision.
+
+**Performance impact**: ~70% read throughput (verification requires rehashing all data).
+
+To disable for performance in trusted environments:
+```bash
+export RHIZO_VERIFY_INTEGRITY=false
+```
+
+Or per-instance:
+```python
+db = rhizo.open("./mydata", verify_integrity=False)
+```
+
+### Logging
+
+Rhizo uses Python's standard logging module with structured output. Default level is `WARNING` (quiet).
+
+**Enable debug logging**:
+```bash
+export RHIZO_LOG_LEVEL=DEBUG
+python your_script.py
+```
+
+**Log format**: `%(asctime)s [%(levelname)s] %(name)s: %(message)s`
+
+**What gets logged**:
+- `WARNING`: OLAP initialization failures (DuckDB fallback), subscriber errors
+- `DEBUG`: OLAP query fallbacks, table registration/deregistration
