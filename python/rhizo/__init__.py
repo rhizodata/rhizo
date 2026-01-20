@@ -92,7 +92,7 @@ from _rhizo import (
     PySimulationBuilder,
 )
 
-__version__ = "0.4.0"
+__version__ = "0.5.3"
 __all__ = [
     # High-level API
     "open",
