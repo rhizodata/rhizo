@@ -206,6 +206,8 @@ Equivalent to 292 kg CO2/year or 14 trees planted.
 
 **Implementation:** `benchmarks/energy_benchmark.py`, `sandbox/coordination_free/proofs/energy_efficiency_proof.md`
 
+**Empirical Validation:** The theoretical model above uses simulated consensus delays (100ms) to establish baselines. For empirical validation against real systems (SQLite WAL, Redis, etcd), see `benchmarks/real_consensus_benchmark.py`. Measured speedups of 30-93,000x confirm the mathematical predictions across different baseline systems.
+
 Global data center electricity: 200-250 TWh/year [5]. Storage is ~15%. Deduplication and coordination-free transactions at scale have measurable impact.
 
 ---

@@ -211,12 +211,26 @@ def benchmark_consensus_simulation(iterations: int = 1000) -> EnergyResult:
     """
     Simulate consensus energy overhead.
 
-    Consensus requires:
-    - 2-4 network round trips (simulated with sleep)
-    - Cryptographic verification
-    - Log writes on multiple nodes
+    METHODOLOGY NOTE:
+    This benchmark uses time.sleep() to simulate consensus latency, establishing
+    a theoretical baseline for energy comparison. The 100ms delay represents
+    typical cross-region consensus requirements:
+    - 2-4 network round trips
+    - Leader election overhead
+    - Log replication to N nodes
+    - Synchronous durability (fsync on multiple nodes)
 
-    We simulate the TIME overhead, which correlates to energy.
+    Consensus latency ranges by deployment:
+    - Same datacenter: 1-5ms
+    - Cross-region (single continent): 20-50ms
+    - Cross-region (intercontinental): 50-150ms
+    - Global (3+ regions): 100-300ms
+
+    FOR EMPIRICAL VALIDATION:
+    See benchmarks/real_consensus_benchmark.py which measures against real
+    systems (SQLite WAL, Redis, etcd) rather than simulated delays.
+
+    The energy model assumes E ∝ time (CPU active during network wait).
     """
     CONSENSUS_DELAY_MS = 100  # Typical geo-distributed consensus latency
 

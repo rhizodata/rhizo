@@ -117,6 +117,26 @@ def benchmark_latency(iterations: int = 1000) -> List[LatencyResult]:
 
     Local commit: Just vector clock tick + local state update
     Consensus baseline: Simulated 2-round RTT (typical Paxos/Raft)
+
+    METHODOLOGY NOTE:
+    This benchmark compares in-memory algebraic operations against a theoretical
+    consensus baseline (100ms constant). The speedup reflects the latency saved
+    by avoiding coordination round-trips for operations that are mathematically
+    proven to converge without consensus.
+
+    WHY THE SPEEDUP IS VALID:
+    Algebraic operations (ADD, MAX, UNION) satisfy commutativity and associativity,
+    guaranteeing that any application order produces the same final result. This
+    means they can commit locally without waiting for agreement from other nodes.
+
+    Consensus latency varies by deployment:
+    - Same datacenter: 1-5ms
+    - Cross-region (single continent): 20-50ms
+    - Cross-region (intercontinental): 50-150ms
+
+    FOR EMPIRICAL VALIDATION:
+    See benchmarks/real_consensus_benchmark.py which measures against real
+    systems (SQLite WAL, Redis, etcd) rather than simulated delays.
     """
     results = []
 

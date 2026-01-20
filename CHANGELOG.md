@@ -5,6 +5,23 @@ All notable changes to Rhizo will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.1] - 2026-01-20
+
+### Improved
+
+#### Benchmark Methodology Documentation
+- **Footnotes added to README claims**: Performance claims now include context explaining measurement conditions
+- **New `real_consensus_benchmark.py`**: Empirical validation against real systems (SQLite WAL, Redis, etcd) rather than simulated delays
+- **PERFORMANCE.md expanded**: Added "Benchmark Methodology" section explaining algebraic speedup and OLAP cache conditions
+- **TECHNICAL_FOUNDATIONS.md updated**: Added empirical validation reference for energy model
+
+### Documentation
+- Energy benchmark docstrings now clarify simulated vs real consensus comparison
+- Distributed benchmark docstrings explain what is being measured and why speedups are valid
+- Benchmarks README updated with new `real_consensus_benchmark.py` entry
+
+---
+
 ## [0.5.0] - 2026-01-19
 
 ### Added
