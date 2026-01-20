@@ -25,6 +25,7 @@ from .reader import TableReader
 from .writer import TableWriter, WriteResult
 from .olap_engine import OLAPEngine, is_datafusion_available
 from .logging import get_logger
+from .exceptions import TableNotFoundError
 
 _logger = get_logger(__name__)
 
@@ -795,8 +796,11 @@ class QueryEngine:
                 try:
                     metadata = self.reader.get_metadata(table_name)
                     version = metadata.version
+                except TableNotFoundError:
+                    # Explicit table not found - skip it
+                    continue
                 except OSError as e:
-                    # Table not found in catalog - skip it
+                    # Rust catalog raises OSError for "not found" - check message
                     if "not found" in str(e).lower():
                         continue
                     # Re-raise unexpected I/O errors (disk full, permissions, etc.)

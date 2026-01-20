@@ -20,6 +20,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 
 from rhizo.cache import ArrowChunkCache, ChunkCacheStats
+from rhizo.exceptions import EmptyResultError
 
 # Default integrity verification: True for safety, override with RHIZO_VERIFY_INTEGRITY=false
 _DEFAULT_VERIFY_INTEGRITY = os.environ.get("RHIZO_VERIFY_INTEGRITY", "true").lower() != "false"
@@ -537,7 +538,11 @@ class TableReader:
                     arrow_table = self._parquet_to_arrow(chunk_data, columns=columns, filters=filters)
                     if arrow_table.num_rows > 0:
                         yield arrow_table
+                except EmptyResultError:
+                    # Explicit empty result - skip this chunk
+                    continue
                 except ValueError as e:
+                    # Rust decoder raises ValueError for "empty" - check message
                     if "empty" in str(e).lower():
                         continue
                     raise
@@ -576,14 +581,21 @@ class TableReader:
                 try:
                     batch = self._native_decoder.decode_with_filter(data, filters)
                     result = pa.Table.from_batches([batch])
+                except EmptyResultError:
+                    # Explicit empty result - return empty table with schema
+                    batch = self._native_decoder.decode(data)
+                    schema = batch.schema
+                    if columns is not None:
+                        fields = [schema.field(name) for name in columns if name in schema.names]
+                        schema = pa.schema(fields)
+                    return pa.table({name: pa.array([], type=schema.field(name).type) for name in schema.names})
                 except ValueError as e:
+                    # Rust decoder raises ValueError for "empty" - check message
                     if "empty" in str(e).lower():
                         # No rows matched - return empty table with schema
-                        # Get schema from unfiltered decode
                         batch = self._native_decoder.decode(data)
                         schema = batch.schema
                         if columns is not None:
-                            # Filter schema to only include requested columns
                             fields = [schema.field(name) for name in columns if name in schema.names]
                             schema = pa.schema(fields)
                         return pa.table({name: pa.array([], type=schema.field(name).type) for name in schema.names})

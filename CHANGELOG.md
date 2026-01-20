@@ -5,6 +5,38 @@ All notable changes to Rhizo will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.3] - 2026-01-20
+
+### Security
+
+#### Input Validation & Bounds Checking
+- **TableWriter size limits**: Configurable maximum table size (default 10GB) and column count (default 1000)
+  - Prevents OOM attacks from oversized inputs
+  - Mathematical basis: 10GB table → ~20-30GB peak RAM with Arrow/Parquet overhead
+  - Override via `max_table_size_bytes` and `max_columns` constructor parameters
+- **Parquet decoder bounds checking** (Rust):
+  - Maximum file size: 100GB (`MAX_DECODE_SIZE`)
+  - Maximum batch size: 1M rows (`MAX_BATCH_SIZE`)
+  - Checked arithmetic for row counts (prevents integer overflow)
+
+### Added
+
+#### Custom Exception Types
+- **New `rhizo.exceptions` module**: Type-safe error handling without string matching
+  - `RhizoError`: Base class for all Rhizo errors
+  - `TableNotFoundError`: Raised when table doesn't exist (inherits from IOError)
+  - `VersionNotFoundError`: Raised when version doesn't exist
+  - `EmptyResultError`: Raised when query returns no results (inherits from ValueError)
+  - `SizeLimitExceededError`: Raised when input exceeds configured limits
+- **Backwards compatible**: New exceptions inherit from standard exception types
+
+### Testing
+- 370 Rust tests passing
+- 348 Python tests passing
+- All linting clean (clippy, ruff)
+
+---
+
 ## [0.5.2] - 2026-01-20
 
 ### Changed

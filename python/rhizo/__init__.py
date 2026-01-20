@@ -32,6 +32,13 @@ from .transaction import TransactionContext
 from .subscriber import Subscriber, ChangeEvent
 from .cache import CacheManager, CacheKey, CacheStats
 from .olap_engine import OLAPEngine, is_datafusion_available
+from .exceptions import (
+    RhizoError,
+    TableNotFoundError,
+    VersionNotFoundError,
+    EmptyResultError,
+    SizeLimitExceededError,
+)
 
 # Re-export low-level types from _rhizo for convenience
 from _rhizo import (
@@ -102,6 +109,12 @@ __all__ = [
     "Subscriber",
     "ChangeEvent",
     "Filter",
+    # Exceptions
+    "RhizoError",
+    "TableNotFoundError",
+    "VersionNotFoundError",
+    "EmptyResultError",
+    "SizeLimitExceededError",
     # Low-level types
     "PyChunkStore",
     "PyCatalog",

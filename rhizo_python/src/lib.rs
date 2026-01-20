@@ -133,6 +133,18 @@ fn parquet_err_to_py(e: ParquetError) -> PyErr {
         ParquetError::InvalidColumn(msg) => {
             PyValueError::new_err(format!("Invalid column: {}", msg))
         }
+        ParquetError::FileTooLarge { size, max } => {
+            PyValueError::new_err(format!(
+                "File size {} bytes exceeds maximum {} bytes",
+                size, max
+            ))
+        }
+        ParquetError::InvalidRowCount(count) => {
+            PyValueError::new_err(format!("Invalid row count in Parquet metadata: {}", count))
+        }
+        ParquetError::RowCountOverflow => {
+            PyValueError::new_err("Row count overflow: total rows exceed maximum")
+        }
     }
 }
 

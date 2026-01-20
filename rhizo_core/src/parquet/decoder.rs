@@ -2,6 +2,13 @@
 //!
 //! This module provides high-performance Parquet decoding using the Rust
 //! parquet crate, with support for parallel batch decoding via Rayon.
+//!
+//! # Security Limits
+//!
+//! This module includes bounds checking to prevent resource exhaustion attacks:
+//! - `MAX_DECODE_SIZE`: Maximum file size (100GB) - prevents OOM from huge files
+//! - `MAX_BATCH_SIZE`: Maximum rows per batch (1M) - prevents excessive memory per batch
+//! - Checked arithmetic for row counts - prevents integer overflow
 
 use arrow::array::{Array, AsArray, BooleanArray};
 use arrow::compute::kernels::cmp::{eq, gt, gt_eq, lt, lt_eq, neq};
@@ -17,6 +24,17 @@ use rayon::prelude::*;
 
 use super::error::ParquetError;
 use super::filter::{FilterOp, PredicateFilter, ScalarValue};
+
+/// Maximum file size to decode (100 GB).
+///
+/// This limit prevents OOM attacks from maliciously crafted oversized files.
+/// 100GB is sufficient for enterprise datasets while preventing catastrophic OOM.
+const MAX_DECODE_SIZE: usize = 100 * 1024 * 1024 * 1024;
+
+/// Maximum batch size (1 million rows).
+///
+/// At ~1KB/row average, this is ~1GB per batch - a reasonable memory limit.
+const MAX_BATCH_SIZE: usize = 1_000_000;
 
 /// High-performance Parquet decoder.
 ///
@@ -37,8 +55,13 @@ impl ParquetDecoder {
     }
 
     /// Create a decoder with custom batch size.
+    ///
+    /// The batch size is capped at `MAX_BATCH_SIZE` (1 million rows) to prevent
+    /// excessive memory usage per batch.
     pub fn with_batch_size(batch_size: usize) -> Self {
-        Self { batch_size }
+        Self {
+            batch_size: batch_size.min(MAX_BATCH_SIZE),
+        }
     }
 
     /// Decode Parquet bytes to a single Arrow RecordBatch.
@@ -52,7 +75,18 @@ impl ParquetDecoder {
     /// # Returns
     /// * `Ok(RecordBatch)` - The decoded Arrow data
     /// * `Err(ParquetError)` - If decoding fails
+    ///
+    /// # Errors
+    /// * `FileTooLarge` - If data exceeds `MAX_DECODE_SIZE` (100GB)
     pub fn decode(&self, data: &[u8]) -> Result<RecordBatch, ParquetError> {
+        // Bounds check: prevent OOM from huge files
+        if data.len() > MAX_DECODE_SIZE {
+            return Err(ParquetError::FileTooLarge {
+                size: data.len(),
+                max: MAX_DECODE_SIZE,
+            });
+        }
+
         let bytes = Bytes::copy_from_slice(data);
         let reader = ParquetRecordBatchReaderBuilder::try_new(bytes)?
             .with_batch_size(self.batch_size)
@@ -126,6 +160,14 @@ impl ParquetDecoder {
         data: &[u8],
         column_indices: &[usize],
     ) -> Result<RecordBatch, ParquetError> {
+        // Bounds check: prevent OOM from huge files
+        if data.len() > MAX_DECODE_SIZE {
+            return Err(ParquetError::FileTooLarge {
+                size: data.len(),
+                max: MAX_DECODE_SIZE,
+            });
+        }
+
         if column_indices.is_empty() {
             return Err(ParquetError::InvalidColumn(
                 "No columns specified for projection".to_string(),
@@ -179,6 +221,14 @@ impl ParquetDecoder {
         data: &[u8],
         column_names: &[&str],
     ) -> Result<RecordBatch, ParquetError> {
+        // Bounds check: prevent OOM from huge files
+        if data.len() > MAX_DECODE_SIZE {
+            return Err(ParquetError::FileTooLarge {
+                size: data.len(),
+                max: MAX_DECODE_SIZE,
+            });
+        }
+
         if column_names.is_empty() {
             return Err(ParquetError::InvalidColumn(
                 "No columns specified for projection".to_string(),
@@ -248,8 +298,16 @@ impl ParquetDecoder {
         filters: &[PredicateFilter],
         column_indices: Option<&[usize]>,
     ) -> Result<RecordBatch, ParquetError> {
+        // Bounds check: prevent OOM from huge files
+        if data.len() > MAX_DECODE_SIZE {
+            return Err(ParquetError::FileTooLarge {
+                size: data.len(),
+                max: MAX_DECODE_SIZE,
+            });
+        }
+
         if filters.is_empty() {
-            // No filters, use regular decode
+            // No filters, use regular decode (size already checked)
             return match column_indices {
                 Some(cols) => self.decode_columns(data, cols),
                 None => self.decode(data),
@@ -294,19 +352,30 @@ impl ParquetDecoder {
 
         for rg_idx in 0..file_metadata.num_row_groups() {
             let row_group = file_metadata.row_group(rg_idx);
-            let num_rows = row_group.num_rows() as usize;
+
+            // Safe conversion from i64 to usize with bounds checking
+            let num_rows_i64 = row_group.num_rows();
+            let num_rows: usize = num_rows_i64
+                .try_into()
+                .map_err(|_| ParquetError::InvalidRowCount(num_rows_i64))?;
 
             // Check if this row group can be pruned
             if can_prune_row_group(row_group, filters, &filter_to_column_idx) {
                 _pruned_groups += 1;
                 // Don't add this range - it will be skipped
             } else {
-                // Keep this row group - add the range
-                selection_ranges.push(current_offset..current_offset + num_rows);
+                // Keep this row group - add the range (use checked add)
+                let range_end = current_offset
+                    .checked_add(num_rows)
+                    .ok_or(ParquetError::RowCountOverflow)?;
+                selection_ranges.push(current_offset..range_end);
                 kept_groups += 1;
             }
 
-            current_offset += num_rows;
+            // Use checked arithmetic for offset
+            current_offset = current_offset
+                .checked_add(num_rows)
+                .ok_or(ParquetError::RowCountOverflow)?;
         }
 
         // If all row groups were pruned, return empty

@@ -34,6 +34,11 @@ DEFAULT_CHUNK_SIZE_BYTES = 64 * 1024 * 1024
 # Default rows per chunk if byte estimation fails
 DEFAULT_CHUNK_SIZE_ROWS = 100_000
 
+# Size limits (configurable via constructor)
+# 10GB default: ~2x PyArrow overhead means 20-30GB peak RAM for typical servers
+DEFAULT_MAX_TABLE_SIZE_BYTES = 10 * 1024 * 1024 * 1024    # 10 GB
+DEFAULT_MAX_COLUMNS = 1_000                                # Reasonable schema limit
+
 
 @dataclass
 class WriteResult:
@@ -88,6 +93,8 @@ class TableWriter:
         chunk_size_bytes: int = DEFAULT_CHUNK_SIZE_BYTES,
         chunk_size_rows: Optional[int] = None,
         use_native_parquet: bool = True,
+        max_table_size_bytes: int = DEFAULT_MAX_TABLE_SIZE_BYTES,
+        max_columns: int = DEFAULT_MAX_COLUMNS,
     ):
         """
         Initialize the TableWriter.
@@ -99,12 +106,18 @@ class TableWriter:
             chunk_size_rows: Optional fixed row count per chunk (overrides byte-based)
             use_native_parquet: Use Rust-native Parquet encoder for better performance
                                (default True, falls back to PyArrow if unavailable)
+            max_table_size_bytes: Maximum table size in bytes (default 10GB).
+                                  Prevents OOM attacks from oversized inputs.
+            max_columns: Maximum number of columns (default 1000).
+                        Prevents schema explosion attacks.
         """
         self.store = store
         self.catalog = catalog
         self.chunk_size_bytes = chunk_size_bytes
         self.chunk_size_rows = chunk_size_rows
         self.use_native_parquet = use_native_parquet and _NATIVE_PARQUET_AVAILABLE
+        self.max_table_size_bytes = max_table_size_bytes
+        self.max_columns = max_columns
 
         # Initialize native encoder if available and requested
         self._native_encoder = None
@@ -129,13 +142,27 @@ class TableWriter:
             WriteResult with version info and statistics
 
         Raises:
-            ValueError: If data is empty or invalid
+            ValueError: If data is empty, invalid, or exceeds size limits
         """
         # Convert to Arrow Table if needed
         table = self._to_arrow(data)
 
         if table.num_rows == 0:
             raise ValueError("Cannot write empty table")
+
+        # Validate size limits (prevents OOM attacks)
+        if table.nbytes > self.max_table_size_bytes:
+            raise ValueError(
+                f"Table size ({table.nbytes:,} bytes) exceeds maximum "
+                f"({self.max_table_size_bytes:,} bytes). "
+                f"Increase max_table_size_bytes or chunk your data."
+            )
+
+        if len(table.column_names) > self.max_columns:
+            raise ValueError(
+                f"Column count ({len(table.column_names)}) exceeds maximum "
+                f"({self.max_columns}). Reduce columns or increase max_columns."
+            )
 
         # Determine chunking strategy
         chunks = self._chunk_table(table)
@@ -194,13 +221,27 @@ class TableWriter:
             ChunkWriteResult with chunk info and the version that will be assigned
 
         Raises:
-            ValueError: If data is empty or invalid
+            ValueError: If data is empty, invalid, or exceeds size limits
         """
         # Convert to Arrow Table if needed
         table = self._to_arrow(data)
 
         if table.num_rows == 0:
             raise ValueError("Cannot write empty table")
+
+        # Validate size limits (prevents OOM attacks)
+        if table.nbytes > self.max_table_size_bytes:
+            raise ValueError(
+                f"Table size ({table.nbytes:,} bytes) exceeds maximum "
+                f"({self.max_table_size_bytes:,} bytes). "
+                f"Increase max_table_size_bytes or chunk your data."
+            )
+
+        if len(table.column_names) > self.max_columns:
+            raise ValueError(
+                f"Column count ({len(table.column_names)}) exceeds maximum "
+                f"({self.max_columns}). Reduce columns or increase max_columns."
+            )
 
         # Determine chunking strategy
         chunks = self._chunk_table(table)
@@ -321,13 +362,18 @@ class TableWriter:
 
     def _get_next_version(self, table_name: str) -> int:
         """Get the next version number for a table."""
+        from .exceptions import TableNotFoundError
+
         try:
             versions = self.catalog.list_versions(table_name)
             if versions:
                 return max(versions) + 1
             return 1
+        except TableNotFoundError:
+            # Explicit table not found - this is the first version
+            return 1
         except OSError as e:
-            # Table not found - this is the first version
+            # Rust catalog raises OSError for "not found" - check message
             if "not found" in str(e).lower():
                 return 1
             # Re-raise unexpected I/O errors (disk full, permissions, etc.)

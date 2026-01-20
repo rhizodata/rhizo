@@ -355,3 +355,70 @@ python your_script.py
 **What gets logged**:
 - `WARNING`: OLAP initialization failures (DuckDB fallback), subscriber errors
 - `DEBUG`: OLAP query fallbacks, table registration/deregistration
+
+---
+
+## Limits & Safety
+
+Rhizo includes configurable limits to prevent resource exhaustion attacks and ensure predictable memory usage.
+
+### Python Writer Limits
+
+| Limit | Default | Description |
+|-------|---------|-------------|
+| `max_table_size_bytes` | 10 GB | Maximum Arrow table size before write |
+| `max_columns` | 1,000 | Maximum column count |
+
+**Mathematical basis**: 10GB table with ~2x Arrow/Parquet encoding overhead = 20-30GB peak RAM usage, suitable for typical server configurations (16-64GB RAM).
+
+Override limits per-instance:
+```python
+writer = TableWriter(
+    store, catalog,
+    max_table_size_bytes=50 * 1024 * 1024 * 1024,  # 50 GB
+    max_columns=5000
+)
+```
+
+### Rust Decoder Limits
+
+| Limit | Value | Description |
+|-------|-------|-------------|
+| `MAX_DECODE_SIZE` | 100 GB | Maximum Parquet file size |
+| `MAX_BATCH_SIZE` | 1M rows | Maximum rows per decode batch |
+
+These limits are compile-time constants in `rhizo_core`. They prevent:
+- OOM from maliciously crafted oversized files
+- Integer overflow in row count arithmetic
+- Excessive per-batch memory usage
+
+### Industry Comparison
+
+| System | Default File Limit | Row Group Size |
+|--------|-------------------|----------------|
+| Delta Lake | Unlimited | 128 MB |
+| Apache Iceberg | Unlimited | 128 MB |
+| Apache Parquet | Unlimited | 256 MB |
+| **Rhizo** | 10 GB (configurable) | 64 MB |
+
+Rhizo's explicit limits provide defense-in-depth that other systems leave to external infrastructure.
+
+### Exception Types
+
+Custom exceptions provide type-safe error handling:
+
+```python
+from rhizo.exceptions import TableNotFoundError, SizeLimitExceededError
+
+try:
+    db.read("nonexistent")
+except TableNotFoundError as e:
+    print(f"Table not found: {e.table_name}")
+
+try:
+    writer.write("huge_table", oversized_df)
+except SizeLimitExceededError as e:
+    print(f"Exceeded {e.maximum:,} bytes limit")
+```
+
+All custom exceptions inherit from standard types (IOError, ValueError) for backwards compatibility.
