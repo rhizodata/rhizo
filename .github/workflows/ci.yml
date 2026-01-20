@@ -46,6 +46,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Sync README to python/
+        run: cp README.md python/README.md
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
