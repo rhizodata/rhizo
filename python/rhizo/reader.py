@@ -11,6 +11,7 @@ The reader handles:
 from __future__ import annotations
 
 import io
+import os
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional, Iterator, List, Any, Tuple
@@ -19,6 +20,9 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 
 from rhizo.cache import ArrowChunkCache, ChunkCacheStats
+
+# Default integrity verification: True for safety, override with RHIZO_VERIFY_INTEGRITY=false
+_DEFAULT_VERIFY_INTEGRITY = os.environ.get("RHIZO_VERIFY_INTEGRITY", "true").lower() != "false"
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -134,7 +138,7 @@ class TableReader:
         self,
         store,  # PyChunkStore
         catalog,  # PyCatalog
-        verify_integrity: bool = False,
+        verify_integrity: bool = _DEFAULT_VERIFY_INTEGRITY,
         use_mmap: bool = False,
         parallel_workers: Optional[int] = None,
         use_native_parquet: bool = True,
@@ -147,7 +151,8 @@ class TableReader:
         Args:
             store: PyChunkStore instance for content-addressable storage
             catalog: PyCatalog instance for version metadata
-            verify_integrity: If True, verify chunk hashes on read (slower but safer)
+            verify_integrity: Verify chunk hashes on read (default: True for safety).
+                             Set to False for faster reads in trusted environments.
             use_mmap: If True, use memory-mapped I/O for reading chunks (can improve
                       performance for large files through OS page caching)
             parallel_workers: Number of threads for parallel Parquet parsing.

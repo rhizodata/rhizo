@@ -12,6 +12,7 @@ Performance (100k rows, measured):
 
 from __future__ import annotations
 
+import os
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import TYPE_CHECKING, Optional, Dict, List, Any, Union
@@ -26,6 +27,9 @@ except ImportError:
 
 from .cache import CacheManager, CacheKey, CacheStats
 from .reader import TableReader
+
+# Default integrity verification: True for safety, override with RHIZO_VERIFY_INTEGRITY=false
+_DEFAULT_VERIFY_INTEGRITY = os.environ.get("RHIZO_VERIFY_INTEGRITY", "true").lower() != "false"
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -77,7 +81,7 @@ class OLAPEngine:
         catalog: "_rhizo.PyCatalog",
         branch_manager: Optional["_rhizo.PyBranchManager"] = None,
         max_cache_size_bytes: int = 1_000_000_000,  # 1GB default
-        verify_integrity: bool = False,
+        verify_integrity: bool = _DEFAULT_VERIFY_INTEGRITY,
     ):
         """
         Initialize the OLAP engine.
@@ -87,7 +91,8 @@ class OLAPEngine:
             catalog: PyCatalog for version metadata
             branch_manager: Optional branch manager for branch-aware queries
             max_cache_size_bytes: Maximum cache size in bytes (default: 1GB)
-            verify_integrity: If True, verify chunk hashes on read
+            verify_integrity: Verify chunk hashes on read (default: True for safety).
+                             Set to False for faster reads in trusted environments.
 
         Raises:
             ImportError: If DataFusion is not installed

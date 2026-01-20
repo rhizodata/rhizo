@@ -12,6 +12,7 @@ The engine provides:
 
 from __future__ import annotations
 
+import os
 import re
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -23,6 +24,9 @@ import pyarrow as pa
 from .reader import TableReader
 from .writer import TableWriter, WriteResult
 from .olap_engine import OLAPEngine, is_datafusion_available
+
+# Default integrity verification: True for safety, override with RHIZO_VERIFY_INTEGRITY=false
+_DEFAULT_VERIFY_INTEGRITY = os.environ.get("RHIZO_VERIFY_INTEGRITY", "true").lower() != "false"
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -146,7 +150,7 @@ class QueryEngine:
         self,
         store: "_rhizo.PyChunkStore",
         catalog: "_rhizo.PyCatalog",
-        verify_integrity: bool = False,
+        verify_integrity: bool = _DEFAULT_VERIFY_INTEGRITY,
         branch_manager: Optional["_rhizo.PyBranchManager"] = None,
         transaction_manager: Optional["_rhizo.PyTransactionManager"] = None,
         enable_olap: bool = True,
@@ -158,7 +162,8 @@ class QueryEngine:
         Args:
             store: PyChunkStore instance for content-addressable storage
             catalog: PyCatalog instance for version metadata
-            verify_integrity: If True, verify chunk hashes on read
+            verify_integrity: Verify chunk hashes on read (default: True for safety).
+                             Set to False for faster reads in trusted environments.
             branch_manager: Optional PyBranchManager for branch-aware queries.
                            If None, operates in branchless mode (backward compatible).
             transaction_manager: Optional PyTransactionManager for ACID transactions.

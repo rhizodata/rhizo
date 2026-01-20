@@ -32,6 +32,9 @@ except ImportError:
 if TYPE_CHECKING:
     import pandas as pd
 
+# Default integrity verification: True for safety, override with RHIZO_VERIFY_INTEGRITY=false
+_DEFAULT_VERIFY_INTEGRITY = os.environ.get("RHIZO_VERIFY_INTEGRITY", "true").lower() != "false"
+
 
 class Database:
     """
@@ -76,7 +79,7 @@ class Database:
         *,
         enable_branches: bool = True,
         enable_transactions: bool = True,
-        verify_integrity: bool = False,
+        verify_integrity: bool = _DEFAULT_VERIFY_INTEGRITY,
     ):
         """
         Initialize a Database at the given path.
@@ -87,7 +90,9 @@ class Database:
             path: Directory path for the database. Created if it doesn't exist.
             enable_branches: Enable git-like branching (default: True)
             enable_transactions: Enable ACID transactions (default: True)
-            verify_integrity: Verify chunk hashes on read (default: False, slower but safer)
+            verify_integrity: Verify chunk hashes on read (default: True for safety).
+                             Set to False for faster reads in trusted environments.
+                             Override default via RHIZO_VERIFY_INTEGRITY env var.
         """
         self._path = Path(path).resolve()
         self._closed = False
@@ -397,7 +402,7 @@ def open(
     *,
     enable_branches: bool = True,
     enable_transactions: bool = True,
-    verify_integrity: bool = False,
+    verify_integrity: bool = _DEFAULT_VERIFY_INTEGRITY,
 ) -> Database:
     """
     Open or create a Rhizo database at the given path.
@@ -409,8 +414,9 @@ def open(
         path: Directory path for the database. Created if it doesn't exist.
         enable_branches: Enable git-like branching for data (default: True)
         enable_transactions: Enable ACID transactions (default: True)
-        verify_integrity: Verify chunk hashes on every read (default: False).
-                         Slower but catches corruption.
+        verify_integrity: Verify chunk hashes on every read (default: True for safety).
+                         Set to False for faster reads in trusted environments.
+                         Override default via RHIZO_VERIFY_INTEGRITY env var.
 
     Returns:
         Database instance ready for use
