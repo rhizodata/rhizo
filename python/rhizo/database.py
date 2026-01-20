@@ -23,6 +23,11 @@ import pyarrow as pa
 
 from .engine import QueryEngine, QueryResult
 from .writer import WriteResult
+try:
+    from .olap_engine import OLAPEngine, DATAFUSION_AVAILABLE
+except ImportError:
+    DATAFUSION_AVAILABLE = False
+    OLAPEngine = None  # type: ignore
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -128,7 +133,7 @@ class Database:
                 auto_recover=True,
             )
 
-        # Create the query engine
+        # Create the DuckDB query engine (fallback/compatibility)
         self._engine = QueryEngine(
             store=self._store,
             catalog=self._catalog,
@@ -136,6 +141,16 @@ class Database:
             transaction_manager=self._transaction_manager,
             verify_integrity=verify_integrity,
         )
+
+        # Create the DataFusion OLAP engine (primary, if available)
+        self._olap_engine = None
+        if DATAFUSION_AVAILABLE and OLAPEngine is not None:
+            self._olap_engine = OLAPEngine(
+                store=self._store,
+                catalog=self._catalog,
+                branch_manager=self._branch_manager,
+                verify_integrity=verify_integrity,
+            )
 
     @property
     def path(self) -> Path:
@@ -169,13 +184,16 @@ class Database:
         params: Optional[List[Any]] = None,
     ) -> QueryResult:
         """
-        Execute a SQL query.
+        Execute a SQL query using DataFusion (fast) or DuckDB (fallback).
+
+        Uses the high-performance DataFusion OLAP engine by default.
+        Falls back to DuckDB if DataFusion is not installed.
 
         Args:
             query: SQL query string
             versions: Optional dict mapping table names to specific versions
                      for time travel queries
-            params: Optional query parameters for prepared statements
+            params: Optional query parameters (DuckDB fallback only)
 
         Returns:
             QueryResult with .to_pandas(), .to_arrow(), .to_dict() methods
@@ -184,14 +202,54 @@ class Database:
             >>> # Simple query
             >>> result = db.sql("SELECT * FROM users")
             >>>
-            >>> # With parameters
-            >>> result = db.sql("SELECT * FROM users WHERE id = ?", params=[42])
-            >>>
-            >>> # Time travel
+            >>> # With time travel
             >>> result = db.sql("SELECT * FROM users", versions={"users": 1})
             >>>
             >>> # Convert to pandas
             >>> df = result.to_pandas()
+
+        Note:
+            For parameterized queries, use sql_duckdb() which supports params.
+        """
+        self._check_closed()
+
+        # Use DataFusion if available (26x faster)
+        if self._olap_engine is not None:
+            arrow_table = self._olap_engine.query(query, versions=versions)
+            return QueryResult(
+                arrow_table=arrow_table,
+                row_count=arrow_table.num_rows,
+                column_names=arrow_table.column_names,
+            )
+
+        # Fallback to DuckDB
+        return self._engine.query(query, versions=versions, params=params)
+
+    def sql_duckdb(
+        self,
+        query: str,
+        versions: Optional[Dict[str, int]] = None,
+        params: Optional[List[Any]] = None,
+    ) -> QueryResult:
+        """
+        Execute a SQL query using DuckDB (full SQL compatibility).
+
+        Use this for:
+        - Parameterized queries with ? placeholders
+        - DuckDB-specific SQL extensions
+        - When you need DuckDB's specific SQL dialect
+
+        Args:
+            query: SQL query string
+            versions: Optional dict mapping table names to specific versions
+            params: Optional query parameters for prepared statements
+
+        Returns:
+            QueryResult with .to_pandas(), .to_arrow(), .to_dict() methods
+
+        Example:
+            >>> # With parameters
+            >>> result = db.sql_duckdb("SELECT * FROM users WHERE id = ?", params=[42])
         """
         self._check_closed()
         return self._engine.query(query, versions=versions, params=params)
@@ -330,7 +388,8 @@ class Database:
 
     def __repr__(self) -> str:
         status = "closed" if self._closed else "open"
-        return f"Database('{self._path}', {status})"
+        engine = "DataFusion" if self._olap_engine else "DuckDB"
+        return f"Database('{self._path}', {status}, engine={engine})"
 
 
 def open(

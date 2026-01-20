@@ -34,10 +34,14 @@ Homepage = "https://rhizodata.dev"
 Repository = "https://github.com/rhizodata/rhizo"
 
 [project.optional-dependencies]
+fast = [
+    "datafusion>=35.0.0",
+]
 dev = [
     "pytest>=7.0.0",
     "maturin>=1.0.0",
     "ruff>=0.1.0",
+    "datafusion>=35.0.0",
 ]
 
 [tool.setuptools.packages.find]

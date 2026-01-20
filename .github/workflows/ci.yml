@@ -67,7 +67,7 @@ jobs:
         run: |
           source .venv/bin/activate
           python -m pip install --upgrade pip
-          pip install maturin pytest pandas pyarrow duckdb ruff
+          pip install maturin pytest pandas pyarrow duckdb ruff datafusion
 
       - name: Build Python extension
         run: |
