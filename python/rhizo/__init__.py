@@ -92,7 +92,10 @@ from _rhizo import (
     PySimulationBuilder,
 )
 
-__version__ = "0.5.3"
+try:
+    from ._version import version as __version__
+except ImportError:
+    __version__ = "0.0.0+unknown"  # Fallback for editable installs without build
 __all__ = [
     # High-level API
     "open",
