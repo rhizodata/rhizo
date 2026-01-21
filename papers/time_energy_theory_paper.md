@@ -20,7 +20,7 @@ What has received less attention is that these round-trips also dominate **energ
 
 We identify two hidden costs of coordination:
 
-1. **Time inefficiency**: Traditional analysis focuses on O(log N) convergence bounds for gossip protocols. We show that algebraic operations enable O(1) convergence—exactly 3 rounds regardless of N.
+1. **Time inefficiency**: Traditional analysis focuses on $O(\log N)$ convergence bounds for gossip protocols. We show that algebraic operations enable $O(1)$ convergence—exactly 3 rounds regardless of $N$.
 
 2. **Energy inefficiency**: We prove that consensus energy is dominated by idle waiting. At typical WAN latencies (50ms RTT), over 96% of energy is wasted waiting for network responses.
 
@@ -28,9 +28,9 @@ We identify two hidden costs of coordination:
 
 This paper makes the following theoretical contributions:
 
-1. **Constant Convergence Theorem**: For N nodes executing algebraic operations under all-to-all gossip with reliable message delivery, convergence occurs in exactly 3 communication rounds, independent of N.
+1. **Constant Convergence Theorem**: For $N$ nodes executing algebraic operations under all-to-all gossip with reliable message delivery, convergence occurs in exactly 3 communication rounds, independent of $N$.
 
-2. **Waiting Waste Theorem**: For any consensus protocol requiring R round-trips at latency L, waiting energy dominates total energy as L increases, with the waiting fraction approaching 100%.
+2. **Waiting Waste Theorem**: For any consensus protocol requiring $R$ round-trips at latency $L$, waiting energy dominates total energy as $L$ increases, with the waiting fraction approaching 100%.
 
 3. **Energy Scaling Law**: The ratio $E_{cf} / E_{consensus}$ approaches 0 as latency increases. Energy improvement grows unboundedly with network latency.
 
@@ -42,9 +42,9 @@ This paper makes the following theoretical contributions:
 
 ### 2.1 Gossip Protocols
 
-Gossip protocols spread information through pairwise node communication [3]. Traditional analysis establishes O(log N) rounds for information dissemination:
+Gossip protocols spread information through pairwise node communication [3]. Traditional analysis establishes $O(\log N)$ rounds for information dissemination:
 
-**Theorem (Classical Gossip Bound)**: With random gossip and N nodes, O(log N) rounds suffice to reach all nodes with high probability.
+**Theorem (Classical Gossip Bound)**: With random gossip and $N$ nodes, $O(\log N)$ rounds suffice to reach all nodes with high probability.
 
 This bound assumes sparse, random communication. All-to-all gossip trades message complexity for latency optimality.
 
@@ -88,7 +88,7 @@ Idle power is typically 20-30% of active power. This matters because distributed
 
 ### 3.2 Theorem Statement
 
-**Theorem 1 (Constant Convergence)**: For N nodes executing algebraic operations under all-to-all gossip with reliable message delivery, convergence occurs in exactly 3 communication rounds, independent of N.
+**Theorem 1 (Constant Convergence)**: For $N$ nodes executing algebraic operations under all-to-all gossip with reliable message delivery, convergence occurs in exactly 3 communication rounds, independent of $N$.
 
 ### 3.3 Proof
 
@@ -125,9 +125,9 @@ Round 3 is necessary: This establishes "common knowledge"—everyone knows that 
 
 | Metric | All-to-All Gossip | Sparse Gossip |
 |--------|-------------------|---------------|
-| Rounds | O(1) = 3 | O(log N) |
-| Messages/round | O(N^2) | O(N) |
-| Total messages | O(N^2) | O(N log N) |
+| Rounds | $O(1) = 3$ | $O(\log N)$ |
+| Messages/round | $O(N^2)$ | $O(N)$ |
+| Total messages | $O(N^2)$ | $O(N \log N)$ |
 | Latency optimality | Optimal | Suboptimal |
 | Bandwidth optimality | Suboptimal | Optimal |
 
@@ -135,9 +135,9 @@ Round 3 is necessary: This establishes "common knowledge"—everyone knows that 
 
 ### 3.5 When Is This Optimal?
 
-**Corollary 1**: For latency-critical applications with N < 100, all-to-all gossip is optimal.
+**Corollary 1**: For latency-critical applications with $N < 100$, all-to-all gossip is optimal.
 
-*Proof*: At N=100, all-to-all uses 3 rounds and ~30,000 messages. Sparse gossip uses ~7 rounds and ~4,600 messages. If latency dominates (WAN deployments), 3 rounds beats 7 rounds despite more messages.
+*Proof*: At $N=100$, all-to-all uses 3 rounds and ~30,000 messages. Sparse gossip uses ~7 rounds and ~4,600 messages. If latency dominates (WAN deployments), 3 rounds beats 7 rounds despite more messages.
 
 ---
 
@@ -219,13 +219,13 @@ Using typical values ($P_{active} = 65W$, $P_{idle} = 22W$, $R = 3$):
 
 Our two theorems reveal complementary aspects of coordination costs:
 
-1. **Time**: Convergence is O(1) for algebraic operations, but consensus requires O(R * L) time where R >= 1.
+1. **Time**: Convergence is $O(1)$ for algebraic operations, but consensus requires $O(R \cdot L)$ time where $R \geq 1$.
 
-2. **Energy**: Consensus energy is O(L) due to waiting waste. Coordination-free energy is O(1).
+2. **Energy**: Consensus energy is $O(L)$ due to waiting waste. Coordination-free energy is $O(1)$.
 
 Together:
-- Time efficiency: 3 rounds vs consensus latency = O(log N) to O(N) improvement
-- Energy efficiency: O(1) vs O(L) = unbounded improvement with latency
+- Time efficiency: 3 rounds vs consensus latency = $O(\log N)$ to $O(N)$ improvement
+- Energy efficiency: $O(1)$ vs $O(L)$ = unbounded improvement with latency
 
 ### 5.2 Why Existing Systems Don't Achieve This
 
@@ -240,9 +240,9 @@ Our analysis shows that for algebraic workloads on WAN deployments, the traditio
 
 | Approach | Rounds | Messages | Energy Scaling |
 |----------|--------|----------|----------------|
-| Consensus | O(R*L) | O(N) | O(L) |
-| Sparse gossip | O(log N) | O(N log N) | O(log N * L) |
-| All-to-all algebraic | O(1) | O(N^2) | O(1) |
+| Consensus | $O(R \cdot L)$ | $O(N)$ | $O(L)$ |
+| Sparse gossip | $O(\log N)$ | $O(N \log N)$ | $O(\log N \cdot L)$ |
+| All-to-all algebraic | $O(1)$ | $O(N^2)$ | $O(1)$ |
 
 For latency-sensitive, energy-sensitive workloads: all-to-all algebraic wins.
 
@@ -308,7 +308,7 @@ Over 97% of consensus energy is waiting waste, validating Theorem 2.
 
 1. **Latency optimization != Energy optimization**: Consensus optimizes for strong consistency, not energy.
 
-2. **Algebraic operations enable dual optimization**: O(1) latency AND O(1) energy.
+2. **Algebraic operations enable dual optimization**: $O(1)$ latency AND $O(1)$ energy.
 
 3. **WAN deployments benefit most**: The energy advantage scales with latency.
 
@@ -328,14 +328,14 @@ Coordination-free approaches could eliminate most of this waste.
 
 **Open questions**:
 1. Can 3 rounds be proven optimal? (Information-theoretic lower bound)
-2. Hybrid approaches: O(1) rounds with O(N log N) messages?
-3. Hardware optimization to reduce P_idle during waits?
+2. Hybrid approaches: $O(1)$ rounds with $O(N \log N)$ messages?
+3. Hardware optimization to reduce $P_{idle}$ during waits?
 
 ---
 
 ## 8. Related Work
 
-**Gossip protocols** [3]: Traditional analysis focuses on sparse gossip achieving O(log N) rounds. We show O(1) is achievable for algebraic operations.
+**Gossip protocols** [3]: Traditional analysis focuses on sparse gossip achieving $O(\log N)$ rounds. We show $O(1)$ is achievable for algebraic operations.
 
 **CRDTs** [4]: Establish algebraic foundations. We extend to convergence time and energy analysis.
 

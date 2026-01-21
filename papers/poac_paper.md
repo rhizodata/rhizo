@@ -8,7 +8,7 @@
 
 Distributed data systems face fundamental tradeoffs between consistency, latency, and scalability. Traditional approaches impose these costs uniformly, even when most operations would succeed without coordination. We present POAC (Probabilistic Optimistic Algebraic Consistency), a framework that circumvents classical limitations by accepting bounded uncertainty in exchange for dramatic performance improvements.
 
-POAC combines four techniques: (1) Bloom filter write-sets reducing conflict detection memory from O(rows) to O(1) with zero false negatives; (2) Speculative execution achieving sub-millisecond commits when conflict probability is below a calculated threshold; (3) Escrow transactions enabling linear horizontal scaling on hot spots; and (4) Algebraic operation classification allowing automatic conflict-free merging for operations forming semilattices or Abelian groups.
+POAC combines four techniques: (1) Bloom filter write-sets reducing conflict detection memory from $O(\text{rows})$ to $O(1)$ with zero false negatives; (2) Speculative execution achieving sub-millisecond commits when conflict probability is below a calculated threshold; (3) Escrow transactions enabling linear horizontal scaling on hot spots; and (4) Algebraic operation classification allowing automatic conflict-free merging for operations forming semilattices or Abelian groups.
 
 We prove theoretical bounds for each technique and validate them experimentally. Our results show: 98%+ memory savings with <2% false positive rate for bloom filters; 50x latency reduction when conflict rates are below 1%; 95%+ local operation rates for escrow with proper quota sizing; and 100% automatic merge success for algebraically-classified operations.
 
@@ -43,7 +43,7 @@ Where $p$ is the probability of requiring recovery (conflict, quota exhaustion, 
 
 ### 1.3 Contributions
 
-1. **Bloom Filter Write-Sets** (Section 3): O(1) memory conflict detection with provably zero false negatives
+1. **Bloom Filter Write-Sets** (Section 3): $O(1)$ memory conflict detection with provably zero false negatives
 2. **Speculative Execution** (Section 4): Adaptive consistency with mathematical threshold for speculation
 3. **Escrow Transactions** (Section 5): Linear scaling on hot spots with Poisson-bounded coordination
 4. **Algebraic Classification** (Section 6): Conflict-free merging for semilattice and Abelian operations
@@ -86,7 +86,7 @@ For a transaction modifying 1 million rows at 40 bytes per entry: 40MB per activ
 A Bloom filter provides probabilistic set membership with:
 - **Zero false negatives**: If an element is in the set, the filter always reports "possibly present"
 - **Bounded false positives**: False positive rate $p$ is tunable
-- **Fixed memory**: O(1) regardless of elements
+- **Fixed memory**: $O(1)$ regardless of elements
 
 **Optimal Parameters:**
 
@@ -378,7 +378,7 @@ $$E[T_{POAC}] \approx T_{local} \approx 0.1ms$$
 
 **Combined Memory:**
 
-$$\text{Memory}_{POAC} = \text{BloomFilter}(m \text{ bits}) + \text{Escrow}(O(resources))$$
+$$\text{Memory}_{POAC} = \text{BloomFilter}(m \text{ bits}) + \text{Escrow}(O(\text{resources}))$$
 
 Compared to exact sets: 97-99% reduction.
 

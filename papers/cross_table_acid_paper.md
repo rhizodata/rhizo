@@ -6,7 +6,7 @@
 
 ## Abstract
 
-Modern data lakehouse formats (Delta Lake, Iceberg, Hudi) provide versioning and ACID guarantees for individual tables but cannot atomically commit changes across multiple tables. This limitation forces practitioners to choose between data consistency and architectural flexibility. We present Rhizo, a single-node storage system that achieves cross-table ACID transactions through content-addressable storage and a unified metadata catalog. Our approach requires no coordination service, operates at O(t) complexity for t-table transactions, and maintains backward compatibility with existing query engines. On commodity hardware, we measure 1,500+ MB/s write throughput, sub-2ms branch creation regardless of dataset size, and automatic deduplication of identical data. The system is implemented in Rust with Python bindings and passes 632 tests across both languages. We discuss limitations including single-node deployment and table-level conflict detection, and outline paths to distributed operation.
+Modern data lakehouse formats (Delta Lake, Iceberg, Hudi) provide versioning and ACID guarantees for individual tables but cannot atomically commit changes across multiple tables. This limitation forces practitioners to choose between data consistency and architectural flexibility. We present Rhizo, a single-node storage system that achieves cross-table ACID transactions through content-addressable storage and a unified metadata catalog. Our approach requires no coordination service, operates at $O(t)$ complexity for $t$-table transactions, and maintains backward compatibility with existing query engines. On commodity hardware, we measure 1,500+ MB/s write throughput, sub-2ms branch creation regardless of dataset size, and automatic deduplication of identical data. The system is implemented in Rust with Python bindings and passes 632 tests across both languages. We discuss limitations including single-node deployment and table-level conflict detection, and outline paths to distributed operation.
 
 ---
 
@@ -21,7 +21,7 @@ This paper makes the following contributions:
 1. **Cross-table ACID transactions** on a single node without external coordination services
 2. **Zero-copy branching** enabling safe experimentation on production data
 3. **Automatic deduplication** of identical content across tables and versions
-4. **O(1) version lookup** for time travel queries (data access remains O(n))
+4. **$O(1)$ version lookup** for time travel queries (data access remains $O(n)$)
 5. **A working implementation** with benchmarks on commodity hardware
 
 **Scope and limitations:** Rhizo currently operates on a single node. The atomic commit mechanism relies on filesystem rename operations, which are atomic on local filesystems but not on cloud object stores. Distributed deployment requires additional coordination, discussed in Section 8.
@@ -224,16 +224,16 @@ This enables aggressive caching with zero correctness risk. Our Arrow chunk cach
 
 | Operation | Time | Space | Notes |
 |-----------|------|-------|-------|
-| Write chunk | O(n) | O(n) | n = data size, includes hashing |
-| Read chunk | O(n) | O(n) | Includes integrity verification |
-| Check exists | O(1) | O(1) | Hash to path conversion |
-| Version lookup | O(1) | O(1) | Direct catalog access |
-| Query at version | O(n) | O(n) | n = result size; lookup is O(1) |
-| Commit | O(k) | O(k) | k = chunks in transaction |
-| Create branch | O(t) | O(t) | t = table count (metadata only) |
-| Cross-table commit | O(t) | O(t) | t = tables in transaction |
+| Write chunk | $O(n)$ | $O(n)$ | $n$ = data size, includes hashing |
+| Read chunk | $O(n)$ | $O(n)$ | Includes integrity verification |
+| Check exists | $O(1)$ | $O(1)$ | Hash to path conversion |
+| Version lookup | $O(1)$ | $O(1)$ | Direct catalog access |
+| Query at version | $O(n)$ | $O(n)$ | $n$ = result size; lookup is $O(1)$ |
+| Commit | $O(k)$ | $O(k)$ | $k$ = chunks in transaction |
+| Create branch | $O(t)$ | $O(t)$ | $t$ = table count (metadata only) |
+| Cross-table commit | $O(t)$ | $O(t)$ | $t$ = tables in transaction |
 
-**Clarification on "O(1) time travel":** Version lookup is O(1)—we directly access the version's metadata without replaying a log. However, reading the data at that version is still O(n) where n is the data size. The key advantage is avoiding log replay, which in Delta Lake and Iceberg requires reconstructing state from a sequence of commits.
+**Clarification on "$O(1)$ time travel":** Version lookup is $O(1)$—we directly access the version's metadata without replaying a log. However, reading the data at that version is still $O(n)$ where $n$ is the data size. The key advantage is avoiding log replay, which in Delta Lake and Iceberg requires reconstructing state from a sequence of commits.
 
 ### 4.2 Storage Deduplication Analysis
 
@@ -265,11 +265,11 @@ BLAKE3 produces 256-bit hashes. The collision probability follows the birthday b
 
 $$P(\text{collision}) \approx \frac{n^2}{2^{b+1}}$$
 
-For n = 10^15 chunks (exabyte-scale deployment):
+For $n = 10^{15}$ chunks (exabyte-scale deployment):
 
 $$P(\text{collision}) = \frac{10^{30}}{2^{257}} \approx 4.3 \times 10^{-48}$$
 
-For comparison, undetected RAM bit flips occur at approximately 10^-13 per year [3]. Hash collision is not a practical concern for any realistic deployment.
+For comparison, undetected RAM bit flips occur at approximately $10^{-13}$ per year [3]. Hash collision is not a practical concern for any realistic deployment.
 
 ---
 
@@ -362,7 +362,7 @@ With our Merkle tree implementation, incremental changes achieve chunk-level ded
 | 25% | 75.0% | 37.5% |
 | 50% | 50.0% | 25.0% |
 
-These results demonstrate **O(change) storage** instead of O(n) per version. For a 10MB dataset with 5% changes:
+These results demonstrate **$O(\text{change})$ storage** instead of $O(n)$ per version. For a 10MB dataset with 5% changes:
 - **Without Merkle**: 2 versions = 20 MB (full copy each time)
 - **With Merkle**: 2 versions = 10.5 MB (original + 0.5 MB changed chunks)
 
@@ -405,7 +405,7 @@ The Arrow chunk cache (Section 3.5) contributes significantly to these results, 
 | Zero-copy branching | Yes | No | No | No |
 | Content deduplication | Yes | No | No | No |
 | Built-in integrity check | Yes | External | External | External |
-| Version lookup | O(1) | O(log n)* | O(log n)* | O(log n)* |
+| Version lookup | $O(1)$ | $O(\log n)$* | $O(\log n)$* | $O(\log n)$* |
 | Distributed | No | Yes | Yes | Yes |
 
 *Delta Lake, Iceberg, and Hudi require reconstructing state from transaction logs.
