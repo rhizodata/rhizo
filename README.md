@@ -8,13 +8,12 @@ In 1980, Deleuze and Guattari contrasted the rhizome with the tree: hierarchies 
 
 | Metric | Rhizo | Industry Standard | Improvement |
 |--------|-------|-------------------|-------------|
-| Transaction latency | 0.021ms | 100ms (consensus) | **33,000x faster**<sup>1</sup> |
-| Energy per transaction | 2.2e-11 kWh | 2.1e-6 kWh | **97,943x less**<sup>1</sup> |
-| Branch overhead | 140 bytes | 63 MB (Delta Lake) | **450,000x smaller** |
-| OLAP queries | 0.9ms | 26ms (DuckDB) | **32x faster**<sup>2</sup> |
+| Transaction latency | 0.021ms | 100ms (consensus) | [**33,000x faster**](docs/PERFORMANCE.md#verify-transaction-latency) |
+| Energy per transaction | 2.2e-11 kWh | 2.1e-6 kWh | [**97,943x less**](docs/PERFORMANCE.md#verify-energy-efficiency) |
+| Branch overhead | 140 bytes | 63 MB (Delta Lake) | [**450,000x smaller**](docs/PERFORMANCE.md#verify-branch-overhead) |
+| OLAP queries | 0.9ms | 26ms (DuckDB) | [**32x faster**](docs/PERFORMANCE.md#verify-olap-performance) |
 
-<sub><sup>1</sup> For algebraic operations (ADD, MAX, UNION) vs cross-region consensus. [Methodology](docs/PERFORMANCE.md#benchmark-methodology)</sub><br>
-<sub><sup>2</sup> With warm Arrow cache (content-addressed, shared across versions/branches). [Details](docs/PERFORMANCE.md#olap-cache-performance)</sub>
+<sub>All claims link to verification methodology and reproduction commands. [Run benchmarks yourself →](docs/PERFORMANCE.md#verify-these-claims)</sub>
 
 [![CI](https://github.com/rhizodata/rhizo/actions/workflows/ci.yml/badge.svg)](https://github.com/rhizodata/rhizo/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)

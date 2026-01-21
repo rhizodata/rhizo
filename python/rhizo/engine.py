@@ -1217,13 +1217,6 @@ class QueryEngine:
         }
         table_names -= keywords
 
-        # Also filter out names that look like they might be subquery aliases
-        # (single letters are commonly used for subquery aliases)
-        # But be conservative - only filter single-char names that are very common aliases
-        common_aliases = {'a', 'b', 't', 'x', 's'}
-        # Don't filter these out - they could be legitimate short table names
-        # table_names -= common_aliases
-
         return list(table_names)
 
     # =========================================================================

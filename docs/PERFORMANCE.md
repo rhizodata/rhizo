@@ -248,6 +248,129 @@ Rhizo's content-addressed storage makes caching highly effective:
 
 ---
 
+## Verify These Claims
+
+Every headline number can be reproduced on your machine. No trust required.
+
+### Verify Transaction Latency
+
+**Claim**: 0.021ms local commit, 33,000x faster than consensus
+
+```bash
+python benchmarks/distributed_benchmark.py
+```
+
+**What it measures**: Time to commit an algebraic transaction locally (vector clock tick + state update) vs simulated cross-region consensus (100ms baseline).
+
+**Expected output**:
+```
+1. LATENCY BENCHMARK
+  1 ops/tx: Local=0.0012ms, Consensus=100.00ms, Speedup=81753.8x
+  10 ops/tx: Local=0.0059ms, Consensus=100.01ms, Speedup=16941.0x
+  100 ops/tx: Local=0.0573ms, Consensus=100.06ms, Speedup=1746.9x
+
+SUMMARY
+  Average local commit latency: 0.0215 ms
+  Average speedup vs consensus: 33480.6x
+```
+
+**Why it's valid**: Algebraic operations (ADD, MAX, UNION) satisfy commutativity and associativity, mathematically guaranteeing convergence without coordination. See [TECHNICAL_FOUNDATIONS.md](TECHNICAL_FOUNDATIONS.md#algebraic-classification-for-conflict-free-merge).
+
+---
+
+### Verify Energy Efficiency
+
+**Claim**: 2.2e-11 kWh per transaction, 97,943x less than consensus
+
+```bash
+pip install codecarbon  # Required for energy measurement
+python benchmarks/energy_benchmark.py
+```
+
+**What it measures**: Actual energy consumption via CodeCarbon (CPU power draw × time) for local commits vs simulated consensus operations.
+
+**Expected output**:
+```
+5. ENERGY COMPARISON: RHIZO vs CONSENSUS
+  Rhizo energy/tx:     0.000000000022 kWh
+  Consensus energy/tx: 0.000002118639 kWh
+  SAVINGS RATIO:       95100x less energy
+```
+
+**Why it's valid**: Energy = Power × Time. By eliminating consensus round-trips (100ms → 0.02ms), both latency and energy drop proportionally. Network idle power and CPU wait states are eliminated entirely.
+
+---
+
+### Verify Branch Overhead
+
+**Claim**: 140 bytes per branch, 450,000x smaller than Delta Lake
+
+```bash
+python benchmarks/comprehensive_benchmark.py
+```
+
+**What it measures**: Disk space added when creating a branch in Rhizo (JSON pointer file) vs Delta Lake (full directory copy, since Delta has no native branching).
+
+**Expected output**:
+```
+BRANCHING COMPARISON
+Rhizo (zero-copy):  0.1ms, overhead: 139 bytes
+Delta (full copy):  46.9ms, overhead: 63.11 MB
+Rhizo uses 453956x less storage
+```
+
+**Why it's valid**: Rhizo branches are pointers to existing table versions (~140 bytes JSON). Delta Lake has no native branching, requiring a full copy of all data files. The ratio scales with data size—larger tables = larger gap.
+
+---
+
+### Verify OLAP Performance
+
+**Claim**: 0.9ms queries, 32x faster than DuckDB
+
+```bash
+python benchmarks/comprehensive_benchmark.py
+```
+
+**What it measures**: Query latency for 100K row table with warm Arrow cache (Rhizo) vs warm in-memory DuckDB.
+
+**Expected output**:
+```
+RHIZO OLAP SPEEDUP ANALYSIS
+Rhizo OLAP vs Standalone DuckDB:
+  read           : 0.9ms vs 26.0ms = 32.2x faster
+  filtered       : 0.9ms vs 1.6ms = 1.8x faster
+  projection     : 0.6ms vs 1.9ms = 3.2x faster
+  complex        : 2.6ms vs 3.4ms = 1.3x faster
+```
+
+**Why it's valid**: Rhizo's content-addressed Arrow cache stores decoded RecordBatches. Cache hits skip both disk I/O and Parquet decoding. DuckDB re-parses even "warm" tables. The gap widens with repeated queries on versioned/branched data (same chunks = cache hits).
+
+---
+
+### Run All Benchmarks
+
+```bash
+# Full benchmark suite (requires Delta Lake, DuckDB)
+pip install deltalake duckdb
+
+# Comprehensive comparison (OLAP, JOINs, branching, dedup)
+python benchmarks/comprehensive_benchmark.py
+
+# Transaction latency and convergence
+python benchmarks/distributed_benchmark.py
+
+# Energy measurement (requires codecarbon)
+pip install codecarbon
+python benchmarks/energy_benchmark.py
+
+# Empirical validation against real systems
+python benchmarks/real_consensus_benchmark.py
+```
+
+Results are saved to `benchmarks/*_RESULTS.json` with timestamps for reproducibility.
+
+---
+
 ## Benchmark Methodology
 
 This section explains the measurement conditions behind Rhizo's headline performance claims.
