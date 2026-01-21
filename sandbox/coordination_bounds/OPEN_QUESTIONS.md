@@ -508,6 +508,84 @@ If coordination bounds are fundamental and connect to:
 | **Q25** | **5th Limit (Creation)** | **Open** | **Critical** | **Future** |
 | Q26 | Black Holes as Coordination | Open - Speculative | High | Future |
 | Q27 | Quantum Gravity from Coordination | Open - Speculative | Critical | Future |
+| **Q28** | **Space Emergence (from what?)** | **Open** | **CRITICAL** | **Future** |
+| **Q29** | **Computational Time = Physical Time?** | **Open** | **High** | **Future** |
+| **Q30** | **Predictions Already Validated?** | **Open** | **HIGHEST** | **21** |
+| Q31 | Entropy Duality (S_thermo + S_order) | Open | High | Future |
+| Q32 | Quantum Measurement as Ordering | Open | High | Future |
+| Q33 | Free Will and Ordering | Open - Philosophy | Medium | Future |
+| Q34 | Time Crystals and Periodicity | Open | Medium | Future |
+| Q35 | Consciousness = Time? | Open - Speculative | High | Future |
+| Q36 | The Beginning of Time | Open - Cosmology | Medium | Future |
+| Q37 | Time Travel Impossibility | Open | Medium | Future |
+| Q38 | The Speed of Time | Open | Medium | Future |
+
+---
+
+## Phase 20+ Questions (Time Emergence)
+
+These questions emerged from the Time as Coordination hypothesis.
+
+### Q28: Space Emergence
+**Status**: Open
+**Importance**: CRITICAL
+
+If time emerges from non-commutativity, what does SPACE emerge from?
+
+```
+Time  <- Non-commutativity (ordering requirement)
+Space <- ???
+```
+
+Candidates: Locality itself, non-associativity, tensor product structure?
+
+---
+
+### Q29: Computational Time = Physical Time
+**Status**: Open
+**Importance**: High
+
+If time = non-commutative orderings, then:
+- O(n) algorithm = n units of physical time
+- Time complexity IS physics
+
+Does this formally connect CS to physics?
+
+---
+
+### Q30: Prediction Validation
+**Status**: Open - PHASE 21
+**Importance**: HIGHEST (most local)
+
+Are our six predictions already validated in existing literature?
+- Quantum coherence vs symmetry
+- Time perception vs task structure
+- Entropy vs interaction rates
+
+**This is the most tractable next step.**
+
+---
+
+### Q31: Entropy Duality
+**Status**: Open
+**Importance**: High
+
+Is S_thermodynamic + S_ordering = constant?
+
+Can we derive the second law from ordering accumulation?
+
+---
+
+### Q32-Q38: Additional Time Questions
+
+See PHASE_20_IMPLICATIONS.md for full details on:
+- Quantum measurement as ordering (Q32)
+- Free will and ordering (Q33)
+- Time crystals (Q34)
+- Consciousness = Time (Q35)
+- Beginning of time (Q36)
+- Time travel (Q37)
+- Speed of time (Q38)
 
 ---
 
