@@ -4,7 +4,7 @@
 
 ## Abstract
 
-Distributed databases traditionally require consensus protocols (Paxos, Raft) to achieve strong consistency, incurring significant latency overhead for geo-distributed deployments. We observe that many common operations—counters, max/min aggregates, set unions—have algebraic properties that mathematically guarantee convergence regardless of operation order. We present Rhizo, a distributed data system that classifies operations by their algebraic structure and commits transactions locally when all operations are algebraically conflict-free. For these workloads, Rhizo achieves O(1) local commit latency compared to O(consensus) for traditional systems, while maintaining strong eventual consistency with provable convergence. Our evaluation shows **33,000x latency improvement** (0.02ms vs 100ms consensus baseline), **255,000 ops/sec throughput**, and **97,943x energy reduction** for algebraic workloads, with mathematically verified convergence in all test scenarios. By eliminating coordination, we eliminate not only latency but also idle energy consumption—the fastest database is also the greenest.
+Distributed databases traditionally require consensus protocols (Paxos, Raft) to achieve strong consistency, incurring significant latency overhead for geo-distributed deployments. We observe that many common operations—counters, max/min aggregates, set unions—have algebraic properties that mathematically guarantee convergence regardless of operation order. We present Rhizo, a distributed data system that classifies operations by their algebraic structure and commits transactions locally when all operations are algebraically conflict-free. For these workloads, Rhizo achieves $O(1)$ local commit latency compared to $O(\text{consensus})$ for traditional systems, while maintaining strong eventual consistency with provable convergence. Our evaluation shows **33,000x latency improvement** (0.02ms vs 100ms consensus baseline), **255,000 ops/sec throughput**, and **97,943x energy reduction** for algebraic workloads, with mathematically verified convergence in all test scenarios. By eliminating coordination, we eliminate not only latency but also idle energy consumption—the fastest database is also the greenest.
 
 ---
 
@@ -44,7 +44,7 @@ These operations **commute**: applying them in either order yields the same resu
 
 1. **Algebraic transaction classification:** A formal framework for identifying operations that commute, enabling coordination-free commit.
 
-2. **Coordination-free commit protocol:** Transactions containing only algebraic operations commit locally with O(1) latency, propagate via gossip, and merge automatically.
+2. **Coordination-free commit protocol:** Transactions containing only algebraic operations commit locally with $O(1)$ latency, propagate via gossip, and merge automatically.
 
 3. **Rhizo system:** A full implementation achieving 0.02ms local commit latency and 255,000 ops/sec throughput.
 
@@ -239,7 +239,7 @@ Local commit achieves sub-millisecond latency, dramatically outperforming consen
 
 ### 6.3 Throughput
 
-Throughput scales with node count, limited primarily by O(n²) message propagation:
+Throughput scales with node count, limited primarily by $O(n^2)$ message propagation:
 
 | Nodes | Operations | Time (ms) | Throughput | Messages |
 |-------|------------|-----------|------------|----------|
@@ -248,7 +248,7 @@ Throughput scales with node count, limited primarily by O(n²) message propagati
 | 10 | 1,000 | 58.13 | 17,204 ops/sec | 90,000 |
 | 20 | 2,000 | 473.00 | 4,228 ops/sec | 760,000 |
 
-The O(n²) message count explains throughput reduction at scale—a known tradeoff addressable via gossip optimization.
+The $O(n^2)$ message count explains throughput reduction at scale—a known tradeoff addressable via gossip optimization.
 
 ### 6.4 Convergence Time
 
@@ -271,9 +271,9 @@ All algebraic properties verified experimentally:
 
 | Property | Verified | Test |
 |----------|----------|------|
-| **Commutativity** | Yes | merge(A,B) = merge(B,A) for all A,B |
-| **Associativity** | Yes | merge(merge(A,B),C) = merge(A,merge(B,C)) |
-| **Idempotency** | Yes | merge(A,A) = A for semilattice ops |
+| **Commutativity** | Yes | $\text{merge}(A,B) = \text{merge}(B,A)$ for all $A,B$ |
+| **Associativity** | Yes | $\text{merge}(\text{merge}(A,B),C) = \text{merge}(A,\text{merge}(B,C))$ |
+| **Idempotency** | Yes | $\text{merge}(A,A) = A$ for semilattice ops |
 | **Convergence** | Yes | All nodes reach identical state |
 
 Operation types tested: ADD (Abelian), MAX (Semilattice), UNION (Semilattice)
@@ -327,7 +327,7 @@ The energy savings follow directly from the time savings: $E = P \cdot t$. By re
 
 ## 8. Conclusion
 
-We presented Rhizo, a distributed data system that achieves strong consistency without consensus for algebraic operations. By classifying operations by their mathematical properties, we enable O(1) local commit latency (0.02ms average) while maintaining provable convergence. Our evaluation demonstrates:
+We presented Rhizo, a distributed data system that achieves strong consistency without consensus for algebraic operations. By classifying operations by their mathematical properties, we enable $O(1)$ local commit latency (0.02ms average) while maintaining provable convergence. Our evaluation demonstrates:
 
 - **33,000x latency improvement** over consensus-based systems
 - **255,000 ops/sec throughput** at the 2-node scale
