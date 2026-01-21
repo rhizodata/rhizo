@@ -1,67 +1,54 @@
-\documentclass[tikz,border=10pt]{standalone}
+\documentclass{article}
+\usepackage[margin=1in]{geometry}
 \usepackage{tikz}
-\usetikzlibrary{shapes.geometric, arrows.meta, positioning, fit, backgrounds}
+\usetikzlibrary{positioning}
 
 \begin{document}
 
-% Color scheme
-\definecolor{pythonblue}{RGB}{55, 118, 171}
-\definecolor{rustorange}{RGB}{222, 165, 132}
-\definecolor{storagegray}{RGB}{180, 180, 180}
-\definecolor{filesystemgreen}{RGB}{144, 190, 109}
-
+\begin{center}
 \begin{tikzpicture}[
-    % Styles
     layer/.style={
         rectangle,
         rounded corners=3pt,
-        minimum width=14cm,
-        minimum height=1.8cm,
-        draw=#1!80!black,
-        fill=#1!30,
+        minimum width=12cm,
+        minimum height=1.5cm,
+        draw=gray,
         line width=1pt,
         font=\sffamily
     },
-    layerlabel/.style={
-        font=\sffamily\bfseries\large,
-        text=#1!80!black
-    },
-    component/.style={
-        font=\sffamily\small,
-        text=#1!80!black
-    },
     arrow/.style={
-        -{Stealth[length=8pt]},
-        line width=1.5pt,
-        draw=gray!60
+        ->,
+        thick,
+        gray
     }
 ]
 
 % Python API Layer
-\node[layer=pythonblue] (python) at (0,0) {};
-\node[layerlabel=pythonblue, above=0.2cm] at (python.north) {Python API};
-\node[component=pythonblue] at (python.center) {rhizo.open \quad $\cdot$ \quad DataFusion OLAP \quad $\cdot$ \quad Changelog};
+\node[layer, fill=blue!20] (python) at (0,0) {};
+\node[font=\sffamily\bfseries] at (0,0.4) {Python API};
+\node[font=\sffamily\small] at (0,-0.2) {rhizo.open \quad DataFusion OLAP \quad Changelog};
 
 % Rust Core Layer
-\node[layer=rustorange, below=0.8cm of python] (rust) {};
-\node[layerlabel=rustorange, above=0.2cm] at (rust.north) {Rust Core};
-\node[component=rustorange] at (rust.center) {Transactions \quad $\cdot$ \quad Branching \quad $\cdot$ \quad Algebraic Merge \quad $\cdot$ \quad Distributed};
+\node[layer, fill=orange!20, below=0.6cm of python] (rust) {};
+\node[font=\sffamily\bfseries] at (0,-2.0+0.4) {Rust Core};
+\node[font=\sffamily\small] at (0,-2.0-0.2) {Transactions \quad Branching \quad Algebraic Merge \quad Distributed};
 
 % Storage Layer
-\node[layer=storagegray, below=0.8cm of rust] (storage) {};
-\node[layerlabel=storagegray, above=0.2cm] at (storage.north) {Storage Layer};
-\node[component=storagegray] at (storage.center) {Catalog \quad $\cdot$ \quad ChunkStore \quad $\cdot$ \quad Merkle Trees};
+\node[layer, fill=gray!20, below=0.6cm of rust] (storage) {};
+\node[font=\sffamily\bfseries] at (0,-4.2+0.4) {Storage Layer};
+\node[font=\sffamily\small] at (0,-4.2-0.2) {Catalog \quad ChunkStore \quad Merkle Trees};
 
 % File System Layer
-\node[layer=filesystemgreen, below=0.8cm of storage] (fs) {};
-\node[layerlabel=filesystemgreen, above=0.2cm] at (fs.north) {File System};
-\node[component=filesystemgreen] at (fs.center) {Parquet chunks \quad $\cdot$ \quad JSON metadata};
+\node[layer, fill=green!20, below=0.6cm of storage] (fs) {};
+\node[font=\sffamily\bfseries] at (0,-6.4+0.4) {File System};
+\node[font=\sffamily\small] at (0,-6.4-0.2) {Parquet chunks \quad JSON metadata};
 
-% Arrows between layers
+% Arrows
 \draw[arrow] (python.south) -- (rust.north);
 \draw[arrow] (rust.south) -- (storage.north);
 \draw[arrow] (storage.south) -- (fs.north);
 
 \end{tikzpicture}
+\end{center}
 
 \end{document}
