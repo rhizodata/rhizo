@@ -237,7 +237,7 @@ This enables aggressive caching with zero correctness risk. Our Arrow chunk cach
 
 ### 4.2 Storage Deduplication Analysis
 
-For a dataset with original size S, V versions, and change rate r per version:
+For a dataset with original size $S$, $V$ versions, and change rate $r$ per version:
 
 **Naive storage (no deduplication):**
 $$S_{naive} = S \times V$$
