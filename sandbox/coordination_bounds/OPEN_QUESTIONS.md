@@ -4,6 +4,60 @@ This document tracks open research questions arising from the coordination bound
 
 ---
 
+## Key Findings & Implications
+
+### Empirical Results (Phase 16)
+- **92% of TPC-C (OLTP) workload is coordination-free**
+- **1,509x speedup** for coordination-free vs coordination-required operations
+- **$16.5B/year** recoverable waste (92% of $18B global coordination cost)
+
+### Core Insight
+**Coordination cost is a property of OPERATIONS, not systems.**
+
+```
+Traditional view:  "Distributed systems need consensus"
+Our finding:       "Only non-commutative operations need consensus"
+```
+
+### The Coordination-Algebra Correspondence
+```
+Commutative operations     →  C = 0 (instant, no coordination)
+Non-commutative operations →  C = Ω(log N) (unavoidable minimum)
+```
+
+### Implications
+1. **Economic**: Most distributed compute is unnecessary coordination overhead
+2. **Architectural**: Systems should classify operations by algebra, not assume coordination
+3. **Theoretical**: This may be a fundamental physical law, not just a CS result
+
+---
+
+## Critical Question: Is This a Physical Law?
+
+### Q0: Fundamental Law Hypothesis
+**Status**: Open - HIGHEST PRIORITY
+**Importance**: Critical++
+
+**Hypothesis**: Coordination bounds are a FUNDAMENTAL PHYSICAL LAW governing information reconciliation across space.
+
+Just as:
+- Speed of light limits information transfer
+- Heisenberg limits measurement precision
+- Landauer limits computation energy
+- Carnot limits thermodynamic efficiency
+
+Coordination bounds may limit **agreement across space**.
+
+**Evidence needed**:
+- [ ] Quantum systems obey bounds (or explain why not)
+- [ ] Biological systems achieve bounds (evolution as optimizer)
+- [ ] Economic systems exhibit bounds (market coordination)
+- [ ] Physical derivation from information theory
+
+**If true**: This is not a computer science result. It's physics.
+
+---
+
 ## Foundational Questions
 
 ### Q1: The Coordination-Complexity Hierarchy
