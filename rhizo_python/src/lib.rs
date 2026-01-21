@@ -4,6 +4,125 @@ use std::sync::Arc;
 
 use pyo3::prelude::*;
 use pyo3::exceptions::{PyIOError, PyValueError, PyRuntimeError};
+
+// =============================================================================
+// Error Message Sanitization
+// =============================================================================
+
+/// Sanitize error messages to prevent information leakage.
+///
+/// This function removes or masks:
+/// - Absolute filesystem paths (Windows and Unix)
+/// - Internal implementation details
+///
+/// User-facing errors retain enough context to be actionable while
+/// preventing leakage of system structure.
+fn sanitize_error_message(msg: &str) -> String {
+    // Regex-free path detection and sanitization for performance
+    let mut result = String::with_capacity(msg.len());
+    let chars: Vec<char> = msg.chars().collect();
+    let len = chars.len();
+    let mut i = 0;
+
+    while i < len {
+        // Detect Windows absolute paths: C:\ or similar drive letters
+        if i + 2 < len
+            && chars[i].is_ascii_alphabetic()
+            && chars[i + 1] == ':'
+            && (chars[i + 2] == '\\' || chars[i + 2] == '/')
+        {
+            // Found a Windows absolute path, extract just the filename
+            let path_start = i;
+            // Find the end of the path (space, quote, or end of string)
+            while i < len && !chars[i].is_whitespace() && chars[i] != '"' && chars[i] != '\'' {
+                i += 1;
+            }
+            let path: String = chars[path_start..i].iter().collect();
+            if let Some(filename) = extract_filename(&path) {
+                result.push_str("<path>/");
+                result.push_str(filename);
+            } else {
+                result.push_str("<path>");
+            }
+            continue;
+        }
+
+        // Detect Unix absolute paths: starts with /
+        if chars[i] == '/' && (i == 0 || chars[i - 1].is_whitespace() || chars[i - 1] == '"' || chars[i - 1] == '\'') {
+            // Check if this looks like a path (contains more slashes or typical path chars)
+            let mut j = i + 1;
+            let mut has_path_chars = false;
+            while j < len && !chars[j].is_whitespace() && chars[j] != '"' && chars[j] != '\'' {
+                if chars[j] == '/' || chars[j].is_alphanumeric() || chars[j] == '_' || chars[j] == '-' || chars[j] == '.' {
+                    has_path_chars = true;
+                }
+                j += 1;
+            }
+            // Only treat as path if it has typical path characteristics
+            if has_path_chars && j > i + 1 {
+                let path: String = chars[i..j].iter().collect();
+                // Heuristic: if it looks like a real path (has multiple segments or common extensions)
+                if path.contains('/') && path.len() > 2 {
+                    if let Some(filename) = extract_filename(&path) {
+                        result.push_str("<path>/");
+                        result.push_str(filename);
+                    } else {
+                        result.push_str("<path>");
+                    }
+                    i = j;
+                    continue;
+                }
+            }
+        }
+
+        result.push(chars[i]);
+        i += 1;
+    }
+
+    result
+}
+
+/// Extract filename from a path string.
+fn extract_filename(path: &str) -> Option<&str> {
+    // Handle both Windows and Unix separators
+    let path = path.trim_end_matches(|c| c == '/' || c == '\\');
+    if let Some(pos) = path.rfind(|c| c == '/' || c == '\\') {
+        let filename = &path[pos + 1..];
+        if !filename.is_empty() {
+            return Some(filename);
+        }
+    }
+    None
+}
+
+/// Sanitize IO error messages, providing a generic message for internal errors.
+fn sanitize_io_error(e: &std::io::Error) -> String {
+    // Provide user-friendly error messages based on error kind
+    let kind_msg = match e.kind() {
+        std::io::ErrorKind::NotFound => "File or directory not found",
+        std::io::ErrorKind::PermissionDenied => "Permission denied",
+        std::io::ErrorKind::AlreadyExists => "File or directory already exists",
+        std::io::ErrorKind::InvalidInput => "Invalid input",
+        std::io::ErrorKind::InvalidData => "Invalid data",
+        std::io::ErrorKind::WriteZero => "Write operation failed",
+        std::io::ErrorKind::Interrupted => "Operation interrupted",
+        std::io::ErrorKind::UnexpectedEof => "Unexpected end of file",
+        std::io::ErrorKind::OutOfMemory => "Out of memory",
+        _ => "I/O operation failed",
+    };
+
+    // Sanitize any path information from the raw error message
+    let raw_msg = e.to_string();
+    let sanitized = sanitize_error_message(&raw_msg);
+
+    // If the sanitized message differs significantly, use the kind message
+    // to avoid leaking partial path information
+    if sanitized.contains("<path>") {
+        format!("{}: {}", kind_msg, sanitized)
+    } else {
+        sanitized
+    }
+}
 use rhizo_core::{
     ChunkStore, ChunkStoreError,
     FileCatalog, CatalogError, TableVersion,
@@ -39,7 +158,7 @@ fn chunk_err_to_py(e: ChunkStoreError) -> PyErr {
         ChunkStoreError::HashMismatch { expected, actual } => {
             PyValueError::new_err(format!("Hash mismatch: expected {}, got {}", expected, actual))
         }
-        ChunkStoreError::Io(e) => PyIOError::new_err(e.to_string()),
+        ChunkStoreError::Io(e) => PyIOError::new_err(sanitize_io_error(&e)),
     }
 }
 
@@ -56,8 +175,8 @@ fn catalog_err_to_py(e: CatalogError) -> PyErr {
         CatalogError::LatestPointerCorrupted(t) => {
             PyIOError::new_err(format!("Latest pointer corrupted for table: {}", t))
         }
-        CatalogError::Io(e) => PyIOError::new_err(e.to_string()),
-        CatalogError::Json(e) => PyValueError::new_err(format!("JSON error: {}", e)),
+        CatalogError::Io(e) => PyIOError::new_err(sanitize_io_error(&e)),
+        CatalogError::Json(e) => PyValueError::new_err(format!("JSON error: {}", sanitize_error_message(&e.to_string()))),
     }
 }
 
@@ -88,15 +207,15 @@ fn branch_err_to_py(e: BranchError) -> PyErr {
         BranchError::AlgebraicConflict(tables) => {
             PyValueError::new_err(format!("Algebraic merge conflict on tables: {:?}", tables))
         }
-        BranchError::Io(e) => PyIOError::new_err(e.to_string()),
-        BranchError::Json(e) => PyValueError::new_err(format!("JSON error: {}", e)),
+        BranchError::Io(e) => PyIOError::new_err(sanitize_io_error(&e)),
+        BranchError::Json(e) => PyValueError::new_err(format!("JSON error: {}", sanitize_error_message(&e.to_string()))),
     }
 }
 
 /// Convert MerkleError to appropriate Python exception
 fn merkle_err_to_py(e: MerkleError) -> PyErr {
     match e {
-        MerkleError::Io(e) => PyIOError::new_err(e.to_string()),
+        MerkleError::Io(e) => PyIOError::new_err(sanitize_io_error(&e)),
         MerkleError::ChunkNotFound(hash) => {
             PyValueError::new_err(format!("Chunk not found: {}", hash))
         }
@@ -110,13 +229,13 @@ fn merkle_err_to_py(e: MerkleError) -> PyErr {
             PyValueError::new_err(format!("Integrity error: expected {}, got {}", expected, actual))
         }
         MerkleError::TreeCorruption(msg) => {
-            PyValueError::new_err(format!("Tree corruption: {}", msg))
+            PyValueError::new_err(format!("Tree corruption: {}", sanitize_error_message(&msg)))
         }
         MerkleError::Serialization(msg) => {
-            PyValueError::new_err(format!("Serialization error: {}", msg))
+            PyValueError::new_err(format!("Serialization error: {}", sanitize_error_message(&msg)))
         }
         MerkleError::ChunkStore(msg) => {
-            PyIOError::new_err(format!("Chunk store error: {}", msg))
+            PyIOError::new_err(format!("Chunk store error: {}", sanitize_error_message(&msg)))
         }
     }
 }
@@ -124,8 +243,8 @@ fn merkle_err_to_py(e: MerkleError) -> PyErr {
 /// Convert ParquetError to appropriate Python exception
 fn parquet_err_to_py(e: ParquetError) -> PyErr {
     match e {
-        ParquetError::Arrow(e) => PyValueError::new_err(format!("Arrow error: {}", e)),
-        ParquetError::Parquet(e) => PyValueError::new_err(format!("Parquet error: {}", e)),
+        ParquetError::Arrow(e) => PyValueError::new_err(format!("Arrow error: {}", sanitize_error_message(&e.to_string()))),
+        ParquetError::Parquet(e) => PyValueError::new_err(format!("Parquet error: {}", sanitize_error_message(&e.to_string()))),
         ParquetError::EmptyData => PyValueError::new_err("Cannot process empty data"),
         ParquetError::InvalidCompression(c) => {
             PyValueError::new_err(format!("Invalid compression: {}", c))
@@ -189,7 +308,7 @@ impl PyParquetEncoder {
     ///     bytes: Parquet-encoded data
     fn encode(&self, batch: Bound<'_, PyAny>) -> PyResult<Vec<u8>> {
         let rust_batch = RecordBatch::from_pyarrow_bound(&batch)
-            .map_err(|e| PyValueError::new_err(format!("Invalid RecordBatch: {}", e)))?;
+            .map_err(|e| PyValueError::new_err(format!("Invalid RecordBatch: {}", sanitize_error_message(&e.to_string()))))?;
         self.inner.encode(&rust_batch).map_err(parquet_err_to_py)
     }
 
@@ -208,7 +327,7 @@ impl PyParquetEncoder {
             .iter()
             .map(|b| RecordBatch::from_pyarrow_bound(b))
             .collect::<Result<Vec<_>, _>>()
-            .map_err(|e| PyValueError::new_err(format!("Invalid RecordBatch: {}", e)))?;
+            .map_err(|e| PyValueError::new_err(format!("Invalid RecordBatch: {}", sanitize_error_message(&e.to_string()))))?;
         self.inner
             .encode_batch(&rust_batches)
             .map_err(parquet_err_to_py)
@@ -243,7 +362,7 @@ impl PyParquetDecoder {
     ///     PyArrow RecordBatch (zero-copy transfer)
     fn decode<'py>(&self, py: Python<'py>, data: &[u8]) -> PyResult<Bound<'py, PyAny>> {
         let batch = self.inner.decode(data).map_err(parquet_err_to_py)?;
-        batch.to_pyarrow(py).map_err(|e| PyValueError::new_err(e.to_string()))
+        batch.to_pyarrow(py).map_err(|e| PyValueError::new_err(sanitize_error_message(&e.to_string())))
     }
 
     /// Decode multiple Parquet chunks in parallel.
@@ -268,7 +387,7 @@ impl PyParquetDecoder {
 
         batches
             .into_iter()
-            .map(|batch| batch.to_pyarrow(py).map_err(|e| PyValueError::new_err(e.to_string())))
+            .map(|batch| batch.to_pyarrow(py).map_err(|e| PyValueError::new_err(sanitize_error_message(&e.to_string()))))
             .collect()
     }
 
@@ -297,7 +416,7 @@ impl PyParquetDecoder {
             .inner
             .decode_columns(data, &column_indices)
             .map_err(parquet_err_to_py)?;
-        batch.to_pyarrow(py).map_err(|e| PyValueError::new_err(e.to_string()))
+        batch.to_pyarrow(py).map_err(|e| PyValueError::new_err(sanitize_error_message(&e.to_string())))
     }
 
     /// Decode only specific columns by name (projection pushdown).
@@ -326,7 +445,7 @@ impl PyParquetDecoder {
             .inner
             .decode_columns_by_name(data, &names)
             .map_err(parquet_err_to_py)?;
-        batch.to_pyarrow(py).map_err(|e| PyValueError::new_err(e.to_string()))
+        batch.to_pyarrow(py).map_err(|e| PyValueError::new_err(sanitize_error_message(&e.to_string())))
     }
 
     /// Decode with predicate pushdown (row-level filtering).
@@ -373,7 +492,7 @@ impl PyParquetDecoder {
                 column_indices.as_deref(),
             )
             .map_err(parquet_err_to_py)?;
-        batch.to_pyarrow(py).map_err(|e| PyValueError::new_err(e.to_string()))
+        batch.to_pyarrow(py).map_err(|e| PyValueError::new_err(sanitize_error_message(&e.to_string())))
     }
 
     /// Get row-group pruning statistics for a filtered decode.
@@ -1002,11 +1121,11 @@ fn tx_err_to_py(e: TransactionError) -> PyErr {
                 table, read_version, current_version
             ))
         }
-        TransactionError::Io(e) => PyIOError::new_err(e.to_string()),
-        TransactionError::Json(e) => PyValueError::new_err(format!("JSON error: {}", e)),
-        TransactionError::CatalogError(msg) => PyIOError::new_err(format!("Catalog error: {}", msg)),
-        TransactionError::BranchError(msg) => PyIOError::new_err(format!("Branch error: {}", msg)),
-        _ => PyRuntimeError::new_err(e.to_string()),
+        TransactionError::Io(e) => PyIOError::new_err(sanitize_io_error(&e)),
+        TransactionError::Json(e) => PyValueError::new_err(format!("JSON error: {}", sanitize_error_message(&e.to_string()))),
+        TransactionError::CatalogError(msg) => PyIOError::new_err(format!("Catalog error: {}", sanitize_error_message(&msg))),
+        TransactionError::BranchError(msg) => PyIOError::new_err(format!("Branch error: {}", sanitize_error_message(&msg))),
+        _ => PyRuntimeError::new_err(sanitize_error_message(&e.to_string())),
     }
 }
 
@@ -2399,14 +2518,14 @@ impl PyVectorClock {
     /// Serialize to JSON string.
     fn to_json(&self) -> PyResult<String> {
         serde_json::to_string(&self.inner)
-            .map_err(|e| PyValueError::new_err(format!("Serialization error: {}", e)))
+            .map_err(|e| PyValueError::new_err(format!("Serialization error: {}", sanitize_error_message(&e.to_string()))))
     }
 
     /// Deserialize from JSON string.
     #[staticmethod]
     fn from_json(json: &str) -> PyResult<PyVectorClock> {
         let inner: VectorClock = serde_json::from_str(json)
-            .map_err(|e| PyValueError::new_err(format!("Deserialization error: {}", e)))?;
+            .map_err(|e| PyValueError::new_err(format!("Deserialization error: {}", sanitize_error_message(&e.to_string()))))?;
         Ok(PyVectorClock { inner })
     }
 
@@ -2662,7 +2781,7 @@ impl PyLocalCommitProtocol {
     ) -> PyResult<PyVersionedUpdate> {
         LocalCommitProtocol::commit_local(&tx.inner, &node_id.inner, &mut clock.inner)
             .map(|update| PyVersionedUpdate { inner: update })
-            .map_err(|e| PyValueError::new_err(format!("{}", e)))
+            .map_err(|e| PyValueError::new_err(sanitize_error_message(&format!("{}", e))))
     }
 
     /// Merge two versioned updates into one.
@@ -2681,7 +2800,7 @@ impl PyLocalCommitProtocol {
     ) -> PyResult<PyVersionedUpdate> {
         LocalCommitProtocol::merge_updates(&update1.inner, &update2.inner)
             .map(|update| PyVersionedUpdate { inner: update })
-            .map_err(|e| PyValueError::new_err(format!("{}", e)))
+            .map_err(|e| PyValueError::new_err(sanitize_error_message(&format!("{}", e))))
     }
 
     /// Merge multiple updates at once (more efficient than pairwise).
@@ -2690,7 +2809,7 @@ impl PyLocalCommitProtocol {
         let inner_updates: Vec<VersionedUpdate> = updates.iter().map(|u| u.inner.clone()).collect();
         LocalCommitProtocol::merge_all(&inner_updates)
             .map(|update| PyVersionedUpdate { inner: update })
-            .map_err(|e| PyValueError::new_err(format!("{}", e)))
+            .map_err(|e| PyValueError::new_err(sanitize_error_message(&format!("{}", e))))
     }
 }
 
@@ -2951,7 +3070,7 @@ impl PySimulatedCluster {
     fn commit_on_node(&mut self, node_index: usize, tx: &PyAlgebraicTransaction) -> PyResult<PyVersionedUpdate> {
         self.inner.commit_on_node(node_index, tx.inner.clone())
             .map(|update| PyVersionedUpdate { inner: update })
-            .map_err(|e| PyValueError::new_err(format!("{}", e)))
+            .map_err(|e| PyValueError::new_err(sanitize_error_message(&format!("{}", e))))
     }
 
     /// Run one round of propagation (broadcast + deliver).
@@ -3085,7 +3204,7 @@ impl PySimulationBuilder {
 
         for (node_index, tx) in &self.initial_operations {
             cluster.commit_on_node(*node_index, tx.clone())
-                .map_err(|e| PyValueError::new_err(format!("{}", e)))?;
+                .map_err(|e| PyValueError::new_err(sanitize_error_message(&format!("{}", e))))?;
         }
 
         cluster.propagate_all();

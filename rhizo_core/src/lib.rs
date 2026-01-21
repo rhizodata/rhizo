@@ -17,7 +17,7 @@ pub use branch::{
 };
 pub use catalog::{CatalogError, FileCatalog, TableVersion};
 pub use changelog::{ChangelogEntry, ChangelogQuery, TableChange};
-pub use chunk_store::{ChunkStore, ChunkStoreError};
+pub use chunk_store::{ChunkMmap, ChunkStore, ChunkStoreError};
 pub use merkle::{
     build_tree, diff_trees, verify_tree, DataChunk, MerkleConfig, MerkleDiff, MerkleError,
     MerkleNode, MerkleTree,

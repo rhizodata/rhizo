@@ -1127,30 +1127,102 @@ class QueryEngine:
         """
         Extract table names from a SQL query.
 
-        This is a simple regex-based approach. For production,
-        consider using sqlparse or DuckDB's query plan.
-        """
-        # Normalize whitespace
-        sql_normalized = " ".join(sql.split())
+        This is a regex-based approach that handles:
+        - Quoted identifiers: "table_name" and `table_name`
+        - Schema-qualified names: schema.table (extracts just table)
+        - Avoids extracting from string literals
+        - Excludes SQL keywords and common functions
 
-        # Patterns to match table names:
-        # - FROM table_name
-        # - JOIN table_name
-        # - FROM table_name alias
-        # - JOIN table_name alias
+        Note: For complex queries with nested subqueries or CTEs,
+        this may extract more tables than strictly necessary, but
+        over-extraction is safe (just registers tables that may not be used).
+        """
+        # Step 1: Remove string literals to avoid extracting table names from them
+        # Replace single-quoted strings with a placeholder
+        sql_no_strings = re.sub(r"'(?:[^'\\]|\\.)*'", "''", sql)
+        # Replace double-quoted strings that are string literals (not identifiers)
+        # In standard SQL, double quotes are for identifiers, but some dialects use them for strings
+        # We'll be conservative and keep double-quoted items as potential identifiers
+
+        # Normalize whitespace
+        sql_normalized = " ".join(sql_no_strings.split())
+
+        # Patterns to match table names after FROM/JOIN keywords:
+        # 1. Unquoted identifier: FROM table_name or FROM schema.table_name
+        # 2. Double-quoted identifier: FROM "table_name" or FROM schema."table_name"
+        # 3. Backtick-quoted identifier: FROM `table_name` or FROM schema.`table_name`
+        # 4. Mixed: FROM "schema".table_name or FROM schema."table_name"
+        #
+        # We capture the full table reference and then extract the table name part
+
+        # Pattern components:
+        # - Unquoted identifier: [a-zA-Z_][a-zA-Z0-9_]*
+        # - Double-quoted identifier: "[^"]+"|""[^"]*""
+        # - Backtick-quoted identifier: `[^`]+`
+        identifier = r'(?:[a-zA-Z_][a-zA-Z0-9_]*|"[^"]+"|`[^`]+`)'
+        # Schema-qualified: schema.table or just table
+        table_ref = rf'(?:{identifier}\.)?({identifier})'
+
+        # Keywords that introduce table references
+        # Include various JOIN types
         patterns = [
-            r'\bFROM\s+(\w+)',
-            r'\bJOIN\s+(\w+)',
+            rf'\bFROM\s+{table_ref}',
+            rf'\bJOIN\s+{table_ref}',
+            rf'\bINNER\s+JOIN\s+{table_ref}',
+            rf'\bLEFT\s+(?:OUTER\s+)?JOIN\s+{table_ref}',
+            rf'\bRIGHT\s+(?:OUTER\s+)?JOIN\s+{table_ref}',
+            rf'\bFULL\s+(?:OUTER\s+)?JOIN\s+{table_ref}',
+            rf'\bCROSS\s+JOIN\s+{table_ref}',
+            rf'\bNATURAL\s+(?:LEFT\s+|RIGHT\s+|FULL\s+)?(?:OUTER\s+)?JOIN\s+{table_ref}',
+            # UPDATE and INSERT for completeness (though less common in read queries)
+            rf'\bUPDATE\s+{table_ref}',
+            rf'\bINTO\s+{table_ref}',
         ]
 
         table_names = set()
         for pattern in patterns:
             matches = re.findall(pattern, sql_normalized, re.IGNORECASE)
-            table_names.update(m.lower() for m in matches)
+            for match in matches:
+                # match is the captured group (table name part)
+                # Strip quotes if present
+                table_name = match.strip('"').strip('`')
+                table_names.add(table_name.lower())
 
-        # Filter out DuckDB built-in functions/keywords that might match
-        keywords = {'select', 'where', 'group', 'order', 'limit', 'offset', 'union', 'except', 'intersect'}
+        # Comprehensive list of SQL keywords and built-in functions to exclude
+        # These might be mistakenly captured in edge cases
+        keywords = {
+            # SQL keywords
+            'select', 'from', 'where', 'group', 'order', 'limit', 'offset',
+            'union', 'except', 'intersect', 'all', 'distinct', 'as',
+            'and', 'or', 'not', 'in', 'is', 'null', 'true', 'false',
+            'case', 'when', 'then', 'else', 'end',
+            'join', 'inner', 'outer', 'left', 'right', 'full', 'cross', 'natural',
+            'on', 'using', 'having', 'by', 'asc', 'desc', 'nulls', 'first', 'last',
+            'with', 'recursive', 'values', 'set', 'update', 'delete', 'insert', 'into',
+            'create', 'drop', 'alter', 'table', 'view', 'index',
+            'primary', 'key', 'foreign', 'references', 'constraint', 'unique',
+            'default', 'check', 'between', 'like', 'ilike', 'similar', 'to',
+            'exists', 'any', 'some', 'over', 'partition', 'window', 'rows', 'range',
+            'unbounded', 'preceding', 'following', 'current', 'row',
+            'lateral', 'unnest', 'ordinality',
+            # Common aggregate/window functions that might appear in odd contexts
+            'count', 'sum', 'avg', 'min', 'max', 'first_value', 'last_value',
+            'row_number', 'rank', 'dense_rank', 'ntile', 'lag', 'lead',
+            # DuckDB-specific
+            'sample', 'tablesample', 'returning', 'conflict', 'nothing',
+            # Data types that might appear
+            'integer', 'bigint', 'smallint', 'real', 'double', 'precision',
+            'varchar', 'char', 'text', 'boolean', 'date', 'time', 'timestamp',
+            'interval', 'blob', 'json', 'array',
+        }
         table_names -= keywords
+
+        # Also filter out names that look like they might be subquery aliases
+        # (single letters are commonly used for subquery aliases)
+        # But be conservative - only filter single-char names that are very common aliases
+        common_aliases = {'a', 'b', 't', 'x', 's'}
+        # Don't filter these out - they could be legitimate short table names
+        # table_names -= common_aliases
 
         return list(table_names)
 

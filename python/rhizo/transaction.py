@@ -299,16 +299,19 @@ class TransactionContext:
         if self._aborted:
             return  # Idempotent
 
-        # Transaction manager is guaranteed non-None (checked in QueryEngine.transaction)
-        tx_manager = self._engine.transaction_manager
-        assert tx_manager is not None, "TransactionContext requires transaction_manager"
+        try:
+            # Transaction manager is guaranteed non-None (checked in QueryEngine.transaction)
+            tx_manager = self._engine.transaction_manager
+            assert tx_manager is not None, "TransactionContext requires transaction_manager"
 
-        tx_manager.abort(
-            self._tx_id,
-            reason or "User requested",
-        )
-        self._aborted = True
-        self._cleanup_temp_tables()
+            tx_manager.abort(
+                self._tx_id,
+                reason or "User requested",
+            )
+            self._aborted = True
+        finally:
+            # Always clean up temp tables, even if tx_manager.abort() fails
+            self._cleanup_temp_tables()
 
     def _check_active(self, operation: str) -> None:
         """Raise if transaction is not active."""
@@ -324,14 +327,24 @@ class TransactionContext:
         This allows queries within the transaction to see uncommitted
         writes. The tables are registered with a special naming scheme
         and cleaned up on commit/abort.
+
+        If registration fails partway through, any tables that were
+        successfully registered are tracked for cleanup.
         """
         for table_name, buffered in self._buffered_writes.items():
-            # Register the buffered data, replacing any existing registration
-            # The engine's _ensure_registered will use this instead of disk
-            self._engine._conn.register(table_name, buffered.data)
-
+            # Track the table BEFORE registering so cleanup happens
+            # even if registration fails partway through
             if table_name not in self._temp_tables:
                 self._temp_tables.append(table_name)
+
+            try:
+                # Register the buffered data, replacing any existing registration
+                # The engine's _ensure_registered will use this instead of disk
+                self._engine._conn.register(table_name, buffered.data)
+            except Exception:
+                # Registration failed - but table is already tracked for cleanup
+                # Re-raise to let caller handle the error
+                raise
 
     def _cleanup_temp_tables(self) -> None:
         """Unregister any temporary tables created for read-your-writes."""
@@ -349,3 +362,34 @@ class TransactionContext:
 
         self._temp_tables.clear()
         self._buffered_writes.clear()
+
+    def __enter__(self) -> "TransactionContext":
+        """
+        Enter the transaction context.
+
+        Returns:
+            self for use in with statements
+        """
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        """
+        Exit the transaction context with proper cleanup.
+
+        On successful exit (no exception), commits if still active.
+        On exception, aborts if still active.
+        Always ensures temp tables are cleaned up.
+        """
+        try:
+            if exc_type is not None:
+                # Exception occurred - abort if active
+                if self.is_active:
+                    self.abort(f"Exception: {exc_val}")
+            else:
+                # Normal exit - commit if active
+                if self.is_active:
+                    self.commit()
+        finally:
+            # Defensive cleanup: ensure temp tables are always cleaned up
+            # even if commit/abort failed in an unexpected way
+            self._cleanup_temp_tables()

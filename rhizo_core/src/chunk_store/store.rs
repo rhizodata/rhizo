@@ -1,11 +1,58 @@
-use std::fs;
+use std::fs::{self, File};
+use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use rayon::prelude::*;
 use memmap2::Mmap;
+use tracing::warn;
 use super::error::ChunkStoreError;
 
 /// BLAKE3 hashes are 64 hex characters (256 bits)
 const EXPECTED_HASH_LEN: usize = 64;
+
+/// A memory-mapped chunk that keeps the underlying file handle alive.
+///
+/// On Windows, the file handle must remain open while the memory mapping is in use.
+/// This struct ensures the `File` is kept alive alongside the `Mmap`.
+///
+/// Use `Deref` to access the underlying bytes: `&chunk_mmap[..]` or `chunk_mmap.as_ref()`.
+#[derive(Debug)]
+pub struct ChunkMmap {
+    // Note: Field order matters for drop order. The mmap must be dropped before the file.
+    mmap: Mmap,
+    #[allow(dead_code)] // Kept alive to maintain the memory mapping
+    file: File,
+}
+
+impl ChunkMmap {
+    /// Create a new ChunkMmap from a file path.
+    fn new(file: File, mmap: Mmap) -> Self {
+        Self { mmap, file }
+    }
+
+    /// Get the length of the memory-mapped region.
+    pub fn len(&self) -> usize {
+        self.mmap.len()
+    }
+
+    /// Check if the memory-mapped region is empty.
+    pub fn is_empty(&self) -> bool {
+        self.mmap.is_empty()
+    }
+}
+
+impl Deref for ChunkMmap {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        &self.mmap
+    }
+}
+
+impl AsRef<[u8]> for ChunkMmap {
+    fn as_ref(&self) -> &[u8] {
+        &self.mmap
+    }
+}
 
 pub struct ChunkStore {
     base_path: PathBuf,
@@ -38,12 +85,24 @@ impl ChunkStore {
                 Ok(()) => {}
                 Err(_) if chunk_path.exists() => {
                     // Another thread beat us - clean up our temp file
-                    let _ = fs::remove_file(&temp_path);
+                    if let Err(e) = fs::remove_file(&temp_path) {
+                        warn!(
+                            path = %temp_path.display(),
+                            error = %e,
+                            "Failed to remove orphaned temp file after concurrent write"
+                        );
+                    }
                     // This is not an error - the chunk exists with correct content
                 }
                 Err(e) => {
                     // Actual error - clean up and return
-                    let _ = fs::remove_file(&temp_path);
+                    if let Err(cleanup_err) = fs::remove_file(&temp_path) {
+                        warn!(
+                            path = %temp_path.display(),
+                            error = %cleanup_err,
+                            "Failed to remove temp file after write error"
+                        );
+                    }
                     return Err(ChunkStoreError::Io(e));
                 }
             }
@@ -87,24 +146,28 @@ impl ChunkStore {
     /// 3. Can be used with zero-copy parsers
     ///
     /// # Safety
-    /// The returned Mmap is read-only and the underlying file is immutable
+    /// The returned `ChunkMmap` is read-only and the underlying file is immutable
     /// (content-addressed), so this is safe to use.
+    ///
+    /// # Platform Notes
+    /// The returned `ChunkMmap` keeps the underlying file handle alive, which is
+    /// required on Windows where the file must remain open while the mapping exists.
     ///
     /// # Arguments
     /// * `hash` - The BLAKE3 hash of the chunk to retrieve
     ///
     /// # Returns
-    /// A memory-mapped view of the chunk data
+    /// A memory-mapped view of the chunk data that keeps the file handle alive
     ///
     /// # Errors
     /// - `ChunkStoreError::NotFound` if the chunk doesn't exist
     /// - `ChunkStoreError::InvalidHash` if the hash format is invalid
     /// - `ChunkStoreError::Io` for other I/O errors
-    pub fn get_mmap(&self, hash: &str) -> Result<Mmap, ChunkStoreError> {
+    pub fn get_mmap(&self, hash: &str) -> Result<ChunkMmap, ChunkStoreError> {
         self.validate_hash(hash)?;
         let chunk_path = self.hash_to_path(hash)?;
 
-        let file = std::fs::File::open(&chunk_path).map_err(|e| {
+        let file = File::open(&chunk_path).map_err(|e| {
             if e.kind() == std::io::ErrorKind::NotFound {
                 ChunkStoreError::NotFound(hash.to_string())
             } else {
@@ -114,7 +177,8 @@ impl ChunkStore {
 
         // SAFETY: We're only reading the file, and chunks are immutable once written
         // (content-addressed storage guarantees this)
-        unsafe { Mmap::map(&file) }.map_err(ChunkStoreError::Io)
+        let mmap = unsafe { Mmap::map(&file) }.map_err(ChunkStoreError::Io)?;
+        Ok(ChunkMmap::new(file, mmap))
     }
 
     /// Get memory-mapped views of multiple chunks in parallel.
@@ -127,7 +191,7 @@ impl ChunkStore {
     ///
     /// # Returns
     /// Vector of memory-mapped views in the same order as input hashes
-    pub fn get_mmap_batch(&self, hashes: &[&str]) -> Result<Vec<Mmap>, ChunkStoreError> {
+    pub fn get_mmap_batch(&self, hashes: &[&str]) -> Result<Vec<ChunkMmap>, ChunkStoreError> {
         hashes
             .par_iter()
             .map(|hash| self.get_mmap(hash))
@@ -148,6 +212,74 @@ impl ChunkStore {
         }
 
         Ok(())
+    }
+
+    /// Clean up orphaned temp files from failed or interrupted writes.
+    ///
+    /// Temp files are created during atomic writes and normally cleaned up,
+    /// but can be left behind if the process crashes or cleanup fails.
+    /// This method scans the store directory and removes any `.tmp` files.
+    ///
+    /// # Returns
+    /// The number of temp files successfully removed, and a count of failures.
+    ///
+    /// # Example
+    /// ```
+    /// # use rhizo_core::ChunkStore;
+    /// # let dir = std::env::temp_dir().join("cleanup_example");
+    /// # std::fs::create_dir_all(&dir).unwrap();
+    /// let store = ChunkStore::new(&dir).unwrap();
+    /// let (removed, failed) = store.cleanup_orphaned_temp_files();
+    /// println!("Removed {} temp files, {} failures", removed, failed);
+    /// # std::fs::remove_dir_all(&dir).ok();
+    /// ```
+    pub fn cleanup_orphaned_temp_files(&self) -> (usize, usize) {
+        let mut removed = 0;
+        let mut failed = 0;
+
+        // Walk the directory tree looking for .tmp files
+        if let Ok(entries) = self.walk_directory(&self.base_path) {
+            for entry in entries {
+                if let Some(ext) = entry.extension() {
+                    if ext == "tmp" {
+                        match fs::remove_file(&entry) {
+                            Ok(()) => {
+                                removed += 1;
+                            }
+                            Err(e) => {
+                                warn!(
+                                    path = %entry.display(),
+                                    error = %e,
+                                    "Failed to remove orphaned temp file during cleanup"
+                                );
+                                failed += 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        (removed, failed)
+    }
+
+    /// Recursively walk a directory and collect all file paths.
+    fn walk_directory(&self, dir: &Path) -> Result<Vec<PathBuf>, std::io::Error> {
+        let mut files = Vec::new();
+
+        if dir.is_dir() {
+            for entry in fs::read_dir(dir)? {
+                let entry = entry?;
+                let path = entry.path();
+                if path.is_dir() {
+                    files.extend(self.walk_directory(&path)?);
+                } else {
+                    files.push(path);
+                }
+            }
+        }
+
+        Ok(files)
     }
 
     // =========================================================================
@@ -782,6 +914,77 @@ mod tests {
 
         // Both should return identical content
         assert_eq!(via_get, &via_mmap[..]);
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    // =========================================================================
+    // Cleanup Tests
+    // =========================================================================
+
+    #[test]
+    fn test_cleanup_orphaned_temp_files_empty() {
+        let dir = temp_dir();
+        let store = ChunkStore::new(&dir).unwrap();
+
+        // No temp files - should return (0, 0)
+        let (removed, failed) = store.cleanup_orphaned_temp_files();
+        assert_eq!(removed, 0);
+        assert_eq!(failed, 0);
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn test_cleanup_orphaned_temp_files_removes_tmp() {
+        let dir = temp_dir();
+        let store = ChunkStore::new(&dir).unwrap();
+
+        // Create some normal chunks first (to establish directory structure)
+        let hash = store.put(b"test data").unwrap();
+        let chunk_path = store.hash_to_path(&hash).unwrap();
+
+        // Create orphaned temp files in the same directory
+        let temp_file1 = chunk_path.with_file_name("orphan1.tmp");
+        let temp_file2 = chunk_path.with_file_name("orphan2.tmp");
+        fs::write(&temp_file1, b"orphaned data 1").unwrap();
+        fs::write(&temp_file2, b"orphaned data 2").unwrap();
+
+        // Verify temp files exist
+        assert!(temp_file1.exists());
+        assert!(temp_file2.exists());
+
+        // Run cleanup
+        let (removed, failed) = store.cleanup_orphaned_temp_files();
+        assert_eq!(removed, 2);
+        assert_eq!(failed, 0);
+
+        // Verify temp files are gone
+        assert!(!temp_file1.exists());
+        assert!(!temp_file2.exists());
+
+        // Verify real chunk is still there
+        assert!(chunk_path.exists());
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn test_cleanup_does_not_remove_real_chunks() {
+        let dir = temp_dir();
+        let store = ChunkStore::new(&dir).unwrap();
+
+        // Create some chunks
+        let hash1 = store.put(b"chunk 1").unwrap();
+        let hash2 = store.put(b"chunk 2").unwrap();
+
+        // Run cleanup
+        let (removed, _) = store.cleanup_orphaned_temp_files();
+        assert_eq!(removed, 0);
+
+        // Verify chunks are still there
+        assert!(store.exists(&hash1).unwrap());
+        assert!(store.exists(&hash2).unwrap());
+
         fs::remove_dir_all(&dir).ok();
     }
 }

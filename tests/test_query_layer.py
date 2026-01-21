@@ -691,3 +691,142 @@ class TestProjectionPushdown:
         assert result.num_rows == 50000
         assert result.num_columns == 2
         assert result.column_names == ["id", "value"]
+
+
+class TestTableNameExtraction:
+    """Tests for _extract_table_names() robustness."""
+
+    def test_simple_table_name(self, temp_storage):
+        """Test extraction of simple unquoted table names."""
+        store, catalog, _ = temp_storage
+        engine = QueryEngine(store, catalog)
+
+        tables = engine._extract_table_names("SELECT * FROM users")
+        assert set(tables) == {"users"}
+
+    def test_multiple_tables(self, temp_storage):
+        """Test extraction of multiple tables from JOIN."""
+        store, catalog, _ = temp_storage
+        engine = QueryEngine(store, catalog)
+
+        tables = engine._extract_table_names(
+            "SELECT * FROM users u JOIN orders o ON u.id = o.user_id"
+        )
+        assert set(tables) == {"users", "orders"}
+
+    def test_quoted_table_names_double_quotes(self, temp_storage):
+        """Test extraction of double-quoted table names."""
+        store, catalog, _ = temp_storage
+        engine = QueryEngine(store, catalog)
+
+        tables = engine._extract_table_names('SELECT * FROM "my_table"')
+        assert set(tables) == {"my_table"}
+
+    def test_quoted_table_names_backticks(self, temp_storage):
+        """Test extraction of backtick-quoted table names."""
+        store, catalog, _ = temp_storage
+        engine = QueryEngine(store, catalog)
+
+        tables = engine._extract_table_names("SELECT * FROM `my_table`")
+        assert set(tables) == {"my_table"}
+
+    def test_schema_qualified_names(self, temp_storage):
+        """Test extraction of schema-qualified table names."""
+        store, catalog, _ = temp_storage
+        engine = QueryEngine(store, catalog)
+
+        tables = engine._extract_table_names("SELECT * FROM myschema.users")
+        assert set(tables) == {"users"}
+
+    def test_schema_qualified_with_quotes(self, temp_storage):
+        """Test extraction of schema-qualified table names with quotes."""
+        store, catalog, _ = temp_storage
+        engine = QueryEngine(store, catalog)
+
+        tables = engine._extract_table_names('SELECT * FROM myschema."users"')
+        assert set(tables) == {"users"}
+
+    def test_avoids_string_literals(self, temp_storage):
+        """Test that table names inside string literals are not extracted."""
+        store, catalog, _ = temp_storage
+        engine = QueryEngine(store, catalog)
+
+        # 'FROM fake_table' is inside a string literal, should not be extracted
+        tables = engine._extract_table_names(
+            "SELECT 'FROM fake_table' AS str FROM real_table"
+        )
+        assert set(tables) == {"real_table"}
+
+    def test_excludes_keywords(self, temp_storage):
+        """Test that SQL keywords are not extracted as table names."""
+        store, catalog, _ = temp_storage
+        engine = QueryEngine(store, catalog)
+
+        tables = engine._extract_table_names("SELECT * FROM users WHERE id > 0")
+        assert "where" not in tables
+        assert "select" not in tables
+        assert set(tables) == {"users"}
+
+    def test_various_join_types(self, temp_storage):
+        """Test extraction from various JOIN types."""
+        store, catalog, _ = temp_storage
+        engine = QueryEngine(store, catalog)
+
+        # LEFT JOIN
+        tables = engine._extract_table_names(
+            "SELECT * FROM users LEFT JOIN orders ON users.id = orders.user_id"
+        )
+        assert set(tables) == {"users", "orders"}
+
+        # LEFT OUTER JOIN
+        tables = engine._extract_table_names(
+            "SELECT * FROM users LEFT OUTER JOIN orders ON users.id = orders.user_id"
+        )
+        assert set(tables) == {"users", "orders"}
+
+        # INNER JOIN
+        tables = engine._extract_table_names(
+            "SELECT * FROM users INNER JOIN orders ON users.id = orders.user_id"
+        )
+        assert set(tables) == {"users", "orders"}
+
+        # CROSS JOIN
+        tables = engine._extract_table_names(
+            "SELECT * FROM users CROSS JOIN products"
+        )
+        assert set(tables) == {"users", "products"}
+
+    def test_case_insensitivity(self, temp_storage):
+        """Test that extraction is case-insensitive and normalizes to lowercase."""
+        store, catalog, _ = temp_storage
+        engine = QueryEngine(store, catalog)
+
+        tables = engine._extract_table_names("SELECT * FROM Users JOIN ORDERS ON ...")
+        assert set(tables) == {"users", "orders"}
+
+    def test_multiple_from_clauses(self, temp_storage):
+        """Test extraction from subqueries with multiple FROM clauses."""
+        store, catalog, _ = temp_storage
+        engine = QueryEngine(store, catalog)
+
+        tables = engine._extract_table_names("""
+            SELECT * FROM users
+            WHERE id IN (SELECT user_id FROM orders WHERE amount > 100)
+        """)
+        assert set(tables) == {"users", "orders"}
+
+    def test_cte_extraction(self, temp_storage):
+        """Test extraction from CTEs (Common Table Expressions)."""
+        store, catalog, _ = temp_storage
+        engine = QueryEngine(store, catalog)
+
+        # Note: This extracts 'orders' from the CTE and 'big_orders' from main query
+        # Over-extraction is safe (just registers more tables than needed)
+        tables = engine._extract_table_names("""
+            WITH big_orders AS (
+                SELECT * FROM orders WHERE amount > 1000
+            )
+            SELECT * FROM big_orders
+        """)
+        # Should extract 'orders' from the CTE source
+        assert "orders" in tables
