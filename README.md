@@ -240,23 +240,37 @@ with db.engine.transaction() as tx:
 
 ## Architecture
 
-```
-Application Layer
-    Python (rhizo) | Rust | CLI (planned)
-    TableWriter | TableReader | QueryEngine (DataFusion)
-                            |
-                            v
-                      FileCatalog
-    Versioned table metadata | Time travel queries | Atomic commits
-                            |
-                            v
-                       ChunkStore
-    Content-addressed storage (BLAKE3) | Automatic deduplication
-    Atomic writes | Integrity verification
-                            |
-                            v
-                       File System
-    2-level directory tree | JSON metadata | Parquet chunks
+```mermaid
+flowchart TD
+    subgraph APP["Application Layer"]
+        A1[Python]
+        A2[Rust]
+        A3[CLI]
+        A4[TableWriter]
+        A5[TableReader]
+        A6[QueryEngine]
+    end
+
+    subgraph CAT["FileCatalog"]
+        B1[Versioned metadata]
+        B2[Time travel]
+        B3[Atomic commits]
+    end
+
+    subgraph STORE["ChunkStore"]
+        C1[Content-addressed storage]
+        C2[BLAKE3 hashing]
+        C3[Auto-deduplication]
+    end
+
+    subgraph FS["File System"]
+        D1[Parquet chunks]
+        D2[JSON metadata]
+    end
+
+    APP --> CAT
+    CAT --> STORE
+    STORE --> FS
 ```
 
 ---
