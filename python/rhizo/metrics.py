@@ -571,7 +571,7 @@ def run_validation_benchmark(
     collector = MetricsCollector()
     instrumented = InstrumentedWriter(writer, collector)
 
-    print(f"Running validation benchmark...")
+    print("Running validation benchmark...")
     print(f"  Algebraic operations: {num_algebraic}")
     print(f"  Generic operations: {num_generic}")
 
@@ -612,13 +612,13 @@ def run_validation_benchmark(
     print("VALIDATION BENCHMARK RESULTS")
     print("=" * 60)
     print(f"\nTotal operations: {summary['total_operations']}")
-    print(f"\nAlgebraic operations:")
+    print("\nAlgebraic operations:")
     print(f"  Count: {summary['algebraic_total']['count']}")
     if summary['algebraic_total']['count'] > 0:
         print(f"  Mean latency: {summary['algebraic_total']['mean_latency_ms']:.6f} ms")
         print(f"  Coordination rounds: {summary['algebraic_total']['total_coordination_rounds']}")
 
-    print(f"\nGeneric operations:")
+    print("\nGeneric operations:")
     print(f"  Count: {summary['generic']['count']}")
     if summary['generic']['count'] > 0:
         print(f"  Mean latency: {summary['generic']['mean_latency_ms']:.6f} ms")
@@ -627,7 +627,7 @@ def run_validation_benchmark(
     if 'speedup_ratio' in summary:
         print(f"\nSpeedup ratio: {summary['speedup_ratio']:.2f}x")
 
-    print(f"\nTheory validation:")
+    print("\nTheory validation:")
     print(f"  All operations match theory: {summary['validation']['all_match_theory']}")
     print(f"  Algebraic ops coordination-free: {summary['validation']['algebraic_coordination_free']}")
 
