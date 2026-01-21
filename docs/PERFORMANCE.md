@@ -80,21 +80,18 @@ writer.write("big_table", million_row_df)  # Encoded in parallel
 
 The theoretical speedup for combined optimizations:
 
-```
-Speedup = (G/g) x (n/k) x (1/s)
+$$\text{Speedup} = \frac{G}{g} \times \frac{n}{k} \times \frac{1}{s}$$
 
 Where:
-  G = total row groups
-  g = row groups that might contain matches
-  n = total columns
-  k = requested columns
-  s = selectivity (fraction of rows matching)
-```
+- $G$ = total row groups
+- $g$ = row groups that might contain matches
+- $n$ = total columns
+- $k$ = requested columns
+- $s$ = selectivity (fraction of rows matching)
 
 **Example:** 10 row groups, 1 kept, 10 columns, 2 requested, 5% selectivity
-```
-Speedup = (10/1) x (10/2) x (1/0.05) = 10 x 5 x 20 = 1000x
-```
+
+$$\text{Speedup} = \frac{10}{1} \times \frac{10}{2} \times \frac{1}{0.05} = 10 \times 5 \times 20 = 1000\times$$
 
 Real-world results are lower due to fixed overhead (metadata parsing, Arrow conversion, etc.)
 

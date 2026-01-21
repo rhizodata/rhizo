@@ -32,7 +32,7 @@ This paper makes the following theoretical contributions:
 
 2. **Waiting Waste Theorem**: For any consensus protocol requiring R round-trips at latency L, waiting energy dominates total energy as L increases, with the waiting fraction approaching 100%.
 
-3. **Energy Scaling Law**: The ratio E_coordination_free / E_consensus approaches 0 as latency increases. Energy improvement grows unboundedly with network latency.
+3. **Energy Scaling Law**: The ratio $E_{cf} / E_{consensus}$ approaches 0 as latency increases. Energy improvement grows unboundedly with network latency.
 
 4. **Empirical Validation**: We validate both theorems experimentally, demonstrating constant 3-round convergence and ~100,000x energy improvement.
 
@@ -93,18 +93,18 @@ Idle power is typically 20-30% of active power. This matters because distributed
 ### 3.3 Proof
 
 **Round 1 (Dissemination)**:
-- Each node i has local state S_i
-- Node i broadcasts S_i to all nodes j != i
-- After round 1, each node j has received {S_1, S_2, ..., S_N}
-- By commutativity and associativity: S' = merge(S_1, ..., S_N) for all nodes
+- Each node $i$ has local state $S_i$
+- Node $i$ broadcasts $S_i$ to all nodes $j \neq i$
+- After round 1, each node $j$ has received $\{S_1, S_2, \ldots, S_N\}$
+- By commutativity and associativity: $S' = \text{merge}(S_1, \ldots, S_N)$ for all nodes
 
 All nodes now have the same merged state.
 
 **Round 2 (Confirmation)**:
-- Each node has state S' = merge(S_1, ..., S_N)
-- Each node broadcasts S'
-- Each node receives {S', S', ..., S'} (N copies)
-- By idempotency: merge(S', S', ...) = S'
+- Each node has state $S' = \text{merge}(S_1, \ldots, S_N)$
+- Each node broadcasts $S'$
+- Each node receives $\{S', S', \ldots, S'\}$ ($N$ copies)
+- By idempotency: $\text{merge}(S', S', \ldots) = S'$
 
 State unchanged, but nodes have confirmed mutual receipt.
 
@@ -146,68 +146,61 @@ Round 3 is necessary: This establishes "common knowledge"—everyone knows that 
 ### 4.1 Energy Decomposition
 
 **Definition 4 (Energy Decomposition)**: Transaction energy decomposes as:
-```
-E_total = E_compute + E_communicate + E_wait
-```
+
+$$E_{total} = E_{compute} + E_{communicate} + E_{wait}$$
 
 where:
-- E_compute = P_active * T_compute (energy for computation)
-- E_communicate = P_active * T_communicate (energy for transmission)
-- E_wait = P_idle * T_wait (energy while waiting)
+- $E_{compute} = P_{active} \times T_{compute}$ (energy for computation)
+- $E_{communicate} = P_{active} \times T_{communicate}$ (energy for transmission)
+- $E_{wait} = P_{idle} \times T_{wait}$ (energy while waiting)
 
 ### 4.2 Time Scaling
 
-For consensus with R round-trips at latency L:
-```
-T_compute = O(1)       (constant)
-T_communicate = O(M/B) (message/bandwidth, typically microseconds)
-T_wait = R * L         (grows linearly with latency)
-```
+For consensus with $R$ round-trips at latency $L$:
 
-Key observation: T_wait grows linearly with L while T_compute and T_communicate are bounded.
+$$T_{compute} = O(1)$$ (constant)
+
+$$T_{communicate} = O(M/B)$$ (message/bandwidth, typically microseconds)
+
+$$T_{wait} = R \times L$$ (grows linearly with latency)
+
+Key observation: $T_{wait}$ grows linearly with $L$ while $T_{compute}$ and $T_{communicate}$ are bounded.
 
 ### 4.3 Theorem Statement
 
-**Theorem 2 (Waiting Waste Dominance)**: For any consensus protocol requiring R > 0 synchronous round-trips:
+**Theorem 2 (Waiting Waste Dominance)**: For any consensus protocol requiring $R > 0$ synchronous round-trips:
 
-```
-lim (E_wait / E_total) = 1 as L -> infinity
-```
+$$\lim_{L \to \infty} \frac{E_{wait}}{E_{total}} = 1$$
 
 As network latency increases, waiting energy dominates all other energy costs.
 
 ### 4.4 Proof
 
-Let C = P_active * (T_compute + T_communicate), a constant for given hardware.
+Let $C = P_{active} \times (T_{compute} + T_{communicate})$, a constant for given hardware.
 
-```
-E_wait / E_total = (P_idle * R * L) / (C + P_idle * R * L)
-                 = 1 / (C/(P_idle * R * L) + 1)
-```
+$$\frac{E_{wait}}{E_{total}} = \frac{P_{idle} \times R \times L}{C + P_{idle} \times R \times L} = \frac{1}{\frac{C}{P_{idle} \times R \times L} + 1}$$
 
-As L -> infinity:
-```
-C/(P_idle * R * L) -> 0
-E_wait / E_total -> 1
-```
+As $L \to \infty$:
+
+$$\frac{C}{P_{idle} \times R \times L} \to 0$$
+
+$$\frac{E_{wait}}{E_{total}} \to 1$$
 
 ### 4.5 Coordination-Free Corollary
 
-**Corollary 2 (Coordination-Free Advantage)**: For coordination-free transactions with R = 0:
-```
-E_coordination_free / E_consensus -> 0 as L -> infinity
-```
+**Corollary 2 (Coordination-Free Advantage)**: For coordination-free transactions with $R = 0$:
+
+$$\lim_{L \to \infty} \frac{E_{cf}}{E_{consensus}} = 0$$
 
 The energy advantage grows unboundedly with network latency.
 
-*Proof*: With R = 0, E_wait = 0, so E_coordination_free = E_compute only. The ratio:
-```
-E_coordination_free / E_consensus = E_compute / (C + P_idle * R * L) -> 0
-```
+*Proof*: With $R = 0$, $E_{wait} = 0$, so $E_{cf} = E_{compute}$ only. The ratio:
+
+$$\frac{E_{cf}}{E_{consensus}} = \frac{E_{compute}}{C + P_{idle} \times R \times L} \to 0$$
 
 ### 4.6 Quantitative Analysis
 
-Using typical values (P_active = 65W, P_idle = 22W, R = 3):
+Using typical values ($P_{active} = 65W$, $P_{idle} = 22W$, $R = 3$):
 
 | Latency | E_compute | E_wait | E_total | Wait % | Improvement* |
 |---------|-----------|--------|---------|--------|--------------|

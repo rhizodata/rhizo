@@ -161,11 +161,11 @@ fn commit(&self, changes: HashMap<String, TableVersion>) -> Result<()> {
 
 We implement snapshot isolation, the same model used by PostgreSQL and Oracle [4]. Transactions see a consistent snapshot and are checked for conflicts at commit time.
 
-Two transactions T_i and T_j conflict if and only if:
+Two transactions $T_i$ and $T_j$ conflict if and only if:
 
 $$\text{Conflict}(T_i, T_j) = (W_i \cap W_j \neq \emptyset) \land (\text{concurrent})$$
 
-Where W_i is the write set of transaction i. **Currently, conflict detection operates at table granularity**—if two transactions both write to the same table, one must abort. Row-level conflict detection is planned for future work.
+Where $W_i$ is the write set of transaction $i$. **Currently, conflict detection operates at table granularity**—if two transactions both write to the same table, one must abort. Row-level conflict detection is planned for future work.
 
 #### Defense-in-Depth: Three-Layer Protection
 
