@@ -73,7 +73,7 @@ For $10^{15}$ chunks (exabyte scale):
 
 $$P(\text{collision}) = \frac{10^{30}}{2^{257}} \approx 4.3 \times 10^{-48}$$
 
-For comparison: undetected RAM bit flips occur at ~$10^{-13}$ per year [3]. Hash collision is not a practical concern.
+For comparison: undetected RAM bit flips occur at $\sim 10^{-13}$ per year [3]. Hash collision is not a practical concern.
 
 ```python
 n = 10**15  # chunks
@@ -139,7 +139,7 @@ Content-addressed storage enables **invalidation-free caching** with mathematica
 **Hit rate model:**
 $$P(\text{hit}) = P(\text{repeat}) + P(\text{shared}) \times P(\text{overlap})$$
 
-Where `P(repeat)` is probability of re-reading same chunk, `P(shared)` is probability of cross-table/version/branch sharing, and `P(overlap)` is probability of reading shared data.
+Where $P(\text{repeat})$ is probability of re-reading same chunk, $P(\text{shared})$ is probability of cross-table/version/branch sharing, and $P(\text{overlap})$ is probability of reading shared data.
 
 Measured hit rates: **91%+** for typical workloads, **97%+** with time travel queries.
 
