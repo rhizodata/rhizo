@@ -6,47 +6,48 @@
 \begin{document}
 
 \begin{center}
-\begin{tikzpicture}[
-    layer/.style={
-        rectangle,
-        rounded corners=3pt,
-        minimum width=12cm,
-        minimum height=1.5cm,
-        draw=gray,
-        line width=1pt,
-        font=\sffamily
-    },
-    arrow/.style={
-        ->,
-        thick,
-        gray
-    }
-]
+\begin{tikzpicture}
 
 % Python API Layer
-\node[layer, fill=blue!20] (python) at (0,0) {};
-\node[font=\sffamily\bfseries] at (0,0.4) {Python API};
-\node[font=\sffamily\small] at (0,-0.2) {rhizo.open \quad DataFusion OLAP \quad Changelog};
+\node[rectangle, rounded corners, minimum width=12cm, minimum height=1.5cm,
+      draw=gray, fill=blue!20, line width=1pt] (python) at (0,0) {
+  \begin{tabular}{c}
+    \textbf{Python API} \\
+    \small rhizo.open \quad DataFusion OLAP \quad Changelog
+  \end{tabular}
+};
 
 % Rust Core Layer
-\node[layer, fill=orange!20, below=0.6cm of python] (rust) {};
-\node[font=\sffamily\bfseries] at (0,-2.0+0.4) {Rust Core};
-\node[font=\sffamily\small] at (0,-2.0-0.2) {Transactions \quad Branching \quad Algebraic Merge \quad Distributed};
+\node[rectangle, rounded corners, minimum width=12cm, minimum height=1.5cm,
+      draw=gray, fill=orange!20, line width=1pt, below=0.5cm of python] (rust) {
+  \begin{tabular}{c}
+    \textbf{Rust Core} \\
+    \small Transactions \quad Branching \quad Algebraic Merge \quad Distributed
+  \end{tabular}
+};
 
 % Storage Layer
-\node[layer, fill=gray!20, below=0.6cm of rust] (storage) {};
-\node[font=\sffamily\bfseries] at (0,-4.2+0.4) {Storage Layer};
-\node[font=\sffamily\small] at (0,-4.2-0.2) {Catalog \quad ChunkStore \quad Merkle Trees};
+\node[rectangle, rounded corners, minimum width=12cm, minimum height=1.5cm,
+      draw=gray, fill=gray!20, line width=1pt, below=0.5cm of rust] (storage) {
+  \begin{tabular}{c}
+    \textbf{Storage Layer} \\
+    \small Catalog \quad ChunkStore \quad Merkle Trees
+  \end{tabular}
+};
 
 % File System Layer
-\node[layer, fill=green!20, below=0.6cm of storage] (fs) {};
-\node[font=\sffamily\bfseries] at (0,-6.4+0.4) {File System};
-\node[font=\sffamily\small] at (0,-6.4-0.2) {Parquet chunks \quad JSON metadata};
+\node[rectangle, rounded corners, minimum width=12cm, minimum height=1.5cm,
+      draw=gray, fill=green!20, line width=1pt, below=0.5cm of storage] (fs) {
+  \begin{tabular}{c}
+    \textbf{File System} \\
+    \small Parquet chunks \quad JSON metadata
+  \end{tabular}
+};
 
 % Arrows
-\draw[arrow] (python.south) -- (rust.north);
-\draw[arrow] (rust.south) -- (storage.north);
-\draw[arrow] (storage.south) -- (fs.north);
+\draw[->, thick, gray] (python.south) -- (rust.north);
+\draw[->, thick, gray] (rust.south) -- (storage.north);
+\draw[->, thick, gray] (storage.south) -- (fs.north);
 
 \end{tikzpicture}
 \end{center}
