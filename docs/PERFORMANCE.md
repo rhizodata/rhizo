@@ -422,3 +422,63 @@ except SizeLimitExceededError as e:
 ```
 
 All custom exceptions inherit from standard types (IOError, ValueError) for backwards compatibility.
+
+---
+
+## Security Hardening
+
+### Error Message Sanitization
+
+All error messages from Rust to Python are sanitized to prevent information leakage:
+
+```python
+# What the user sees (sanitized):
+# "File not found: <path>/chunk_abc123.parquet"
+
+# What is NOT exposed:
+# "File not found: C:\Users\admin\data\rhizo\chunks\chunk_abc123.parquet"
+```
+
+Sanitization covers:
+- Windows absolute paths (`C:\...`, `D:\...`)
+- Unix absolute paths (`/home/...`, `/var/...`)
+- All 15+ error conversion functions in PyO3 bindings
+
+### SQL Table Extraction
+
+The query engine extracts table names from SQL for automatic version resolution. This extraction is hardened against:
+
+| Attack Vector | Protection |
+|---------------|------------|
+| Quoted identifiers | Properly parsed: `"my_table"`, `` `my_table` `` |
+| Schema-qualified | Handled: `schema.table` extracts `table` |
+| String literals | Removed before extraction |
+| SQL keywords | 80+ keywords excluded |
+| CTEs/Subqueries | Properly handled |
+
+### Security Test Coverage
+
+The `tests/test_security.py` suite includes 112 tests:
+
+```python
+# Parametrized fuzzing with 57+ malicious inputs
+@pytest.mark.parametrize("malicious_name", [
+    "../etc/passwd",
+    "'; DROP TABLE users; --",
+    "\x00",
+    "a" * 10000,
+    # ... 53 more
+])
+def test_table_name_validation_rejects_malicious(malicious_name):
+    with pytest.raises(ValueError):
+        _validate_table_name(malicious_name)
+```
+
+Categories tested:
+- Path traversal (Unix and Windows)
+- SQL injection attempts
+- Null byte injection
+- Buffer overflow (oversized inputs)
+- Unicode normalization attacks
+- Shell command injection
+- Size limit enforcement

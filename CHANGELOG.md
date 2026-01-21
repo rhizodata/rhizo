@@ -5,6 +5,60 @@ All notable changes to Rhizo will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.4] - 2026-01-20
+
+### Security
+
+#### Error Message Sanitization
+- **Path sanitization in error messages**: PyO3 bindings now sanitize filesystem paths from all error messages
+  - Prevents information leakage about internal directory structure
+  - Windows paths (`C:\Users\...`) and Unix paths (`/home/...`) are masked to `<path>/filename`
+  - All 15+ error conversion functions updated with consistent sanitization
+
+#### SQL Injection Hardening
+- **Improved SQL table extraction**: Regex-based extraction now handles:
+  - Quoted identifiers (`"my_table"`, `` `my_table` ``)
+  - Schema-qualified names (`schema.table`)
+  - CTEs (WITH clauses) and subqueries
+  - 80+ SQL keywords excluded from false-positive extraction
+  - String literals removed before extraction to prevent injection via strings
+
+### Added
+
+#### Comprehensive Security Test Suite
+- **New `tests/test_security.py`**: 112 security/fuzzing tests covering:
+  - Path traversal attacks (57 parametrized malicious inputs)
+  - SQL injection attempts
+  - Size limit enforcement
+  - Column name validation
+  - Resource exhaustion prevention
+  - Concurrent access safety
+
+#### Transaction Robustness
+- **Proper cleanup on all code paths**: `TransactionContext` now uses `finally` blocks for temp table cleanup
+- **Context manager protocol**: Added `__enter__`/`__exit__` methods for proper `with` statement support
+- **Defensive registration**: Temp tables tracked before DuckDB registration, ensuring cleanup even on failure
+
+#### Rust Storage Robustness
+- **Temp file cleanup logging**: Failed cleanup operations now logged via `tracing` crate (was silent)
+- **Orphaned file cleanup**: New `cleanup_orphaned_temp_files()` method for maintenance
+- **Mmap file handle fix**: New `ChunkMmap` wrapper keeps file handle alive on Windows
+
+#### Transaction Conflict Tests
+- **20 new conflict scenario tests** covering:
+  - Concurrent write detection
+  - Three-way conflicts
+  - Read-write isolation (snapshot isolation)
+  - Transaction reuse prevention
+  - Partial table conflicts
+
+### Testing
+- **492 Python tests** (was 348, +144 new)
+- **373 Rust tests** (was 370, +3 new)
+- All linting clean (clippy, ruff)
+
+---
+
 ## [0.5.3] - 2026-01-20
 
 ### Security
