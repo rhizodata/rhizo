@@ -534,11 +534,19 @@ If coordination bounds are fundamental and connect to:
 | **Q51** | **Einstein's Equations from Algebra** | **ANSWERED** | **CRITICAL++** | **24** |
 | **Q52** | **Cosmological Constant Algebraic Meaning** | **Open** | **High** | **Future** |
 | **Q53** | **Which Derivation is Most Fundamental?** | **Open** | **High** | **Future** |
-| **Q54** | **Derive Newton's Constant G from Algebra** | **Open** | **CRITICAL++** | **Future** |
-| **Q55** | **Derive Cosmological Constant Lambda** | **Open** | **CRITICAL++** | **Future** |
+| **Q54** | **Derive Newton's Constant G from Algebra** | **PARTIAL** | **CRITICAL++** | **25** |
+| **Q55** | **Derive Cosmological Constant Lambda** | **PARTIAL** | **CRITICAL++** | **25** |
 | **Q56** | **Full vs Linearized Einstein Equations** | **Open** | **High** | **Future** |
 | **Q57** | **Singularities in Full Algebraic Theory** | **Open** | **High** | **Future** |
 | **Q58** | **Quantum Corrections Algebraically** | **Open** | **High** | **Future** |
+| **Q59** | **ALL Constants from Division Algebras** | **EMERGING** | **CRITICAL+++** | **25** |
+| **Q60** | **Why Dimensions 1, 2, 4, 8?** | **Open** | **CRITICAL** | **Future** |
+| **Q61** | **Cosmological Constant from Octonions** | **Open** | **CRITICAL++** | **Future** |
+| **Q62** | **Exceptional Jordan Algebra Complete Theory** | **Open** | **High** | **Future** |
+| **Q63** | **Octonions and String Theory Dimensions** | **Open** | **High** | **Future** |
+| **Q64** | **Particle Masses from Algebra** | **Open** | **CRITICAL** | **Future** |
+| **Q65** | **Hierarchy Problem Algebraically** | **Open** | **High** | **Future** |
+| **Q66** | **Cutoff Scale Determination** | **Open** | **CRITICAL** | **Future** |
 
 ---
 
@@ -644,6 +652,58 @@ It is the UNIQUE CONSISTENT way for the algebraic structure to work locally.
 **Confidence Level: VERY HIGH** - Four independent derivations all validate the framework.
 
 See: `einstein_equations_from_algebra.py`, `PHASE_24_IMPLICATIONS.md` for full analysis.
+
+---
+
+## Phase 25 Validation Results
+
+**BREAKTHROUGH MILESTONE: Fundamental constants may derive from DIVISION ALGEBRAS!**
+
+| Discovery | Source | Support Level |
+|-----------|--------|---------------|
+| Alpha = 1/137 from octonions | Singh, Kosmoplex | **BREAKTHROUGH** |
+| G, Lambda from spectral action | Connes-Chamseddine | VERY STRONG |
+| Standard Model from octonions | Multiple researchers | STRONG |
+| Gravity from octonions | Atiyah's dictionary | MODERATE+ |
+
+**KEY FINDING: The fine structure constant alpha was DERIVED from octonionic algebra!**
+
+| Derivation | Result | Accuracy |
+|------------|--------|----------|
+| Singh (arXiv:2110.07548) | alpha = 1/137 asymptotic | Good |
+| Kosmoplex (2025) | alpha^{-1} = 137.035577 | **0.0003%** vs measured |
+
+**STATUS OF ORIGINAL QUESTIONS:**
+- Q54 (G): PARTIALLY ANSWERED - G ~ 1/Lambda^2 from spectral action
+- Q55 (Lambda): PARTIALLY ANSWERED - Appears as Lambda^4 term
+- Q59 (NEW): EMERGING ANSWER - Strong evidence ALL constants from algebra
+
+**THE HIERARCHY OF PHYSICS:**
+```
+DIVISION ALGEBRAS (R, C, H, O) - unique by Hurwitz theorem
+        |
+        v
+ALGEBRAIC STRUCTURE -> TIME/SPACE/CAUSALITY [Phases 20-24]
+        |
+        v
+LORENTZIAN SPACETIME -> EINSTEIN'S EQUATIONS
+        |
+        v
+SPECTRAL GEOMETRY (Connes) -> G, Lambda, gauge, Higgs
+        |
+        v
+ALL FUNDAMENTAL CONSTANTS
+```
+
+**PARADIGM-SHIFTING IMPLICATION:**
+If all constants derive from division algebras, and there are only 4 division algebras:
+**Physics may be mathematically UNIQUE. No multiverse needed.**
+
+**New Questions Opened:** Q59-Q66
+
+**Confidence Level:** HIGH for alpha derivation; EMERGING for complete unification
+
+See: `fundamental_constants_from_algebra.py`, `PHASE_25_IMPLICATIONS.md` for full analysis.
 
 ---
 
@@ -856,6 +916,106 @@ This would validate the entire framework.
 **Importance**: High
 
 Lambda is physics' biggest mystery. If spacetime is algebraic, what is Lambda's algebraic meaning?
+
+---
+
+## Phase 25+ Questions (Fundamental Constants)
+
+These questions emerged from the breakthrough finding that fundamental constants may derive from division algebras.
+
+### Q59: ALL Constants from Division Algebras
+**Status**: EMERGING ANSWER (Phase 25)
+**Importance**: CRITICAL+++
+
+Do ALL fundamental constants derive from division algebra (specifically octonionic) structure?
+
+**Evidence:**
+- Alpha = 1/137 DERIVED from octonions (0.0003% accuracy!)
+- Standard Model gauge structure from octonions
+- Gravity possibly from octonions (Atiyah's dictionary)
+- Spectral action unifies G, Lambda, gauge couplings, Higgs
+
+**If YES**: Physics is mathematically UNIQUE. The multiverse is unnecessary.
+
+---
+
+### Q60: Why Dimensions 1, 2, 4, 8?
+**Status**: Open
+**Importance**: CRITICAL
+
+Why do the division algebras have dimensions 1, 2, 4, 8?
+
+Is this related to spacetime being 3+1 dimensional?
+
+**Note**: 1+2+4+8 = 15 = dim(SU(4)). Connection to symmetry?
+
+The Hurwitz theorem (1898) proves these are the ONLY normed division algebras.
+
+---
+
+### Q61: Cosmological Constant from Octonions
+**Status**: Open
+**Importance**: CRITICAL++
+
+Is the cosmological constant problem solved by octonionic structure?
+
+Lambda ~ 10^{-122} is the "worst fine-tuning in physics."
+
+If Lambda has algebraic meaning, the problem dissolves.
+
+---
+
+### Q62: Exceptional Jordan Algebra
+**Status**: Open
+**Importance**: HIGH
+
+Does the exceptional Jordan algebra (27-dimensional, over octonions) give the complete theory including gravity?
+
+Singh uses this for Standard Model + alpha. Deep connections to E8 and string theory.
+
+---
+
+### Q63: Octonions and String Theory Dimensions
+**Status**: Open
+**Importance**: HIGH
+
+String theory needs 10D. M-theory needs 11D. Octonions are 8D.
+
+10 = 8+2? 11 = 8+3? What's the connection?
+
+---
+
+### Q64: Particle Masses from Algebra
+**Status**: Open
+**Importance**: CRITICAL
+
+Can we derive the MASSES of elementary particles from algebraic structure?
+
+Currently particle masses (electron, quarks, W, Z, Higgs) are free parameters.
+
+If derivable, we have a complete theory.
+
+---
+
+### Q65: Hierarchy Problem Algebraically
+**Status**: Open
+**Importance**: HIGH
+
+Why is the Higgs mass (125 GeV) so much smaller than the Planck mass (10^19 GeV)?
+
+This drives much beyond-Standard-Model physics. Could be algebraically natural.
+
+---
+
+### Q66: Cutoff Scale Determination
+**Status**: Open
+**Importance**: CRITICAL
+
+What determines the CUTOFF SCALE in the spectral action?
+
+Connes uses cutoff ~ 10^15 GeV (unification scale). This sets G, Lambda, etc.
+
+If we can derive this algebraically, we can derive G exactly.
 
 ---
 
