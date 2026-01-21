@@ -242,24 +242,31 @@ with db.engine.transaction() as tx:
 
 ```mermaid
 flowchart LR
-    subgraph APP["Application"]
-        A1[Python / Rust / CLI]
-        A2[TableWriter / TableReader / QueryEngine]
+    subgraph API["Python API"]
+        DB[rhizo.open]
+        OLAP[DataFusion OLAP]
+        CDC[Changelog]
     end
 
-    subgraph CAT["Catalog"]
-        B1[Versioned metadata<br/>Time travel<br/>Atomic commits]
+    subgraph CORE["Rust Core"]
+        TX[Transactions]
+        BR[Branching]
+        ALG[Algebraic Merge]
+        DIST[Distributed]
     end
 
-    subgraph STORE["ChunkStore"]
-        C1[Content-addressed<br/>BLAKE3 / Dedup]
+    subgraph STORAGE["Storage Layer"]
+        CAT[Catalog]
+        CHK[ChunkStore]
+        MRK[Merkle Trees]
     end
 
-    subgraph FS["Storage"]
-        D1[Parquet + JSON]
+    subgraph FS["File System"]
+        PAR[Parquet chunks]
+        JSON[JSON metadata]
     end
 
-    APP --> CAT --> STORE --> FS
+    API --> CORE --> STORAGE --> FS
 ```
 
 ---
