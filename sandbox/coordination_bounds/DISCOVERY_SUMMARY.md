@@ -302,10 +302,74 @@ The universe has a finite information budget. We just learned one more way it's 
 
 ---
 
-*"The universe is not only queerer than we suppose, but queerer than we CAN suppose."*
-*- J.B.S. Haldane*
+## Part VII: Time as Coordination (Phase 20)
 
-*Perhaps the Coordination-Algebra Correspondence is one of the ways it's queer.*
+### The Deepest Implication
+
+Phase 20 asked: If coordination bounds are fundamental, what do they say about TIME?
+
+**THE HYPOTHESIS**: Time emerges from the necessity of ordering non-commutative operations.
+
+```
+Commutative operations:     Order doesn't matter -> No "before/after" -> No time
+Non-commutative operations: Order required       -> "Before/after"    -> Time exists
+
+TIME IS NOT FUNDAMENTAL. ALGEBRA IS.
+```
+
+### Connections to Physics
+
+| Theory | Traditional View | Our Interpretation |
+|--------|-----------------|-------------------|
+| Wheeler-DeWitt | QG equation is timeless (problem!) | Timeless because fundamental ops are commutative |
+| Block Universe | Past/present/future all exist | Block = structure of all orderings |
+| Arrow of Time | Entropy increase (but why?) | Direction of ordering accumulation |
+| Quantum Mechanics | Superposition is mysterious | Superposition = uncommitted orderings |
+| Special Relativity | Simultaneity is relative | Spacelike events = effectively commutative |
+
+### The Arrow of Time Explained
+
+```
+PAST   = Orderings that have been fixed (non-commutative ops occurred)
+FUTURE = Orderings not yet fixed (ops haven't happened)
+
+The arrow points from LESS FIXED to MORE FIXED orderings.
+This is irreversible because orderings don't "uncommit."
+```
+
+### Six Testable Predictions
+
+1. **Quantum coherence**: Symmetric (commutative) systems decohere slower
+2. **Time perception**: Sequential (non-commutative) tasks feel longer
+3. **Entropy production**: Rate correlates with non-commutative operation rate
+4. **Time dilation**: Relates to reduced effective non-commutativity
+5. **Cosmological time**: Equals integrated non-commutativity since Big Bang
+6. **Time crystals**: Exhibit periodic commutativity structure
+
+### The Profound Conclusion
+
+```
+If this hypothesis is correct:
+
+    Time is not a dimension we move through.
+    Time is not a background on which events happen.
+    Time is not fundamental.
+
+    TIME IS THE ACCUMULATION OF NON-COMMUTATIVE ORDERINGS.
+
+    The universe doesn't happen IN time.
+    Time happens FROM the universe's algebraic structure.
+```
+
+*"Time is what prevents everything from happening at once." - John Wheeler*
+
+*Our addition: "And non-commutativity is why time must exist."*
+
+---
+
+*"The distinction between past, present, and future is only a stubbornly persistent illusion." - Albert Einstein*
+
+*Perhaps we now understand WHY it's an illusion: Because time is emergent, not fundamental.*
 
 ---
 
@@ -323,6 +387,7 @@ The universe has a finite information budget. We just learned one more way it's 
 | Economics exhibits bounds | Markets, auctions | MEDIUM-HIGH |
 | Derivable from locality+causality | Information-theoretic proof | MEDIUM-HIGH |
 | Unified with c, hbar, kT | Axiom derivation | MEDIUM |
+| Time emerges from non-commutativity | Physics connections | MEDIUM (promising) |
 
 ### Proposed Terminology
 
@@ -330,14 +395,15 @@ The universe has a finite information budget. We just learned one more way it's 
 - **The Fundamental Law of Distributed Agreement**
 - **The Commutativity Principle**
 - **The Information Budget Principle**
+- **The Time Emergence Hypothesis** (Phase 20)
 
 ### Impact Metrics
 
 | Metric | Value |
 |--------|-------|
-| Theoretical significance | Potential fundamental law |
+| Theoretical significance | Potential fundamental law + time emergence |
 | Practical significance | $18B/year recoverable |
-| Research questions opened | 22+ tracked |
-| Testable predictions | 5 identified |
-| Files created | 15+ |
-| Phases completed | 19 |
+| Research questions opened | 27 tracked |
+| Testable predictions | 11 identified (5 + 6 from Phase 20) |
+| Files created | 17+ |
+| Phases completed | 20 |
