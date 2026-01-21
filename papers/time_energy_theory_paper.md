@@ -365,15 +365,15 @@ For algebraic workloads on geo-distributed systems, coordination-free approaches
 
 [2] Ongaro, D., & Ousterhout, J. (2014). In Search of an Understandable Consensus Algorithm. USENIX ATC.
 
-[3] Demers, A., et al. (1987). Epidemic Algorithms for Replicated Database Maintenance. PODC.
+[3] Demers, A., Greene, D., Hauser, C., et al. (1987). Epidemic Algorithms for Replicated Database Maintenance. PODC.
 
-[4] Shapiro, M., et al. (2011). Conflict-free Replicated Data Types. SSS.
+[4] Shapiro, M., Preguiça, N., Baquero, C., & Zawirski, M. (2011). Conflict-free Replicated Data Types. SSS.
 
 [5] Halpern, J., & Moses, Y. (1990). Knowledge and Common Knowledge in a Distributed Environment. JACM.
 
-[6] Barroso, L., & Holzle, U. (2007). The Case for Energy-Proportional Computing. IEEE Computer.
+[6] Barroso, L., & Hölzle, U. (2007). The Case for Energy-Proportional Computing. IEEE Computer.
 
-[7] Bailis, P., et al. (2014). Coordination Avoidance in Database Systems. VLDB.
+[7] Bailis, P., Fekete, A., Franklin, M. J., et al. (2014). Coordination Avoidance in Database Systems. VLDB.
 
 ---
 

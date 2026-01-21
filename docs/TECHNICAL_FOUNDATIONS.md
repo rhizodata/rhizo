@@ -359,16 +359,16 @@ When $V_a \| V_b$ (concurrent), algebraic merge resolves automatically.
 
 ## References
 
-[1] Xia, W. et al. (2016). "FastCDC: A Fast and Efficient Content-Defined Chunking Approach." USENIX ATC.
+[1] Xia, W., Jiang, H., Feng, D., et al. (2016). FastCDC: A Fast and Efficient Content-Defined Chunking Approach for Data Deduplication. USENIX ATC.
 
-[2] Bellare, M. & Rogaway, P. (2005). "Introduction to Modern Cryptography."
+[2] Bellare, M., & Rogaway, P. (2005). Introduction to Modern Cryptography. Lecture Notes.
 
-[3] Schroeder, B. et al. (2009). "DRAM Errors in the Wild." SIGMETRICS. doi:10.1145/1555349.1555372
+[3] Schroeder, B., Pinheiro, E., & Weber, W. D. (2009). DRAM Errors in the Wild: A Large-Scale Field Study. SIGMETRICS. doi:10.1145/1555349.1555372
 
-[4] Berenson, H. et al. (1995). "A Critique of ANSI SQL Isolation Levels." SIGMOD. doi:10.1145/223784.223785
+[4] Berenson, H., Bernstein, P., Gray, J., et al. (1995). A Critique of ANSI SQL Isolation Levels. SIGMOD. doi:10.1145/223784.223785
 
-[5] International Energy Agency. (2022). "Data Centres and Data Transmission Networks."
+[5] International Energy Agency. (2022). Data Centres and Data Transmission Networks. IEA.
 
-[6] BLAKE3 Team. (2020). "BLAKE3: One function, fast everywhere." https://blake3.io
+[6] O'Connor, J., Ausmasson, J. P., Neves, S., & Wilcox-O'Hearn, Z. (2020). BLAKE3: One Function, Fast Everywhere. https://blake3.io
 
-[7] Shapiro, M. et al. (2011). "Conflict-free Replicated Data Types." SSS 2011. doi:10.1007/978-3-642-24550-3_29
+[7] Shapiro, M., Preguiça, N., Baquero, C., & Zawirski, M. (2011). Conflict-free Replicated Data Types. SSS. doi:10.1007/978-3-642-24550-3_29
