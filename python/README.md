@@ -8,15 +8,15 @@ In 1980, Deleuze and Guattari contrasted the rhizome with the tree: hierarchies 
 
 | Metric | Rhizo | Industry Standard | Improvement |
 |--------|-------|-------------------|-------------|
-| Transaction latency | 0.022ms | 100ms (consensus) | **31,000x faster** |
+| Transaction latency | 0.021ms | 100ms (consensus) | **33,000x faster** |
 | Energy per transaction | 2.2e-11 kWh | 2.1e-6 kWh | **97,943x less** |
-| Branch overhead | 280 bytes | 14.7 MB (Delta Lake) | **52,500x smaller** |
-| OLAP queries | 0.9ms | 26ms (DuckDB) | **30x faster** |
+| Branch overhead | 140 bytes | 63 MB (Delta Lake) | **450,000x smaller** |
+| OLAP queries | 0.9ms | 26ms (DuckDB) | **32x faster** |
 
 [![CI](https://github.com/rhizodata/rhizo/actions/workflows/ci.yml/badge.svg)](https://github.com/rhizodata/rhizo/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Rust](https://img.shields.io/badge/rust-370%20tests-blue)](https://github.com/rhizodata/rhizo)
-[![Python](https://img.shields.io/badge/python-310%20tests-blue)](https://github.com/rhizodata/rhizo)
+[![Rust](https://img.shields.io/badge/rust-373%20tests-blue)](https://github.com/rhizodata/rhizo)
+[![Python](https://img.shields.io/badge/python-492%20tests-blue)](https://github.com/rhizodata/rhizo)
 
 ---
 
@@ -45,7 +45,7 @@ With the new **DataFusion-powered OLAP engine**, Rhizo delivers industry-leading
 
 | Metric | Rhizo OLAP | DuckDB | Delta Lake | Parquet | Winner |
 |--------|-----------------|--------|------------|---------|--------|
-| **Read** | **0.9ms** | 26.4ms | 24.5ms | 6.5ms | **Rhizo (30x)** |
+| **Read** | **0.9ms** | 26ms | 24.5ms | 6.5ms | **Rhizo (32x)** |
 | **Filtered (5%)** | **0.9ms** | 1.6ms | 17.3ms | 6.4ms | **Rhizo (1.8x)** |
 | **Projection** | **0.6ms** | 1.9ms | 11.9ms | 3.2ms | **Rhizo (3.4x)** |
 | **Complex Query** | **2.6ms** | 3.4ms | 28.2ms | 17.8ms | **Rhizo (1.3x)** |
@@ -83,13 +83,13 @@ With the new **DataFusion-powered OLAP engine**, Rhizo delivers industry-leading
 | **Content Dedup** | **Yes** | No | No | No |
 | **Merkle Integrity** | **Yes** | No | No | No |
 | **Arrow Chunk Cache** | **Yes** (15x speedup) | No | No | No |
-| **Algebraic Merge** | **Yes** (4M+ ops/sec) | No | No | No |
+| **Algebraic Merge** | **Yes** (11M+ ops/sec) | No | No | No |
 
 ### Core Operations
 
 | Operation | Performance | Notes |
 |-----------|-------------|-------|
-| OLAP read (cached) | **0.9ms** | 30x faster than DuckDB |
+| OLAP read (cached) | **0.9ms** | 32x faster than DuckDB |
 | Arrow cache read | **0.24ms** | 15x faster than uncached |
 | Write throughput | 211 MB/s | Native Rust Parquet encoding |
 | Branch creation | <10 ms | Zero-copy, 280 bytes overhead |

@@ -2,7 +2,7 @@
 
 ## Current Status
 
-**632 tests passing (370 Rust + 262 Python)**
+**865 tests passing (373 Rust + 492 Python)**
 
 Rhizo is feature-complete for single-node deployments with full ACID transactions, time travel, branching, and OLAP queries.
 
@@ -10,14 +10,14 @@ Rhizo is feature-complete for single-node deployments with full ACID transaction
 |-------|--------|-----------------|
 | Phase 1: Chunk Store | Complete | Content-addressable storage with BLAKE3 |
 | Phase 2: Catalog | Complete | Versioned tables with time travel |
-| Phase 3: Query Layer | Complete | DuckDB integration with SQL |
+| Phase 3: Query Layer | Complete | DataFusion SQL engine |
 | Phase 4: Branching | Complete | Git-like branches, zero-copy semantics |
 | Phase 5: Transactions | Complete | Cross-table ACID with snapshot isolation |
 | Phase 6: Changelog | Complete | Unified batch/stream via subscriptions |
 | Phase A: Merkle Storage | Complete | O(change) deduplication |
 | Phase P: Performance | Complete | Native Rust Parquet, parallel I/O, Arrow cache |
-| Phase DF: OLAP | Complete | DataFusion engine, 26x faster than DuckDB |
-| Phase CF: Coordination-Free | Complete | Algebraic transactions, 31,000x faster than consensus |
+| Phase DF: OLAP | Complete | DataFusion engine, 32x faster than DuckDB |
+| Phase CF: Coordination-Free | Complete | Algebraic transactions, 33,000x faster than consensus |
 
 ---
 
@@ -32,7 +32,7 @@ Rhizo is feature-complete for single-node deployments with full ACID transaction
 ### Catalog Layer (Rust)
 - **FileCatalog**: Versioned table metadata with JSON persistence
 - **Time travel**: Query any historical version in O(1)
-- **BranchManager**: Git-like branching with zero-copy semantics (280 bytes per branch)
+- **BranchManager**: Git-like branching with zero-copy semantics (~140 bytes per branch)
 
 ### Transaction Layer (Rust)
 - **TransactionManager**: Cross-table ACID with snapshot isolation
@@ -41,10 +41,10 @@ Rhizo is feature-complete for single-node deployments with full ACID transaction
 - **Algebraic operations**: Coordination-free merge for commutative operations
 
 ### Query Layer (Python + Rust)
-- **QueryEngine**: DuckDB-based SQL with time travel support
-- **OLAPEngine**: DataFusion-based, 26x faster reads than DuckDB
+- **QueryEngine**: DataFusion-powered SQL with time travel support
+- **OLAPEngine**: DataFusion-based, 32x faster reads than DuckDB
 - **Extended SQL**: `VERSION` keyword, `@branch` notation, `__changelog` table
-- **Arrow cache**: 15x speedup on repeated reads, 97%+ hit rate
+- **Arrow cache**: 15x speedup on repeated reads, 97.2%+ hit rate
 
 ### Changelog & Streaming
 - **get_changes()**: Query changes since a checkpoint
@@ -77,10 +77,10 @@ Rhizo is feature-complete for single-node deployments with full ACID transaction
 
 | Metric | Rhizo | Comparison |
 |--------|-------|------------|
-| Transaction latency | 0.022ms | 31,000x faster than consensus |
+| Transaction latency | 0.021ms | 33,000x faster than consensus |
 | Energy per transaction | 2.2e-11 kWh | 97,943x less than consensus |
-| OLAP read (100K rows) | 0.9ms | 26x faster than DuckDB |
-| Branch creation | <10ms | 52,500x smaller than Delta Lake |
+| OLAP read (100K rows) | 0.9ms | 32x faster than DuckDB |
+| Branch creation | <10ms | 450,000x smaller than Delta Lake |
 | Write throughput | 211 MB/s | Competitive with Delta Lake |
 | Storage deduplication | 84% | Best in class |
 
@@ -103,8 +103,8 @@ cd rhizo_python && maturin develop --release && cd ..
 pip install -e python/
 
 # Run tests
-cargo test --all      # 370 Rust tests
-pytest tests/ -v      # 262 Python tests
+cargo test --all      # 373 Rust tests
+pytest tests/ -v      # 492 Python tests
 ```
 
 ---

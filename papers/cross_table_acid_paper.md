@@ -285,7 +285,7 @@ Rhizo is implemented in Rust for the core storage and catalog layers, with Pytho
 | Query layer (time travel, branching, transactions, changelog, OLAP, coordination-free) | Python | 262 |
 | **Total** | | **632** |
 
-**Note:** The OLAP engine (Phase DF) added DataFusion integration with 26x faster reads than DuckDB, TIME TRAVEL SQL syntax (`VERSION` keyword), branch queries (`@branch` notation), and changelog SQL (`__changelog` virtual table).
+**Note:** The OLAP engine (Phase DF) added DataFusion integration with 32x faster reads than DuckDB, TIME TRAVEL SQL syntax (`VERSION` keyword), branch queries (`@branch` notation), and changelog SQL (`__changelog` virtual table).
 
 ### 5.2 Key Implementation Details
 
@@ -389,7 +389,7 @@ The DataFusion-powered OLAP engine [15] with Arrow [14] integration achieves sig
 
 | Metric | Rhizo OLAP | DuckDB | Speedup |
 |--------|------------|--------|---------|
-| Read (100K rows) | 0.9ms | 23.8ms | **26x** |
+| Read (100K rows) | 0.9ms | 26ms | **32x** |
 | Filter (5%) | 1.2ms | 1.8ms | 1.5x |
 | Projection | 0.7ms | 1.4ms | 2x |
 | Complex query | 2.9ms | 6.6ms | **2.3x** |

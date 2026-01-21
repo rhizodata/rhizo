@@ -25,7 +25,7 @@ The foundational paper describing how Rhizo achieves multi-table ACID transactio
 Describes how algebraic operation classification enables coordination-free distributed transactions. Key contributions:
 - Operations classified by algebraic structure (semilattice, Abelian group)
 - Local commits for algebraically conflict-free operations
-- 31,000x latency improvement vs consensus baseline
+- 33,000x latency improvement vs consensus baseline
 - 97,943x energy reduction for algebraic workloads
 
 ### POAC (Research)

@@ -325,7 +325,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Write time (100K rows)**: ~143ms → **59.8ms**
 - **Competitive with Delta Lake** on write performance
 - **84% storage deduplication** (best in class vs 77% Delta Lake)
-- **52,500x better branching overhead** (280 bytes vs 14.70 MB)
+- **450,000x better branching overhead** (~140 bytes vs 63 MB)
 
 ### Testing
 - 181 Rust tests (+8 new projection tests, +13 Parquet tests)

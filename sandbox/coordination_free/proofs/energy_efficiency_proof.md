@@ -79,7 +79,7 @@ Where $t_{consensus} \approx n_{rtt} \cdot t_{rtt}$ and $t_{wait} \approx 0.8 \c
 $$\frac{E_{cons}}{E_{cf}} = \frac{P_{cpu} \cdot t_{consensus} + P_{network} \cdot t_{network} + P_{idle} \cdot t_{wait}}{P_{cpu} \cdot t_{local}}$$
 
 For typical values:
-- $t_{local} = 0.022$ ms (Rhizo measured)
+- $t_{local} = 0.021$ ms (Rhizo measured)
 - $t_{consensus} = 100$ ms (typical geo-distributed)
 - $n_{rtt} = 3$ (Paxos/Raft round-trips)
 - $P_{cpu} = 45$ W, $P_{network} = 5$ W, $P_{idle} = 15$ W
@@ -115,7 +115,7 @@ From our CodeCarbon benchmarks:
 The measured ratio (97,943x) exceeds the theoretical (7,273x) because:
 1. Modern CPUs have deep sleep states during waiting
 2. Network adapters have significant baseline power draw
-3. Actual local commits are faster than our 0.022ms baseline (measured at 0.00122ms in the energy benchmark)
+3. Actual local commits are faster than our 0.021ms baseline (measured at 0.00122ms in the energy benchmark)
 
 ---
 

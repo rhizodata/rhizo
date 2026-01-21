@@ -303,19 +303,19 @@ The algebraic classification system is implemented in Rhizo with the following c
 
 | Operation Type | Merge Success Rate | Throughput (K ops/sec) |
 |----------------|--------------------|-----------------------|
-| Semilattice (MAX) | 100% | 4,483 |
+| Semilattice (MAX) | 100% | 11,903 |
 | Semilattice (UNION) | 100% | 745 |
-| Abelian (ADD) | 100% | 4,398 |
+| Abelian (ADD) | 100% | 11,259 |
 | Generic (OVERWRITE) | N/A (conflict) | N/A |
 | Schema registry lookup | 100% | 9,097 |
 
 **Performance Notes**:
-- Integer operations (MAX, ADD) achieve ~4.4 million ops/sec
+- Integer operations (MAX, ADD) achieve ~11 million ops/sec
 - Set operations (UNION) are slower (~745K ops/sec) due to heap allocation
 - Schema lookups achieve ~9 million ops/sec via HashMap
 - All operations maintain mathematical guarantees (commutativity, idempotency)
 
-**Test Coverage**: 632 tests covering:
+**Test Coverage**: 865 tests covering:
 - All operation types with integer, float, and set values
 - Commutativity and idempotency property verification
 - Overflow handling with checked arithmetic

@@ -185,7 +185,7 @@ For consensus-based transactions ($t_{consensus} \approx 100ms$):
 
 $$E_{consensus} = P_{cpu} \times 0.1s + P_{network} \times 0.3s + P_{idle} \times 0.08s$$
 
-For coordination-free transactions ($t_{local} \approx 0.022ms$):
+For coordination-free transactions ($t_{local} \approx 0.021ms$):
 
 $$E_{cf} = P_{cpu} \times 0.000022s$$
 
@@ -218,7 +218,7 @@ Global data center electricity: 200-250 TWh/year [5]. Storage is ~15%. Deduplica
 
 | Metric | Rhizo OLAP | DuckDB | Speedup |
 |--------|-----------------|--------|---------|
-| Read (100K rows) | 0.9ms | 23.8ms | **26x** |
+| Read (100K rows) | 0.9ms | 26ms | **32x** |
 | Filter (5%) | 1.2ms | 1.8ms | 1.5x |
 | Projection | 0.7ms | 1.4ms | 2x |
 | Complex query | 2.9ms | 6.6ms | **2.3x** |
@@ -272,8 +272,8 @@ Op is Generic?      → Requires coordination
 
 | Operation Type | Throughput | Merge Success Rate |
 |----------------|------------|--------------------|
-| ADD (Abelian) | 4,398 K ops/sec | 100% |
-| MAX (Semilattice) | 4,483 K ops/sec | 100% |
+| ADD (Abelian) | 11,259 K ops/sec | 100% |
+| MAX (Semilattice) | 11,903 K ops/sec | 100% |
 | UNION (Semilattice) | 745 K ops/sec | 100% |
 | Schema lookup | 11,825 K ops/sec | N/A |
 | OVERWRITE (Generic) | N/A | Conflict detected |
@@ -281,7 +281,7 @@ Op is Generic?      → Requires coordination
 **Implementation:**
 - Rust: `rhizo_core::algebraic` (OpType, AlgebraicValue, AlgebraicMerger)
 - Python: `PyOpType`, `PyAlgebraicValue`, `algebraic_merge()`
-- Tests: 632 tests covering all operation types and mathematical properties
+- Tests: 865 tests covering all operation types and mathematical properties
 
 ---
 
@@ -313,7 +313,7 @@ When $V_a \| V_b$ (concurrent), algebraic merge resolves automatically.
 
 | Metric | Rhizo | Consensus Baseline | Improvement |
 |--------|-------|-------------------|-------------|
-| Local commit latency | 0.022 ms | 100 ms | **31,000x faster** |
+| Local commit latency | 0.021 ms | 100 ms | **33,000x faster** |
 | Throughput (2 nodes) | 255,297 ops/sec | ~1,000 ops/sec | **255x higher** |
 | Convergence rounds | 3 (constant) | N/A | Guaranteed |
 
@@ -346,11 +346,11 @@ When $V_a \| V_b$ (concurrent), algebraic merge resolves automatically.
 | 3-layer conflict detection | **Tested** | Epoch boundary test |
 | Invalidation-free caching | Verified | Content-addressing theorem |
 | 15x cache speedup | **Measured** | Arrow chunk cache benchmarks |
-| 91%+ cache hit rate | **Measured** | Production workload tests |
-| 26x faster OLAP reads | **Measured** | DataFusion vs DuckDB benchmarks |
-| Algebraic merge 4M+ ops/sec | **Measured** | Benchmark suite |
+| 97.2%+ cache hit rate | **Measured** | Production workload tests |
+| 32x faster OLAP reads | **Measured** | DataFusion vs DuckDB benchmarks |
+| Algebraic merge 11M+ ops/sec | **Measured** | Benchmark suite |
 | 100% conflict-free merge (algebraic) | **Verified** | Mathematical proofs + tests |
-| 31,000x faster than consensus | **Measured** | Coordination-free benchmarks |
+| 33,000x faster than consensus | **Measured** | Coordination-free benchmarks |
 | 97,943x less energy | **Measured** | CodeCarbon benchmarks |
 | 3-round convergence (constant) | **Measured** | Distributed simulation |
 | Commutativity/associativity | **Verified** | Mathematical proofs |

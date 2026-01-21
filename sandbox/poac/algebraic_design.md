@@ -4,7 +4,7 @@
 >
 > This design has been fully implemented in `rhizo_core::algebraic` with:
 > - 306 tests (283 unit + 23 integration)
-> - 4M+ ops/sec merge performance
+> - 11M+ ops/sec merge performance
 > - Full Python bindings via PyO3
 > - Branch-level merge analysis
 

@@ -85,8 +85,8 @@ fn sanitize_error_message(msg: &str) -> String {
 /// Extract filename from a path string.
 fn extract_filename(path: &str) -> Option<&str> {
     // Handle both Windows and Unix separators
-    let path = path.trim_end_matches(|c| c == '/' || c == '\\');
-    if let Some(pos) = path.rfind(|c| c == '/' || c == '\\') {
+    let path = path.trim_end_matches(['/', '\\']);
+    if let Some(pos) = path.rfind(['/', '\\']) {
         let filename = &path[pos + 1..];
         if !filename.is_empty() {
             return Some(filename);

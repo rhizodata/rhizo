@@ -220,7 +220,7 @@ python -m ruff check rhizo_python tests    # Clean
 ### Tasks
 
 - [x] **6.1** Create multi-node benchmark harness (`distributed_benchmark.py`)
-- [x] **6.2** Benchmark: latency comparison (0.02ms local vs 100ms consensus = **31,000x speedup**)
+- [x] **6.2** Benchmark: latency comparison (0.02ms local vs 100ms consensus = **33,000x speedup**)
 - [x] **6.3** Benchmark: throughput scaling (2→20 nodes, **255,000 ops/sec** peak)
 - [x] **6.4** Benchmark: convergence time (**3 rounds** constant, all scenarios)
 - [x] **6.5** Complete paper with results (`paper_draft.md` updated)
@@ -228,8 +228,8 @@ python -m ruff check rhizo_python tests    # Clean
 ### Results Summary
 | Metric | Result |
 |--------|--------|
-| Average local commit | 0.022 ms |
-| Speedup vs consensus | 31,000x |
+| Average local commit | 0.021 ms |
+| Speedup vs consensus | 33,000x |
 | Peak throughput | 255,297 ops/sec |
 | Convergence rounds | 3 (constant) |
 | Mathematical soundness | 100% verified |

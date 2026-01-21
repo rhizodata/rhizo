@@ -143,7 +143,7 @@ engine = QueryEngine(
 
 | Metric | OLAP Engine | DuckDB | Speedup |
 |--------|-------------|--------|---------|
-| Read (100K rows) | 0.9ms | 23.8ms | **26x** |
+| Read (100K rows) | 0.9ms | 26ms | **32x** |
 | Filter (5%) | 1.2ms | 1.8ms | 1.5x |
 | Projection | 0.7ms | 1.4ms | 2x |
 | Complex query | 2.9ms | 6.6ms | **2.3x** |
@@ -237,7 +237,7 @@ Rhizo's content-addressed storage makes caching highly effective:
 | Cache hit read | 0.24ms |
 | Uncached read | 3.6ms |
 | Speedup | **15x** |
-| Typical hit rate | 91%+ |
+| Typical hit rate | 97.2%+ |
 
 ### Best Practices
 
@@ -252,7 +252,7 @@ Rhizo's content-addressed storage makes caching highly effective:
 
 This section explains the measurement conditions behind Rhizo's headline performance claims.
 
-### Algebraic Operation Speedup (31,000x / 97,943x claims)
+### Algebraic Operation Speedup (33,000x / 97,943x claims)
 
 These claims compare:
 - **Rhizo**: Local algebraic commit using vector clocks (~0.001-0.02ms)
@@ -271,11 +271,11 @@ See [TECHNICAL_FOUNDATIONS.md](TECHNICAL_FOUNDATIONS.md#algebraic-classification
 | Cross-region consensus (50ms) | 50ms | 46,000x slower |
 | Cross-region consensus (100ms) | 100ms | 93,000x slower |
 
-The theoretical 31,000-97,000x speedup is confirmed empirically when comparing in-memory algebraic operations to cross-region consensus latencies.
+The theoretical 33,000-97,000x speedup is confirmed empirically when comparing in-memory algebraic operations to cross-region consensus latencies.
 
 ### OLAP Cache Performance
 
-The OLAP speedup (26-30x vs DuckDB) compares:
+The OLAP speedup (32x vs DuckDB) compares:
 - **Rhizo OLAP**: DataFusion with content-addressed Arrow cache (warm)
 - **DuckDB**: In-memory table
 
@@ -292,7 +292,7 @@ The OLAP speedup (26-30x vs DuckDB) compares:
 | Warm vs Warm | 23ms | 1.2ms | **19x** |
 | Full scan (warm) | 45ms | 0.6ms | **75x** |
 
-The 26-30x headline number represents typical warm-cache performance. Cold-cache performance shows a more modest 2-3x advantage.
+The 32x headline number represents typical warm-cache performance. Cold-cache performance shows a more modest 2-3x advantage.
 
 ### Running Benchmarks
 

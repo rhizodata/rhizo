@@ -4,7 +4,7 @@
 
 ## Abstract
 
-Distributed databases traditionally require consensus protocols (Paxos, Raft) to achieve strong consistency, incurring significant latency overhead for geo-distributed deployments. We observe that many common operations—counters, max/min aggregates, set unions—have algebraic properties that mathematically guarantee convergence regardless of operation order. We present Rhizo, a distributed data system that classifies operations by their algebraic structure and commits transactions locally when all operations are algebraically conflict-free. For these workloads, Rhizo achieves O(1) local commit latency compared to O(consensus) for traditional systems, while maintaining strong eventual consistency with provable convergence. Our evaluation shows **31,000x latency improvement** (0.02ms vs 100ms consensus baseline), **255,000 ops/sec throughput**, and **97,943x energy reduction** for algebraic workloads, with mathematically verified convergence in all test scenarios. By eliminating coordination, we eliminate not only latency but also idle energy consumption—the fastest database is also the greenest.
+Distributed databases traditionally require consensus protocols (Paxos, Raft) to achieve strong consistency, incurring significant latency overhead for geo-distributed deployments. We observe that many common operations—counters, max/min aggregates, set unions—have algebraic properties that mathematically guarantee convergence regardless of operation order. We present Rhizo, a distributed data system that classifies operations by their algebraic structure and commits transactions locally when all operations are algebraically conflict-free. For these workloads, Rhizo achieves O(1) local commit latency compared to O(consensus) for traditional systems, while maintaining strong eventual consistency with provable convergence. Our evaluation shows **33,000x latency improvement** (0.02ms vs 100ms consensus baseline), **255,000 ops/sec throughput**, and **97,943x energy reduction** for algebraic workloads, with mathematically verified convergence in all test scenarios. By eliminating coordination, we eliminate not only latency but also idle energy consumption—the fastest database is also the greenest.
 
 ---
 
@@ -229,7 +229,7 @@ Local commit achieves sub-millisecond latency, dramatically outperforming consen
 | 10 ops | 0.0068 ms | 100.01 ms | **14,721x** |
 | 100 ops | 0.0579 ms | 100.06 ms | **1,729x** |
 
-**Average local commit: 0.022 ms** — three orders of magnitude faster than coordination.
+**Average local commit: 0.021 ms** — three orders of magnitude faster than coordination.
 
 ### 6.3 Throughput
 
@@ -286,7 +286,7 @@ Eliminating coordination eliminates idle energy consumption. We measured energy 
 - CO2 reduced: 292 kg/year
 - Equivalent: 14 trees planted/year
 
-The energy savings follow directly from the time savings: $E = P \cdot t$. By reducing transaction time from 100ms to 0.022ms, energy consumption drops proportionally.
+The energy savings follow directly from the time savings: $E = P \cdot t$. By reducing transaction time from 100ms to 0.021ms, energy consumption drops proportionally.
 
 ---
 
@@ -323,7 +323,7 @@ The energy savings follow directly from the time savings: $E = P \cdot t$. By re
 
 We presented Rhizo, a distributed data system that achieves strong consistency without consensus for algebraic operations. By classifying operations by their mathematical properties, we enable O(1) local commit latency (0.02ms average) while maintaining provable convergence. Our evaluation demonstrates:
 
-- **31,000x latency improvement** over consensus-based systems
+- **33,000x latency improvement** over consensus-based systems
 - **255,000 ops/sec throughput** at the 2-node scale
 - **Constant-round convergence** (3 rounds regardless of operation count)
 - **100% mathematical soundness** (commutativity, associativity, idempotency verified)
