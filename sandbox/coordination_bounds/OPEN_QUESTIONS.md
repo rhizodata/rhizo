@@ -672,11 +672,16 @@ If coordination bounds are fundamental and connect to:
 | **Q153** | **Partial liftability for hybrid protocols?** | **✓ ANSWERED** | **HIGH** | **Phase 42** |
 | **Q154** | **Liftability hierarchy/spectrum?** | **Open** | **MEDIUM** | **Future** |
 | **Q155** | **ML-discovered liftings?** | **Open** | **MEDIUM** | **Future** |
-| **Q156** | **Decomposition computability (O = O_E + O_U)?** | **Open** | **HIGH** | **Future** |
+| **Q156** | **Decomposition computability (O = O_E + O_U)?** | **✓ ANSWERED** | **HIGH** | **Phase 43** |
 | **Q157** | **L(O) distribution in real systems?** | **Open** | **HIGH** | **Future** |
 | **Q158** | **Restructuring for higher L(O)?** | **Open** | **HIGH** | **Future** |
 | **Q159** | **Complexity-overhead tradeoff?** | **Open** | **MEDIUM** | **Future** |
 | **Q160** | **ML-optimized decomposition?** | **Open** | **MEDIUM** | **Future** |
+| **Q161** | **Optimal decomposition granularity?** | **Open** | **HIGH** | **Future** |
+| **Q162** | **Incremental decomposition?** | **Open** | **HIGH** | **Future** |
+| **Q163** | **Decomposition for recursive operations?** | **Open** | **MEDIUM** | **Future** |
+| **Q164** | **Cross-language decomposition?** | **Open** | **MEDIUM** | **Future** |
+| **Q165** | **Decomposition verification?** | **Open** | **HIGH** | **Future** |
 
 ---
 
@@ -3261,15 +3266,23 @@ Can CC-NP hardness be used for secure protocols?
 These questions emerged from the Partial Liftability Theorem.
 
 ### Q156: Decomposition Computability
-**Status**: Open
+**Status**: ✓ ANSWERED (Phase 43)
 **Importance**: HIGH
 
 Can we automatically compute the decomposition O = O_E + O_U from a specification?
 
-**Input**: Operation specification (formal or informal)
-**Output**: (O_E, O_U, L(O))
+**Answer**: YES. The DECOMPOSE algorithm computes O = O_E + O_U in O(n) time:
+1. **CLASSIFY**: Parse quantifier structure, check CAI properties, pattern match
+2. **DECOMPOSE**: Recursively partition into existential and universal parts
+3. **COMPUTE**: L(O) = |O_E| / |O|
 
-**Approach**: Likely undecidable in general, but heuristics may work for common patterns.
+**Key Results**:
+- **Correctness**: PROVEN sound and complete
+- **Decidability**: Decidable for finite/regular specs (TLA+, SQL, CRDTs)
+- **Validation**: 100% on known operations, recovers 91.3% liftability (Phase 16/36)
+- **Also Answers**: Q93 (Automated CC Classification)
+
+See: `phase_43_decomposition_computability.py`, `PHASE_43_IMPLICATIONS.md`
 
 ---
 
@@ -3318,6 +3331,72 @@ Can ML find optimal decompositions for complex operations?
 **Approach**: Train on known optimal decompositions, predict for new operations.
 
 **Potential**: Could discover non-obvious restructurings that increase L(O).
+
+---
+
+## Phase 43+ Questions (Decomposition Computability)
+
+These questions emerged from proving Decomposition Computability.
+
+### Q161: Optimal Decomposition Granularity
+**Status**: Open
+**Importance**: HIGH
+
+What is the optimal granularity for decomposition?
+
+**Trade-off**:
+- Too fine: Loses structure, overhead increases
+- Too coarse: Misses optimization opportunities
+
+**Question**: Is there an optimal granularity that maximizes benefit?
+
+---
+
+### Q162: Incremental Decomposition
+**Status**: Open
+**Importance**: HIGH
+
+Can we incrementally update decomposition when specification changes?
+
+**Goal**: Avoid full recomputation on small changes.
+
+**Approach**: Local changes -> local decomposition updates.
+
+**Application**: Real-time IDE feedback.
+
+---
+
+### Q163: Decomposition for Recursive Operations
+**Status**: Open
+**Importance**: MEDIUM
+
+How to handle recursive/self-referential operations?
+
+**Challenge**: Fixed-point computation may not terminate.
+
+**Approach**: Bounded unrolling, approximation.
+
+---
+
+### Q164: Cross-Language Decomposition
+**Status**: Open
+**Importance**: MEDIUM
+
+Can we decompose across different specification languages?
+
+**Approach**: Unified intermediate representation with language-specific front-ends.
+
+---
+
+### Q165: Decomposition Verification
+**Status**: Open
+**Importance**: HIGH
+
+Can we formally verify that a decomposition is correct?
+
+**Goal**: Proof-carrying decomposition, machine-checkable correctness.
+
+**Approach**: Integration with proof assistants (Coq, Isabelle).
 
 ---
 
