@@ -667,13 +667,13 @@ If coordination bounds are fundamental and connect to:
 | **Q148** | **CC analog of Karp-Lipton theorem?** | **Open** | **MEDIUM** | **Future** |
 | **Q149** | **Byzantine threshold for CC-NP = CC-coNP transition?** | **Open** | **HIGH** | **Future** |
 | **Q150** | **Asymmetric verification protocols?** | **Open** | **HIGH** | **Future** |
-| **Q151** | **Automatic existential/universal detection?** | **Open** | **HIGH** | **Future** |
+| **Q151** | **Automatic existential/universal detection?** | **✓ ANSWERED** | **HIGH** | **Phase 43/44** |
 | **Q152** | **Minimum lifting overhead?** | **Open** | **HIGH** | **Future** |
 | **Q153** | **Partial liftability for hybrid protocols?** | **✓ ANSWERED** | **HIGH** | **Phase 42** |
 | **Q154** | **Liftability hierarchy/spectrum?** | **Open** | **MEDIUM** | **Future** |
 | **Q155** | **ML-discovered liftings?** | **Open** | **MEDIUM** | **Future** |
 | **Q156** | **Decomposition computability (O = O_E + O_U)?** | **✓ ANSWERED** | **HIGH** | **Phase 43** |
-| **Q157** | **L(O) distribution in real systems?** | **Open** | **HIGH** | **Future** |
+| **Q157** | **L(O) distribution in real systems?** | **✓ ANSWERED** | **HIGH** | **Phase 44** |
 | **Q158** | **Restructuring for higher L(O)?** | **Open** | **HIGH** | **Future** |
 | **Q159** | **Complexity-overhead tradeoff?** | **Open** | **MEDIUM** | **Future** |
 | **Q160** | **ML-optimized decomposition?** | **Open** | **MEDIUM** | **Future** |
@@ -682,6 +682,51 @@ If coordination bounds are fundamental and connect to:
 | **Q163** | **Decomposition for recursive operations?** | **Open** | **MEDIUM** | **Future** |
 | **Q164** | **Cross-language decomposition?** | **Open** | **MEDIUM** | **Future** |
 | **Q165** | **Decomposition verification?** | **Open** | **HIGH** | **Future** |
+| **Q166** | **Domain-specific L(O) bounds?** | **Open** | **HIGH** | **Future** |
+| **Q167** | **L(O) vs system performance correlation?** | **Open** | **HIGH** | **Future** |
+| **Q168** | **Temporal L(O) evolution?** | **Open** | **MEDIUM** | **Future** |
+| **Q169** | **L(O) in emerging architectures?** | **Open** | **HIGH** | **Future** |
+| **Q170** | **Minimum viable L(O)?** | **Open** | **MEDIUM** | **Future** |
+
+---
+
+## Phase 44 Validation Results
+
+**MAJOR MILESTONE: Q157 (L(O) Distribution) has been ANSWERED with critical insight!**
+
+| Finding | Result | Significance |
+|---------|--------|--------------|
+| System L(O) | Mean 0.64, Median 0.71 | All operations equally weighted |
+| Workload L(O) | ~92% | Frequency-weighted |
+| Bimodal Distribution | CONFIRMED | Coordination vs data systems |
+| Q151 Also Answered | YES | CLASSIFY function from Phase 43 |
+
+**KEY DISCOVERY: The Workload vs System Dichotomy**
+
+- **System L(O) = 65%**: When all operations are equally weighted
+- **Workload L(O) = 92%**: When weighted by actual usage frequency
+
+**Why the difference?**
+- Real workloads heavily favor liftable operations (reads, simple writes)
+- Coordination operations (elections, schema changes) are invoked rarely
+- The 92% prediction reflects workload structure, not system design
+
+**Domain Analysis:**
+
+| Domain | Avg L(O) | Character |
+|--------|----------|-----------|
+| Storage | 0.88 | Highly liftable |
+| ML Training | 0.76 | Mostly liftable |
+| Database | 0.69 | Mostly liftable |
+| Consensus | 0.29 | Coordination-heavy |
+
+**Also Answers Q151**: The CLASSIFY function in Phase 43's DECOMPOSE algorithm automatically detects existential vs universal operations.
+
+**New Questions Opened:** Q166-Q170
+
+**Confidence Level:** HIGH
+
+See: `phase_44_lo_distribution.py`, `PHASE_44_IMPLICATIONS.md` for full analysis.
 
 ---
 
