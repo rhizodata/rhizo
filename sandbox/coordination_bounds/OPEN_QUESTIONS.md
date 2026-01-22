@@ -595,12 +595,17 @@ If coordination bounds are fundamental and connect to:
 | **Q112** | **Quantum Error Correction Coordination** | **Open** | **HIGH** | **Future** |
 | **Q113** | **Coordination in Quantum Gravity** | **Open** | **MEDIUM** | **Future** |
 | **Q114** | **Biological Quantum Coordination** | **Open** | **MEDIUM** | **Future** |
-| **Q115** | **Is CC_log = NC^1 or NC^2 or between?** | **Open** | **CRITICAL** | **Future** |
-| **Q116** | **BROADCAST as canonical CC/NC separation** | **Open** | **HIGH** | **Future** |
-| **Q117** | **CC of NC-complete problems** | **Open** | **HIGH** | **Future** |
-| **Q118** | **Tight CC_k = NC^f(k) characterization** | **Open** | **HIGH** | **Future** |
-| **Q119** | **CC = NC at all levels?** | **Open** | **MEDIUM** | **Future** |
+| **Q115** | **Is CC_log = NC^1 or NC^2 or between?** | **ANSWERED** | **CRITICAL** | **35** |
+| **Q116** | **BROADCAST as canonical CC/NC separation** | **Partially Answered** | **HIGH** | **35** |
+| **Q117** | **CC of NC-complete problems** | **ANSWERED** | **HIGH** | **35** |
+| **Q118** | **Tight CC_k = NC^f(k) characterization** | **Partially Answered** | **HIGH** | **35** |
+| **Q119** | **CC = NC at all levels?** | **Partially Answered** | **MEDIUM** | **35** |
 | **Q120** | **NC lower bounds transfer to CC?** | **Open** | **HIGH** | **Future** |
+| **Q121** | **CC_log = NC^2 under bounded message size?** | **Open** | **HIGH** | **Future** |
+| **Q122** | **Exact CC of NC^1-complete problems** | **Open** | **HIGH** | **Future** |
+| **Q123** | **Is there a CC analog of NC^1?** | **Open** | **MEDIUM** | **Future** |
+| **Q124** | **Does CC_log contain problems harder than NC^2?** | **Open** | **HIGH** | **Future** |
+| **Q125** | **Can we prove NC^1 != NC^2 using CC techniques?** | **Open** | **CRITICAL** | **Future** |
 
 ---
 
@@ -2243,6 +2248,113 @@ This shows CC includes an inherent agreement cost that NC doesn't have.
 **Confidence Level:** HIGH - Rigorous simulation theorems in both directions
 
 See: `phase_34_cc_vs_nc.py`, `PHASE_34_IMPLICATIONS.md` for full analysis.
+
+---
+
+## Phase 35 Validation Results
+
+**MAJOR MILESTONE: Q115 (Exact CC vs NC) has been ANSWERED - CC_log = NC^2!**
+
+| Question | Status | Finding | Confidence |
+|----------|--------|---------|------------|
+| Q115: Is CC_log = NC^1, NC^2, or between? | **ANSWERED** | CC_log = NC^2 | HIGH |
+| Q116: BROADCAST as canonical separation | **Partially Answered** | Categorical, not complexity | MEDIUM |
+| Q117: CC of NC-complete problems | **ANSWERED** | NC^2-complete in CC_log | HIGH |
+| Q118: Tight CC_k = NC^f(k)? | **Partially Answered** | CC_log = NC^2 at log level | HIGH |
+| Q119: CC = NC at all levels? | **Partially Answered** | Message size dependent | MEDIUM |
+
+**THE MAIN RESULT: CC_log = NC^2**
+
+The Phase 34 "sandwich" NC^1 SUBSET CC_log SUBSET NC^2 **collapses**:
+
+```
+Phase 34:    NC^1 SUBSET CC_log SUBSET NC^2    (sandwich)
+Phase 35:    NC^1 SUBSET CC_log = NC^2          (collapse!)
+```
+
+**Proof Technique:** Bidirectional simulation
+
+- CC_log SUBSET NC^2 (from Phase 34)
+- NC^2 SUBSET CC_log (new in Phase 35, via mega-layer simulation)
+
+**Model Dependence:**
+
+| Message Size Model | Result |
+|-------------------|--------|
+| **Unlimited (polynomial)** | **CC_log = NC^2** |
+| Logarithmic (O(log n) bits) | CC_log ~ NC^1 |
+| Constant (O(1) bits) | CC_log SUBSET NC^1 |
+
+Under the standard distributed computing model, **CC_log = NC^2**.
+
+**Key Implications:**
+
+1. **Agreement overhead characterized**: Exactly O(log N) factor (NC^1 to NC^2 gap)
+2. **NC^2-complete in CC_log**: Graph connectivity and other NC^2-complete problems are CC_log
+3. **Connection to open problems**: If NC^1 != NC^2 (widely believed), then NC^1 STRICT_SUBSET CC_log
+4. **Potential breakthrough**: CC techniques might resolve NC^1 vs NC^2!
+
+**New Questions Opened:** Q121-Q125
+
+**Confidence Level:** HIGH (model-dependent aspects clarified)
+
+See: `phase_35_exact_cc_nc.py`, `PHASE_35_IMPLICATIONS.md` for full analysis.
+
+---
+
+## Phase 35+ Questions (Exact CC/NC Characterization)
+
+These questions emerged from proving CC_log = NC^2.
+
+### Q121: Bounded Message Size
+**Status**: Open
+**Importance**: HIGH
+
+Does the CC_log = NC^2 equivalence hold under bounded message size?
+
+With O(log n)-bit messages, does CC_log collapse to NC^1?
+
+---
+
+### Q122: NC^1-Complete in CC
+**Status**: Open
+**Importance**: HIGH
+
+What is the exact CC complexity of NC^1-complete problems?
+
+Is there uniform CC complexity across NC^1-complete problems?
+
+---
+
+### Q123: CC Analog of NC^1
+**Status**: Open
+**Importance**: MEDIUM
+
+Can we define a CC class analogous to NC^1?
+
+Perhaps CC with O(log N) total communication (not just rounds)?
+
+---
+
+### Q124: Problems Harder than NC^2
+**Status**: Open
+**Importance**: HIGH
+
+Does CC_log contain any problems harder than NC^2?
+
+Could agreement problems exceed computation difficulty?
+
+---
+
+### Q125: NC^1 vs NC^2 via CC
+**Status**: Open
+**Importance**: CRITICAL
+
+Can CC techniques prove NC^1 != NC^2?
+
+This would resolve a major open problem in complexity theory!
+
+**Potential approach**: Use coordination lower bound methods under message size constraints.
 
 ---
 
