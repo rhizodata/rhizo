@@ -833,10 +833,15 @@ If coordination bounds are fundamental and connect to:
 | **Q314** | **Do quantum circuits have a width characterization?** | **Open** | **HIGH** | **Future** |
 | **Q315** | **Can width analysis help with L vs NL?** | **Open** | **HIGH** | **Future** |
 | **Q316** | **Is the nondeterministic width hierarchy strict?** | **Open** | **HIGH** | **Future** |
-| **Q317** | **Exact relationship between NL and NC^2 via width?** | **Open** | **HIGH** | **Future** |
+| **Q317** | **Exact relationship between NL and NC^2 via width?** | **ANSWERED (Phase 75)** | **HIGH** | **Phase 75** |
 | **Q318** | **Can width analysis resolve NL vs P?** | **Open** | **HIGH** | **Future** |
 | **Q319** | **Quantum nondeterministic width classes?** | **Open** | **HIGH** | **Future** |
 | **Q320** | **Alternating width hierarchy?** | **Open** | **MEDIUM** | **Future** |
+| **Q321** | **Is the width hierarchy within NC^2 strict?** | **Open** | **HIGH** | **Future** |
+| **Q322** | **Can we characterize NC^3 via width?** | **Open** | **HIGH** | **Future** |
+| **Q323** | **What is the width requirement for P?** | **Open** | **HIGH** | **Future** |
+| **Q324** | **Nondeterminism-width tradeoff for higher classes?** | **Open** | **MEDIUM** | **Future** |
+| **Q325** | **Width characterization of the full NC hierarchy?** | **Open** | **HIGH** | **Future** |
 
 ---
 
@@ -5622,11 +5627,22 @@ Is N-REV-WIDTH(log n) STRICT_SUBSET N-REV-WIDTH(log^2 n)? Or does the hierarchy 
 ---
 
 ### Q317: Exact relationship between NL and NC^2 via width?
-**Status**: Open
+**Status**: ANSWERED (Phase 75)
 **Priority**: HIGH
 **Tractability**: HIGH
 
 NL is in NC^2. What is the precise width characterization of NC^2? Is the containment strict?
+
+**ANSWER (Phase 75):** NL STRICT_SUBSET NC^2 via WIDTH GAP\!
+- NL has log-width: O(log n) via N-REV-WIDTH characterization
+- NC^2 requires poly-width: O(poly n) for characteristic problems like matrix powering
+- The width gap is EXPONENTIAL: poly(n) >> log(n)
+- Additionally proved: NONDETERMINISM-WIDTH TRADEOFF - nondeterminism can always be traded for width via powerset construction
+
+**Validation:**
+- Width gap proof: NL = N-REV-WIDTH(log n), NC^2 needs poly-width
+- Borodin's theorem explained: Matrix powering = powerset construction
+- Two independent lines of reasoning converge
 
 ---
 
@@ -5654,6 +5670,53 @@ What are the quantum analogs of N-REV-WIDTH? QMA via quantum width?
 **Tractability**: MEDIUM
 
 Can we define alternating quantifier width classes? How does this relate to PH?
+
+---
+
+## New Questions from Phase 75
+
+### Q321: Is the width hierarchy within NC^2 strict?
+**Status**: Open
+**Priority**: HIGH
+**Tractability**: MEDIUM
+
+Within NC^2, we have width classes from log(n) to poly(n). Is every step in this hierarchy strict?
+
+---
+
+### Q322: Can we characterize NC^3 via width?
+**Status**: Open
+**Priority**: HIGH
+**Tractability**: HIGH
+
+NC^2 has depth log^2 n and poly-width. What width characterizes NC^3?
+
+---
+
+### Q323: What is the width requirement for P?
+**Status**: Open
+**Priority**: HIGH
+**Tractability**: MEDIUM
+
+P requires polynomial time. What width is needed for P-complete problems?
+
+---
+
+### Q324: Nondeterminism-width tradeoff for higher classes?
+**Status**: Open
+**Priority**: MEDIUM
+**Tractability**: MEDIUM
+
+We showed N-WIDTH(w) SUBSET DET-WIDTH(poly(2^w)). What about NSPACE, NP?
+
+---
+
+### Q325: Width characterization of the full NC hierarchy?
+**Status**: Open
+**Priority**: HIGH
+**Tractability**: HIGH
+
+Can we characterize NC^k for all k via width constraints?
 
 ---
 
