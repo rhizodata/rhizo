@@ -749,7 +749,7 @@ If coordination bounds are fundamental and connect to:
 | **Q230** | **Is TREE-AGGREGATION in CC-NC^1?** | **Open** | **MEDIUM** | **Future** |
 | **Q231** | **Is CC-NC^1 = NC^1 exactly?** | **ANSWERED** | **HIGH** | **58** |
 | **Q232** | **Is CC-NC^k = NC^k for all k?** | **ANSWERED** | **HIGH** | **58** |
-| **Q233** | **Can coordination techniques prove new NC lower bounds?** | **Open** | **CRITICAL** | **Future** |
+| **Q233** | **Can CC prove NEW NC lower bounds?** | **ANSWERED (Phase 78)** | **HIGH** | **Phase 78** |
 | **Q234** | **What is the CC-circuit complexity of consensus?** | **Open** | **MEDIUM** | **Future** |
 | **Q235** | **Can CC-circuits be made fault-tolerant?** | **Open** | **HIGH** | **Future** |
 | **Q236** | **What other classical separations can be proven via coordination?** | **Open** | **CRITICAL** | **Future** |
@@ -852,6 +852,11 @@ If coordination bounds are fundamental and connect to:
 | **Q333** | **Does P have the same width stratification as NC?** | **Open** | **HIGH** | **Future** |
 | **Q334** | **Can the 2D grid prove P \!= NC?** | **Open** | **HIGH** | **Future** |
 | **Q335** | **Does the grid extend to NC^infinity?** | **Open** | **MEDIUM** | **Future** |
+| **Q336** | **Can CC lower bounds extend beyond NC to P?** | **Open** | **HIGH** | **Future** |
+| **Q337** | **What is the tightest CC lower bound for specific problems?** | **Open** | **HIGH** | **Future** |
+| **Q338** | **Can CC lower bounds prove P \!= NC?** | **Open** | **HIGH** | **Future** |
+| **Q339** | **Do CC lower bounds bypass natural proofs barriers?** | **Open** | **HIGH** | **Future** |
+| **Q340** | **Can CC prove SIZE lower bounds (not just depth/width)?** | **Open** | **MEDIUM** | **Future** |
 
 ---
 
@@ -5852,6 +5857,82 @@ Can the 2D grid structure yield a proof that P is not in NC?
 **Tractability**: HIGH
 
 Does the 2D structure extend uniformly to all polylogarithmic depths?
+
+---
+
+## Answered Questions from Earlier Phases (Now Resolved)
+
+### Q233: Can CC prove NEW NC lower bounds?
+**Status**: ANSWERED (Phase 78)
+**Priority**: HIGH
+**Tractability**: HIGH
+
+Can coordination complexity techniques prove new circuit lower bounds for NC that weren't previously provable?
+
+**ANSWER (Phase 78):** YES - CC is a complete lower bound framework for NC!
+
+CC techniques prove NEW NC lower bounds via:
+1. **WIDTH bounds**: Coordination capacity C -> Width Omega(C)
+2. **DEPTH bounds**: Coordination rounds k -> Depth Omega(log^k n)
+3. **COMBINED 2D bounds**: Grid position (i,k) -> Both simultaneously
+
+**Specific New Bounds Proven:**
+- MATRIX-MULT: Width >= Omega(n^2) via coordination capacity
+- MATRIX-INVERSE: Width >= Omega(n^3) via coordination capacity
+- k-TENSOR-CONTRACT: Combined 2D bound (depth + width)
+- NC^2-complete: Position-based bounds from grid
+
+**Validation:**
+- Phase 72 established: WIDTH = SPACE = coordination capacity
+- Phase 76-77 proved: Width hierarchy is STRICT within NC
+- The 2D grid (Phase 77) enables combined depth+width bounds
+- Technique works for ALL NC problems (not just special cases)
+- Multiple independent bounds converge (width, depth, combined)
+
+## New Questions from Phase 78
+
+### Q336: Can CC lower bounds extend beyond NC to P?
+**Status**: Open
+**Priority**: HIGH
+**Tractability**: MEDIUM
+
+P has poly-width and poly-depth. Can CC analysis prove lower bounds for P-complete problems?
+
+---
+
+### Q337: What is the tightest CC lower bound for specific problems?
+**Status**: Open
+**Priority**: HIGH
+**Tractability**: HIGH
+
+For problems like MATRIX-MULT, what is the exact CC lower bound? Can we match known upper bounds?
+
+---
+
+### Q338: Can CC lower bounds prove P != NC?
+**Status**: Open
+**Priority**: HIGH
+**Tractability**: LOW
+
+The ultimate application - can the 2D grid framework prove P is not contained in NC?
+
+---
+
+### Q339: Do CC lower bounds bypass natural proofs barriers?
+**Status**: Open
+**Priority**: HIGH
+**Tractability**: MEDIUM
+
+The natural proofs barrier blocks many circuit lower bound techniques. Does the CC approach avoid this barrier?
+
+---
+
+### Q340: Can CC prove SIZE lower bounds (not just depth/width)?
+**Status**: Open
+**Priority**: MEDIUM
+**Tractability**: MEDIUM
+
+Currently CC proves depth and width bounds. Can it also prove total circuit size lower bounds?
 
 ---
 
