@@ -777,8 +777,11 @@ If coordination bounds are fundamental and connect to:
 | **Q258** | **Does the space hierarchy have further fine structure?** | **Open** | **MEDIUM** | **Future** |
 | **Q259** | **Can we extend to time-space tradeoffs via CC?** | **Open** | **HIGH** | **Future** |
 | **Q260** | **What is CC-TIME? Can coordination capture time complexity?** | **ANSWERED** | **CRITICAL** | **63** |
-
-
+| **Q261** | **Can CC techniques help with P vs NP?** | **Open** | **CRITICAL** | **Future** |
+| **Q262** | **Can we prove time hierarchy strictness via CC?** | **Open** | **HIGH** | **Future** |
+| **Q263** | **Can we prove NP != PSPACE via CC?** | **Open** | **HIGH** | **Future** |
+| **Q264** | **What are optimal time-space tradeoffs given P != PSPACE?** | **Open** | **MEDIUM** | **Future** |
+| **Q265** | **What makes P vs NP different from our solved separations?** | **Open** | **HIGH** | **Future** |
 
 ---
 
