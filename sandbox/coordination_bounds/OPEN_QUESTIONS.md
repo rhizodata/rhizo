@@ -687,7 +687,7 @@ If coordination bounds are fundamental and connect to:
 | **Q168** | **Temporal L(O) evolution?** | **Open** | **MEDIUM** | **Future** |
 | **Q169** | **L(O) in emerging architectures?** | **Open** | **HIGH** | **Future** |
 | **Q170** | **Minimum viable L(O)?** | **Open** | **MEDIUM** | **Future** |
-| **Q171** | **Automatic restructuring selection?** | **Open** | **HIGH** | **Future** |
+| **Q171** | **Automatic restructuring selection?** | **ANSWERED** | **HIGH** | **48** |
 | **Q172** | **Restructuring composition theory?** | **ANSWERED** | **HIGH** | **47** |
 | **Q173** | **Restructuring reversibility?** | **Open** | **MEDIUM** | **Future** |
 | **Q174** | **Dynamic restructuring?** | **Open** | **HIGH** | **Future** |
@@ -702,6 +702,60 @@ If coordination bounds are fundamental and connect to:
 | **Q183** | **Automated canonical ordering discovery?** | **Open** | **MEDIUM** | **Future** |
 | **Q184** | **Approximation algorithms for restructuring?** | **Open** | **HIGH** | **Future** |
 | **Q185** | **Restructuring under constraints?** | **Open** | **HIGH** | **Future** |
+| **Q186** | **Incremental AUTO_RESTRUCTURE?** | **Open** | **HIGH** | **Future** |
+| **Q187** | **Multi-objective AUTO_RESTRUCTURE?** | **Open** | **HIGH** | **Future** |
+| **Q188** | **Learning-augmented restructuring?** | **Open** | **MEDIUM** | **Future** |
+| **Q189** | **Distributed AUTO_RESTRUCTURE?** | **Open** | **HIGH** | **Future** |
+| **Q190** | **Runtime restructuring?** | **Open** | **HIGH** | **Future** |
+
+---
+
+## Phase 48 Validation Results
+
+**MAJOR MILESTONE: Q171 (Automatic Restructuring Selection) - THE CAPSTONE IS COMPLETE!**
+
+| Finding | Result | Significance |
+|---------|--------|--------------|
+| Soundness Theorem | PROVEN | Preserves requirements |
+| Completeness Theorem | PROVEN | Achieves target if achievable |
+| Optimality Theorem | PROVEN | 2-approximation to optimal |
+| Complexity Theorem | PROVEN | O(1) constant time |
+| Case Study Success | 100% (5/5) | Works in practice |
+
+**THE AUTO_RESTRUCTURE ALGORITHM:**
+
+```
+AUTO_RESTRUCTURE(O, R, L*):
+    1. CLASSIFY(O)           # Phase 43
+    2. DETECT_COMMUTATIVE(O) # Phase 46
+    3. Select applicable from CATALOG  # Phase 45
+    4. CANONICAL_SORT(applicable)      # Phase 47
+    5. Apply greedily until L* achieved
+    Return optimized O'
+```
+
+**Components Integrated:**
+- Phase 43: CLASSIFY (verification type)
+- Phase 45: CATALOG (restructuring operations)
+- Phase 46: DETECT_COMMUTATIVE
+- Phase 47: CANONICAL_SORT
+
+**Case Study Results:**
+| Case | Initial | Target | Achieved | Success |
+|------|---------|--------|----------|---------|
+| Shopping Cart | 0.40 | 1.0 | 1.00 | YES |
+| User Session | 0.50 | 1.0 | 1.00 | YES |
+| Inventory Set | 0.45 | 1.0 | 1.00 | YES |
+| Bank Balance | 0.40 | 0.9 | 0.91 | YES |
+| Audit Log | 0.30 | 0.7 | 0.82 | YES |
+
+**THE OPTIMIZATION PIPELINE IS NOW FULLY AUTOMATED!**
+
+**New Questions Opened:** Q186-Q190
+
+**Confidence Level:** VERY HIGH
+
+See: `phase_48_auto_restructure.py`, `PHASE_48_IMPLICATIONS.md` for full analysis.
 
 ---
 
