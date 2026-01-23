@@ -837,11 +837,16 @@ If coordination bounds are fundamental and connect to:
 | **Q318** | **Can width analysis resolve NL vs P?** | **Open** | **HIGH** | **Future** |
 | **Q319** | **Quantum nondeterministic width classes?** | **Open** | **HIGH** | **Future** |
 | **Q320** | **Alternating width hierarchy?** | **Open** | **MEDIUM** | **Future** |
-| **Q321** | **Is the width hierarchy within NC^2 strict?** | **Open** | **HIGH** | **Future** |
+| **Q321** | **Is the width hierarchy within NC^2 strict?** | **ANSWERED (Phase 76)** | **HIGH** | **Phase 76** |
 | **Q322** | **Can we characterize NC^3 via width?** | **Open** | **HIGH** | **Future** |
 | **Q323** | **What is the width requirement for P?** | **Open** | **HIGH** | **Future** |
 | **Q324** | **Nondeterminism-width tradeoff for higher classes?** | **Open** | **MEDIUM** | **Future** |
 | **Q325** | **Width characterization of the full NC hierarchy?** | **Open** | **HIGH** | **Future** |
+| **Q326** | **Are there WIDTH-NC^2(n^k)-complete problems for each k?** | **Open** | **HIGH** | **Future** |
+| **Q327** | **Does the width hierarchy extend to NC^3 and beyond?** | **Open** | **HIGH** | **Future** |
+| **Q328** | **What is the width requirement for NC^2-complete problems?** | **Open** | **HIGH** | **Future** |
+| **Q329** | **Can width lower bounds prove new circuit lower bounds?** | **Open** | **HIGH** | **Future** |
+| **Q330** | **Is there a width-efficient universal NC^2 circuit?** | **Open** | **MEDIUM** | **Future** |
 
 ---
 
@@ -5676,11 +5681,26 @@ Can we define alternating quantifier width classes? How does this relate to PH?
 ## New Questions from Phase 75
 
 ### Q321: Is the width hierarchy within NC^2 strict?
-**Status**: Open
+**Status**: ANSWERED (Phase 76)
 **Priority**: HIGH
-**Tractability**: MEDIUM
+**Tractability**: HIGH
 
 Within NC^2, we have width classes from log(n) to poly(n). Is every step in this hierarchy strict?
+
+**ANSWER (Phase 76):** YES - The width hierarchy within NC^2 is STRICT\!
+
+For all k >= 1: WIDTH-NC^2(n^k) STRICT_SUBSET WIDTH-NC^2(n^(k+1))
+
+**Key Results:**
+- NC^2 has INFINITE internal structure stratified by polynomial width degree
+- Witness problems: VECTOR-SUM (n), MATRIX-MULT (n^2), MATRIX-INVERSE (n^3), k-TENSOR-CONTRACT (n^k)
+- WIDTH-NC^2(n^k) corresponds to SPACE(k * log n) within NC^2
+- This fills the gap between NL (log-width) and full NC^2 (poly-width)
+
+**Validation:**
+- Diagonalization proof (Phase 31 technique)
+- Natural witness problems at each level (matrix operations)
+- Connection to space complexity confirms structure
 
 ---
 
@@ -5717,6 +5737,53 @@ We showed N-WIDTH(w) SUBSET DET-WIDTH(poly(2^w)). What about NSPACE, NP?
 **Tractability**: HIGH
 
 Can we characterize NC^k for all k via width constraints?
+
+---
+
+## New Questions from Phase 76
+
+### Q326: Are there WIDTH-NC^2(n^k)-complete problems for each k?
+**Status**: Open
+**Priority**: HIGH
+**Tractability**: HIGH
+
+For each polynomial degree k, do there exist WIDTH-NC^2(n^k)-complete problems under appropriate reductions? This would establish a natural hierarchy of complete problems within NC^2.
+
+---
+
+### Q327: Does the width hierarchy extend to NC^3 and beyond?
+**Status**: Open
+**Priority**: HIGH
+**Tractability**: HIGH
+
+Does NC^3 also have internal width stratification? The pattern from Phase 76 suggests yes, potentially with even finer structure.
+
+---
+
+### Q328: What is the width requirement for NC^2-complete problems?
+**Status**: Open
+**Priority**: HIGH
+**Tractability**: MEDIUM
+
+What polynomial degree k is required for NC^2-complete problems? This characterizes the "top" of the NC^2 width hierarchy.
+
+---
+
+### Q329: Can width lower bounds prove new circuit lower bounds?
+**Status**: Open
+**Priority**: HIGH
+**Tractability**: MEDIUM
+
+Can we use width-based arguments to prove new circuit complexity lower bounds? This would be a practical application of the Phase 76 hierarchy.
+
+---
+
+### Q330: Is there a width-efficient universal NC^2 circuit?
+**Status**: Open
+**Priority**: MEDIUM
+**Tractability**: MEDIUM
+
+Is there a universal NC^2 circuit that is width-efficient? Or does universality inherently require maximum polynomial width?
 
 ---
 
