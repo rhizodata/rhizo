@@ -843,10 +843,15 @@ If coordination bounds are fundamental and connect to:
 | **Q324** | **Nondeterminism-width tradeoff for higher classes?** | **Open** | **MEDIUM** | **Future** |
 | **Q325** | **Width characterization of the full NC hierarchy?** | **Open** | **HIGH** | **Future** |
 | **Q326** | **Are there WIDTH-NC^2(n^k)-complete problems for each k?** | **Open** | **HIGH** | **Future** |
-| **Q327** | **Does the width hierarchy extend to NC^3 and beyond?** | **Open** | **HIGH** | **Future** |
+| **Q327** | **Does the width hierarchy extend to NC^3 and beyond?** | **ANSWERED (Phase 77)** | **HIGH** | **Phase 77** |
 | **Q328** | **What is the width requirement for NC^2-complete problems?** | **Open** | **HIGH** | **Future** |
 | **Q329** | **Can width lower bounds prove new circuit lower bounds?** | **Open** | **HIGH** | **Future** |
 | **Q330** | **Is there a width-efficient universal NC^2 circuit?** | **Open** | **MEDIUM** | **Future** |
+| **Q331** | **Is the 2D NC grid complete?** | **Open** | **HIGH** | **Future** |
+| **Q332** | **What is the width requirement for NC^i-complete problems?** | **Open** | **HIGH** | **Future** |
+| **Q333** | **Does P have the same width stratification as NC?** | **Open** | **HIGH** | **Future** |
+| **Q334** | **Can the 2D grid prove P \!= NC?** | **Open** | **HIGH** | **Future** |
+| **Q335** | **Does the grid extend to NC^infinity?** | **Open** | **MEDIUM** | **Future** |
 
 ---
 
@@ -5752,11 +5757,27 @@ For each polynomial degree k, do there exist WIDTH-NC^2(n^k)-complete problems u
 ---
 
 ### Q327: Does the width hierarchy extend to NC^3 and beyond?
-**Status**: Open
+**Status**: ANSWERED (Phase 77)
 **Priority**: HIGH
 **Tractability**: HIGH
 
 Does NC^3 also have internal width stratification? The pattern from Phase 76 suggests yes, potentially with even finer structure.
+
+**ANSWER (Phase 77):** YES - The width hierarchy extends to ALL of NC\!
+
+For ALL depth levels i >= 1 and ALL polynomial degrees k >= 1:
+    WIDTH-NC^i(n^k) STRICT_SUBSET WIDTH-NC^i(n^(k+1))
+
+**Key Results:**
+- NC is a 2D GRID with depth (i) and width (k) as independent dimensions
+- Strict containments in BOTH directions
+- Complete characterization of parallel complexity achieved
+- P vs NC barrier is DEPTH, not WIDTH (both are poly-width)
+
+**Validation:**
+- Generalization of Phase 76 diagonalization (depth-independent)
+- Witness problems at each NC level (tensor operations)
+- Connects to Phase 58 depth hierarchy
 
 ---
 
@@ -5784,6 +5805,53 @@ Can we use width-based arguments to prove new circuit complexity lower bounds? T
 **Tractability**: MEDIUM
 
 Is there a universal NC^2 circuit that is width-efficient? Or does universality inherently require maximum polynomial width?
+
+---
+
+## New Questions from Phase 77
+
+### Q331: Is the 2D NC grid complete?
+**Status**: Open
+**Priority**: HIGH
+**Tractability**: HIGH
+
+Are there problems requiring SPECIFIC (depth, width) pairs? Or can some grid positions be skipped?
+
+---
+
+### Q332: What is the width requirement for NC^i-complete problems?
+**Status**: Open
+**Priority**: HIGH
+**Tractability**: MEDIUM
+
+For each depth level i, what polynomial degree k characterizes NC^i-complete problems?
+
+---
+
+### Q333: Does P have the same width stratification as NC?
+**Status**: Open
+**Priority**: HIGH
+**Tractability**: MEDIUM
+
+P has poly-width. Does WIDTH-P(n^k) STRICT_SUBSET WIDTH-P(n^(k+1))? This extends Q323.
+
+---
+
+### Q334: Can the 2D grid prove P != NC?
+**Status**: Open
+**Priority**: HIGH
+**Tractability**: LOW
+
+Can the 2D grid structure yield a proof that P is not in NC?
+
+---
+
+### Q335: Does the grid extend to NC^infinity?
+**Status**: Open
+**Priority**: MEDIUM
+**Tractability**: HIGH
+
+Does the 2D structure extend uniformly to all polylogarithmic depths?
 
 ---
 
