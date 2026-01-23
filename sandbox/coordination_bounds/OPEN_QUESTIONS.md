@@ -662,7 +662,7 @@ If coordination bounds are fundamental and connect to:
 | **Q143** | **CC-NP vs CC-coNP separation?** | **ANSWERED** | **HIGH** | **40** |
 | **Q144** | **CC analog of polynomial hierarchy (CC-PH)?** | **Open** | **MEDIUM** | **Future** |
 | **Q145** | **Cryptographic coordination using CC-NP hardness?** | **Open** | **HIGH** | **Future** |
-| **Q146** | **What is CC-NP intersection CC-coNP?** | **Open** | **HIGH** | **Future** |
+| **Q146** | **What is CC-NP intersection CC-coNP?** | **ANSWERED** | **HIGH** | **49** |
 | **Q147** | **CC analog of polynomial hierarchy (CC-PH)?** | **Open** | **MEDIUM** | **Future** |
 | **Q148** | **CC analog of Karp-Lipton theorem?** | **Open** | **MEDIUM** | **Future** |
 | **Q149** | **Byzantine threshold for CC-NP = CC-coNP transition?** | **Open** | **HIGH** | **Future** |
@@ -707,6 +707,11 @@ If coordination bounds are fundamental and connect to:
 | **Q188** | **Learning-augmented restructuring?** | **Open** | **MEDIUM** | **Future** |
 | **Q189** | **Distributed AUTO_RESTRUCTURE?** | **Open** | **HIGH** | **Future** |
 | **Q190** | **Runtime restructuring?** | **Open** | **HIGH** | **Future** |
+| **Q191** | **Complete problem for intersection under crash-failure?** | **Open** | **MEDIUM** | **Future** |
+| **Q192** | **Is CC-BPP = CC-NP INTERSECTION CC-coNP?** | **Open** | **HIGH** | **Future** |
+| **Q193** | **Intersection structure under partial synchrony?** | **Open** | **MEDIUM** | **Future** |
+| **Q194** | **Deciding intersection problems without consensus?** | **Open** | **HIGH** | **Future** |
+| **Q195** | **CC polynomial hierarchy - does it collapse?** | **Open** | **HIGH** | **Future** |
 
 ---
 
@@ -3180,12 +3185,18 @@ Automated CRDT synthesis?
 These questions emerged from proving the CC-NP/CC-coNP separation.
 
 ### Q146: CC-NP intersection CC-coNP
-**Status**: Open
+**Status**: **ANSWERED (Phase 49)**
 **Importance**: HIGH
 
 What problems are in BOTH CC-NP and CC-coNP?
 
-These have both valid and invalid solutions verifiable in CC_0. Natural candidates?
+**ANSWER**: CC-NP INTERSECTION CC-coNP is the class of problems with SYMMETRIC verification - where BOTH validity AND invalidity are CC_0-verifiable. This is precisely the class where one honest node can witness either outcome (existential verification for both).
+
+**Key Results**:
+- 6 natural problems identified: SET-MEMBERSHIP, THRESHOLD-COUNT, VALUE-EQUALITY, QUORUM-INTERSECTION, CAUSAL-PRECEDENCE, UNIQUE-VALUE
+- 3 problems NOT in intersection: LEADER-ELECTION, CONSENSUS-VALUE, BYZANTINE-FREE (universal verification barrier)
+- No complete problems under Byzantine (unless CC-NP = CC-coNP)
+- CC-BPP SUBSET intersection conjectured
 
 ---
 
@@ -3645,6 +3656,63 @@ Can we formally verify that a decomposition is correct?
 **Goal**: Proof-carrying decomposition, machine-checkable correctness.
 
 **Approach**: Integration with proof assistants (Coq, Isabelle).
+
+---
+
+## Phase 49 Validation Results
+
+**MAJOR MILESTONE: Q146 (CC-NP INTERSECTION CC-coNP) - THE INTERSECTION CLASS IS CHARACTERIZED!**
+
+Phase 49 completes the complexity-theoretic picture by characterizing the intersection of CC-NP and CC-coNP.
+
+### Key Findings
+
+1. **CC-NP INTERSECTION CC-coNP = Symmetric Verification**: Problems where BOTH validity AND invalidity are CC_0-verifiable
+2. **Existential Characterization**: Problems with existential verification for both outcomes
+3. **Containment Proven**: CC_0 SUBSET CC-NP INTERSECTION CC-coNP SUBSET CC-NP, CC-coNP SUBSET CC_log
+4. **No Complete Problems Under Byzantine**: Unless CC-NP = CC-coNP
+5. **CC-BPP Conjecture**: CC-BPP SUBSET CC-NP INTERSECTION CC-coNP (analog of BPP SUBSET NP INTERSECTION coNP)
+
+### The Four Theorems
+
+1. **Containment Theorem**: CC_0 SUBSET CC-NP INTERSECTION CC-coNP SUBSET CC-NP, CC-coNP
+2. **Symmetric Verification Theorem**: Intersection = problems with both YES and NO certificates CC_0-verifiable
+3. **Existential Intersection Theorem**: Under Byzantine, intersection = existential verification for both outcomes
+4. **No Completeness Theorem**: No complete problems under Byzantine (unless classes are equal)
+
+### Natural Problems in the Intersection
+
+**IN CC-NP INTERSECTION CC-coNP:**
+- SET-MEMBERSHIP: One node witnesses membership OR non-membership
+- THRESHOLD-COUNT: k witnesses prove threshold OR enumeration proves below
+- VALUE-EQUALITY: Comparison witnesses equality OR inequality
+- QUORUM-INTERSECTION: Node in both witnesses OR disjointness enumerable
+- CAUSAL-PRECEDENCE: Causal chain OR concurrency witnesses
+- UNIQUE-VALUE: Holder witnesses uniqueness OR two holders witness duplicate
+
+**NOT IN CC-NP INTERSECTION CC-coNP:**
+- LEADER-ELECTION: Invalidity requires UNIVERSAL verification
+- CONSENSUS-VALUE: Invalidity requires UNIVERSAL verification
+- BYZANTINE-FREE: Validity requires UNIVERSAL verification
+
+### Hierarchy Diagram
+
+```
+                          CC_log
+                         /     \
+                     CC-NP    CC-coNP
+                         \     /
+                    CC-NP INTERSECTION CC-coNP
+                            |
+                          CC_0
+```
+
+**Crash-Failure**: CC-NP = CC-coNP (symmetric)
+**Byzantine**: CC-NP != CC-coNP (intersection is proper subset of both)
+
+**New Questions Opened:** Q191-Q195
+
+**Confidence Level:** VERY HIGH
 
 ---
 
