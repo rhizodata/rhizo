@@ -930,9 +930,13 @@ If coordination bounds are fundamental and connect to:
 | **Q411** | **Relationship between fan-out and circuit width?** | **Open** | **HIGH** | **Future** |
 | **Q412** | **Natural problems at each hierarchy level?** | **ANSWERED** | **MEDIUM** | **95** |
 | **Q413** | **LP-reducibility decidable in PSPACE?** | **Open** | **MEDIUM** | **Future** |
-| **Q414** | **FO(k)-complete natural problems for each k?** | **Open** | **HIGH** | **Future** |
+| **Q414** | **FO(k)-complete natural problems for each k?** | **ANSWERED** | **HIGH** | **96** |
 | **Q415** | **FO(k) relationship to parameterized complexity?** | **Open** | **MEDIUM** | **Future** |
-| **Q416** | **Fan-out analysis for algorithm optimization?** | **Open** | **HIGH** | **Future** |
+| **Q416** | **Fan-out analysis for algorithm optimization?** | **ANSWERED** | **HIGH** | **96** |
+| **Q417** | **Automate fan-out analysis for algorithms?** | **Open** | **HIGH** | **Future** |
+| **Q418** | **FO(k)-complete problems for non-integer k?** | **Open** | **MEDIUM** | **Future** |
+| **Q419** | **FO(k) guidelines for distributed systems?** | **Open** | **HIGH** | **Future** |
+| **Q420** | **Hardware design for FO(k) access patterns?** | **Open** | **MEDIUM** | **Future** |
 
 ---
 
