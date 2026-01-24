@@ -865,8 +865,13 @@ If coordination bounds are fundamental and connect to:
 | **Q346** | **Guessing power for other resource types (randomness, quantum)?** | **Open** | **HIGH** | **Future** |
 | **Q347** | **Is there a reusability analog for time?** | **Open** | **HIGH** | **Future** |
 | **Q348** | **Does guessing theorem extend to alternation (Sigma_k)?** | **Open** | **MEDIUM** | **Future** |
-| **Q349** | **Can closure analysis predict other complexity collapses?** | **Open** | **HIGH** | **Future** |
+| **Q349** | **Can closure analysis predict other complexity collapses?** | **ANSWERED (Phase 81)** | **HIGH** | **Phase 81** |
 | **Q350** | **What is the exact boundary for guessing helps vs collapses?** | **Open** | **MEDIUM** | **Future** |
+| **Q351** | **Does the prediction hold for quasi-polynomial?** | **Open** | **HIGH** | **Future** |
+| **Q352** | **What about between closure points?** | **Open** | **MEDIUM** | **Future** |
+| **Q353** | **Does time have analogs to closure points?** | **Open** | **HIGH** | **Future** |
+| **Q354** | **Can we refine the sub-exponential region?** | **Open** | **MEDIUM** | **Future** |
+| **Q355** | **What determines the spacing between closure points?** | **Open** | **LOW** | **Future** |
 
 ---
 
