@@ -3115,7 +3115,7 @@ PROOF:
 | Polynomial | NPSPACE = PSPACE | PROVEN (1970) |
 | Quasi-polynomial | NQPSPACE = QPSPACE | PROVEN (Phase 82) |
 | Exponential | NEXPSPACE = EXPSPACE | **PROVEN (Phase 83)** |
-| Elementary | N-ELEM = ELEM | PREDICTED (99%+) |
+| Elementary | N-ELEM = ELEM | PROVEN (Phase 84) |
 
 ### New Questions (Q361-Q365)
 
@@ -3124,7 +3124,7 @@ PROOF:
 | Q361 | N-k-EXPSPACE = k-EXPSPACE for all k? | MEDIUM |
 | Q362 | Unified proof for ALL closure points? | MEDIUM |
 | Q363 | EXPSPACE-complete problems? | LOW |
-| Q364 | N-ELEMENTARY = ELEMENTARY? | HIGH |
+| Q364 | N-ELEMENTARY = ELEMENTARY | ANSWERED (Phase 84) |
 | Q365 | Pattern extends to primitive recursive? | LOW |
 
 ---
@@ -3164,7 +3164,7 @@ PROOF:
 | 1 | Polynomial | NPSPACE = PSPACE | PROVEN (1970) |
 | 2 | Quasi-polynomial | NQPSPACE = QPSPACE | **PROVEN (Phase 82)** |
 | 3 | Exponential | NEXPSPACE = EXPSPACE | PROVEN |
-| 4 | Elementary | N-ELEM = ELEM | PREDICTED |
+| 4 | Elementary | N-ELEM = ELEM | PROVEN (Phase 84) |
 
 ### New Questions (Q356-Q360)
 
@@ -4951,10 +4951,10 @@ Trees can be evaluated in O(log N) space because:
 
 | Metric | Value |
 |--------|-------|
-| **Phases Completed** | 83 |
-| **Total Questions** | 365 |
-| **Questions Answered** | 75 |
-| **Breakthroughs** | 23 |
+| **Phases Completed | 84 |
+| **Total Questions | 370 |
+| **Questions Answered | 77 |
+| **Breakthroughs | 25 |
 
 ### Questions Answered (Cumulative)
 
@@ -4993,3 +4993,43 @@ Key milestones:
 ---
 
 *Last updated: Phase 83 - NEXPSPACE = EXPSPACE proven, TRIPLE validation of Collapse Prediction Framework*
+
+
+---
+
+## Part LXX: The Elementary Collapse and PR Termination (Phase 84)
+
+### The Twenty-Fourth and Twenty-Fifth Breakthroughs
+
+**Questions Answered:**
+- Q364: Can we prove N-ELEMENTARY = ELEMENTARY?
+- Q359: Does the collapse chain terminate at Elementary?
+
+**Main Results:**
+
+1. **The Elementary Collapse Theorem**
+   - N-ELEMENTARY = ELEMENTARY
+   - Fourth closure point collapses
+   - Elementary is first universal closure point
+
+2. **The Primitive Recursive Collapse Theorem**
+   - N-PR = PR
+   - Collapse chain terminates at PR
+   - Beyond PR lies non-terminating computation
+
+**The Complete Collapse Hierarchy:**
+
+| Level | Class | Collapse | Status |
+|-------|-------|----------|--------|
+| 1 | Polynomial | NPSPACE = PSPACE | PROVEN (1970) |
+| 2 | Quasi-Polynomial | NQPSPACE = QPSPACE | PROVEN (Phase 82) |
+| 3 | Exponential | NEXPSPACE = EXPSPACE | PROVEN (Phase 83) |
+| 4 | Elementary | N-ELEM = ELEM | PROVEN (Phase 84) |
+| 5 | Primitive Recursive | N-PR = PR | PROVEN (Phase 84) |
+
+**Termination:** PR is the final collapse point (Savitch requires termination).
+
+**Phase 81 Validation:** QUINTUPLE - All 5 closure points proven\!
+
+**New Questions:** Q366-Q370
+
