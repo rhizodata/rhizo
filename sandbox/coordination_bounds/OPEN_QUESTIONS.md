@@ -562,8 +562,8 @@ If coordination bounds are fundamental and connect to:
 | Q14 | Developer UX | In Progress | High | 17 |
 | Q15 | Publication | Planning | High | Future |
 | Q16 | Industry adoption | Planning | Critical | Future |
-| **Q17** | **Unified Limit Theory** | **Supported** | **Critical++** | **19** |
-| **Q18** | **Time as Coordination** | **In Progress** | **Critical++** | **20** |
+| **Q17** | **Unified Limit Theory** | **CANDIDATE** | **Critical++** | **102** |
+| **Q18** | **Time as Coordination** | **CONFIRMED** | **Critical++** | **107** |
 | Q19 | Consciousness as Coordination | Open - Speculative | High | Future |
 | **Q20** | **Coordination Complexity Classes** | **ANSWERED** | **CRITICAL** | **30** |
 | Q21 | Approximate Coordination | Open | Medium | Future |
@@ -1011,8 +1011,14 @@ If coordination bounds are fundamental and connect to:
 | **Q463** | **Noether symmetries in coordination?** | **ANSWERED (Phase 108)** | **MEDIUM** | **Phase 108** |
 | **Q464** | **Physical meaning of rate crossover d*?** | **Open** | **HIGH** | **Future** |
 | **Q465** | **Observe SWAP symmetry experimentally?** | **Open** | **HIGH** | **Future** |
-| **Q466** | **Heisenberg algebra significance?** | **Open** | **MEDIUM** | **Future** |
+| **Q466** | **Heisenberg algebra significance?** | **ANSWERED (Phase 109)** | **HIGH** | **Phase 109** |
 | **Q467** | **Why ln(2) in d*/d_cross ratio?** | **Open** | **MEDIUM** | **Future** |
+| **Q468** | **Can ALL of QM be derived from coordination?** | **Open** | **HIGH** | **Future** |
+| **Q469** | **What sets Planck's constant value?** | **Open** | **HIGH** | **Future** |
+| **Q470** | **Quantum gravity at Planck scale crossover?** | **Open** | **HIGH** | **Future** |
+| **Q471** | **Entanglement and SWAP symmetry?** | **Open** | **HIGH** | **Future** |
+| **Q472** | **Measurement = symmetry breaking?** | **Open** | **HIGH** | **Future** |
+| **Q473** | **Quantum computers using coordination principles?** | **Open** | **MEDIUM** | **Future** |
 
 ---
 
