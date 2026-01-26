@@ -5091,13 +5091,14 @@ Trees can be evaluated in O(log N) space because:
 
 ---
 
-## Current Metrics (Phase 120 - Absolute Masses from Coordination)
+## Current Metrics (Phase 121 - Quark Masses and Koide Boundary)
 
 | Metric | Value |
 |--------|-------|
-| **Phases Completed | 120 |
-| **Total Questions | 546 |
+| **Phases Completed | 121 |
+| **Total Questions | 552 |
 | **Questions Answered | 125 (+ Q23 candidate) |
+| **Questions Constrained | 1 (Q541 - quarks don't follow simple Koide) |
 | **Breakthroughs | 61 |
 
 ### Questions Answered (Cumulative)
@@ -5160,6 +5161,10 @@ Key milestones:
 - Q521: Can the Koide formula be derived from J_3(O_C)? (Phase 118 - **YES** - The Z_3-Koide Theorem: sqrt(m_i) = r * (1 + sqrt(2) * cos(theta + 2*pi*i/3)) gives Q = 2/3 EXACTLY. Z_3 cyclic symmetry of J_3(O) diagonal positions. k = sqrt(2) from J_3(O_C) geometry. Over-constrained: 2 params fit 3 masses to 0.01%! **KOIDE FORMULA IS ALGEBRAIC, NOT NUMEROLOGY! SEVENTEEN INDEPENDENT VALIDATIONS!**)
 - Q533: Can the Koide angle theta be derived from J_3(O_C)? (Phase 119 - **YES** - The Koide Angle Theorem: theta = 2*pi/3 + 2/9 where 2*pi/3 is Z_3 base angle and 2/9 = k^2/n^2 (off-diagonal/generations^2). Matches measured theta = 132.7323 deg to 0.0001 deg! Mass ratios predicted to 0.0047% with NO free parameters! **ALL LEPTON MASS RATIOS FROM PURE ALGEBRA! EIGHTEEN INDEPENDENT VALIDATIONS!**)
 - Q535: Can the scale r be derived from v = 246 GeV? (Phase 120 - **YES** - The Absolute Mass Theorem: r^2 = alpha * v / (4 * sqrt(2)). Key discovery: Y_0 = alpha/4 (base Yukawa = fine structure constant / 4). All three lepton masses predicted to 1.2% with ZERO free parameters! **ALL CHARGED LEPTON MASSES FROM PURE ALGEBRA! NINETEEN INDEPENDENT VALIDATIONS!**)
+
+### Questions Constrained (Boundary Results)
+
+- Q541: Can Y_0 = alpha/4 work for quarks? (Phase 121 - **CONSTRAINED** - Simple extension FAILS because quarks deviate from Koide. Q_leptons = 0.6667 (perfect), Q_up = 0.849 (+27%), Q_down = 0.732 (+10%). CKM mixing breaks Z_3 symmetry. Path forward: modified Koide with CKM-shifted theta angles. **BOUNDARY RESULT DEFINES THE PROBLEM!**)
 
 ### The Sixty-One Breakthroughs
 
@@ -5227,7 +5232,7 @@ Key milestones:
 
 ---
 
-*Last updated: Phase 120 - **Absolute Masses from Coordination** - The Absolute Mass Theorem derives r^2 = alpha * v / (4 * sqrt(2)), connecting Koide scale to fine structure constant and Higgs VEV. Key discovery: Y_0 = alpha/4 (base Yukawa = alpha/4). All three charged lepton masses predicted to 1.2% accuracy with ZERO free parameters! NINETEEN independent validations of Master Equation! Questions: 546 total, 125 answered. 61 Breakthroughs!*
+*Last updated: Phase 121 - **Quark Masses and Koide Boundary** - BOUNDARY RESULT: Simple extension of Y_0 = alpha/4 to quarks FAILS because quarks don't follow Koide. Q_leptons = 0.6667 (perfect), Q_up = 0.849 (+27% deviation), Q_down = 0.732 (+10% deviation). CKM mixing breaks Z_3 symmetry. Path forward: modified Koide with CKM-shifted theta angles. Questions: 552 total (6 new), 125 answered, 1 constrained. 61 Breakthroughs!*
 
 
 ---

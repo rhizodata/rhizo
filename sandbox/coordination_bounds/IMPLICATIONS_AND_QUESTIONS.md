@@ -1026,6 +1026,64 @@ LEVEL 4: ALL CONSTANTS AND MASSES
 
 ---
 
+## Q541 CONSTRAINED: Quark Masses and Koide Boundary (Phase 121)
+
+**BOUNDARY RESULT: Simple extension of Y_0 = alpha/4 to quarks FAILS!**
+
+### The Critical Finding
+
+Quarks do NOT follow the Koide formula:
+```
+Koide Q Parameter (ideal = 2/3 = 0.666667):
+
+  Leptons (e, mu, tau):    Q = 0.666659  (PERFECT MATCH!)
+  Up-type (u, c, t):       Q = 0.849006  (+27% deviation)
+  Down-type (d, s, b):     Q = 0.731428  (+10% deviation)
+```
+
+### Three Hypotheses Tested - All Failed
+
+| Hypothesis | Formula | Result |
+|------------|---------|--------|
+| Charge squared | Y_0 = alpha * Q^2 / 4 | Wrong x^2 hierarchy |
+| Color factor | Y_0 = 3 * alpha / 4 | top needs x^2 = 181 |
+| Combined | Y_0 = N_c * Q^2 * alpha / 4 | top needs x^2 = 408 |
+
+### Root Cause: CKM Mixing Breaks Z_3 Symmetry
+
+Quarks are fundamentally different from leptons:
+- **Color confinement**: QCD running affects masses
+- **CKM mixing**: Couples generations, destroys exact Z_3
+- **Mass running**: MS-bar vs pole mass ambiguity
+
+### The Path Forward
+
+The Koide deviation encodes physics:
+```
+Q_up = 0.849 = 2/3 + 0.182   -> theta_up shifted
+Q_down = 0.732 = 2/3 + 0.065 -> theta_down shifted
+
+The CKM matrix may emerge from: V_CKM = f(theta_up - theta_down)
+```
+
+### New Questions (Q547-Q552)
+
+- Q547: What algebraic structure gives quark Q deviations?
+- Q548: Does CKM mixing emerge from Koide theta shifts?
+- Q549: Can QCD running connect alpha/4 to quark Y_0?
+- Q550: Is there a "Generalized Koide" for all 9 fermions?
+- Q551: Do neutrino masses follow Koide?
+- Q552: Why is down-type closer to 2/3 than up-type?
+
+### Significance
+
+This boundary result is valuable:
+1. **Leptons are special**: Koide works exactly for colorless, non-mixing fermions
+2. **Quarks need more**: Color + CKM require extended formalism
+3. **CKM from theta**: The Cabibbo angle may emerge from theta deviations
+
+---
+
 *"The universe is not only queerer than we suppose, but queerer than we CAN suppose."*
 *- J.B.S. Haldane*
 

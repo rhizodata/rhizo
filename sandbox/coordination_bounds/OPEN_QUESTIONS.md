@@ -1086,12 +1086,18 @@ If coordination bounds are fundamental and connect to:
 | **Q538** | **Physical meaning of 2/9 correction?** | **Open** | **MEDIUM** | **Phase 119** |
 | **Q539** | **Neutrino masses from similar theta?** | **Open** | **HIGH** | **Phase 119** |
 | **Q540** | **Is 0.02% theta deviation from QED?** | **Open** | **MEDIUM** | **Phase 119** |
-| **Q541** | **Can Y_0 = alpha/4 work for quarks?** | **Open** | **CRITICAL** | **Phase 120** |
+| **Q541** | **Can Y_0 = alpha/4 work for quarks?** | **Constrained** | **CRITICAL** | **Phase 121** |
 | **Q542** | **Why exactly alpha/4? Deeper E_8 origin?** | **Open** | **HIGH** | **Phase 120** |
 | **Q543** | **Neutrino masses with modified Y_0?** | **Open** | **HIGH** | **Phase 120** |
 | **Q544** | **Does Y_0 run with energy scale?** | **Open** | **MEDIUM** | **Phase 120** |
 | **Q545** | **What determines v=246 GeV algebraically?** | **Open** | **CRITICAL** | **Phase 120** |
 | **Q546** | **Is 1.2% mass error from radiative corrections?** | **Open** | **MEDIUM** | **Phase 120** |
+| **Q547** | **What algebraic structure gives quark Q deviations?** | **Open** | **CRITICAL** | **Phase 121** |
+| **Q548** | **Does CKM mixing emerge from Koide theta shifts?** | **Open** | **CRITICAL** | **Phase 121** |
+| **Q549** | **Can QCD running connect alpha/4 to quark Y_0?** | **Open** | **HIGH** | **Phase 121** |
+| **Q550** | **Is there a "Generalized Koide" for all 9 fermions?** | **Open** | **HIGH** | **Phase 121** |
+| **Q551** | **Do neutrino masses follow Koide?** | **Open** | **HIGH** | **Phase 121** |
+| **Q552** | **Why is down-type closer to 2/3 than up-type?** | **Open** | **MEDIUM** | **Phase 121** |
 
 ---
 
@@ -10447,16 +10453,28 @@ Would predict exact quantum correction to the Koide angle.
 ---
 
 ### Q541: Can Y_0 = alpha/4 formula work for quarks?
-**Status**: Open
+**Status**: CONSTRAINED (Phase 121)
 **Priority**: CRITICAL
 **Tractability**: HIGH
 **Opened by**: Phase 120
 
-Extend the Y_0 = alpha/4 discovery to the quark sector:
-- Quarks have color charge -> may need color factor
-- Possible formula: Y_0_quark = alpha_s * (color factor) / 4
-- Or modified formula involving strong coupling
-Would derive all 6 quark masses from algebra.
+**Phase 121 Result**: The simple extension FAILS because quarks don't follow Koide.
+
+**Key Finding - Koide Q Deviations**:
+```
+Leptons (e, mu, tau):    Q = 0.666659  (PERFECT match to 2/3!)
+Up-type (u, c, t):       Q = 0.849006  (+27% deviation)
+Down-type (d, s, b):     Q = 0.731428  (+10% deviation)
+```
+
+**Three Hypotheses Tested - All Failed**:
+1. Y_0 = alpha * Q_electric^2 / 4 - gives wrong x^2 hierarchy
+2. Y_0_quark = 3 * alpha / 4 (color) - top requires x^2 = 181
+3. Y_0 = N_c * Q^2 * alpha / 4 - top requires x^2 = 408
+
+**Root Cause**: CKM mixing and QCD color interactions break the Z_3 symmetry.
+
+**Implication**: Quarks need modified Koide with CKM-shifted theta angles.
 
 ---
 
@@ -10527,6 +10545,96 @@ The 1.2% error is uniform across all three leptons:
 - Likely from QED loop corrections
 - Expected to be O(alpha) ~ 0.7%
 Calculate QED corrections to verify and achieve exact agreement.
+
+---
+
+### Q547: What algebraic structure gives quark Q deviations?
+**Status**: Open
+**Priority**: CRITICAL
+**Tractability**: MEDIUM
+**Opened by**: Phase 121
+
+The Koide Q parameter deviates from 2/3 for quarks:
+```
+Q_up = 0.849 = 2/3 + 0.182
+Q_down = 0.732 = 2/3 + 0.065
+```
+What in J_3(O_C) or E_8 gives these specific deviations?
+The CKM mixing matrix may encode these shifts algebraically.
+
+---
+
+### Q548: Does CKM mixing emerge from Koide theta shifts?
+**Status**: Open
+**Priority**: CRITICAL
+**Tractability**: HIGH
+**Opened by**: Phase 121
+
+If theta_lepton = 2*pi/3 + 2/9, what are theta_up and theta_down?
+The Cabibbo angle theta_C ~ 13 degrees might emerge from:
+```
+V_CKM = f(theta_up - theta_down)
+```
+Would derive CKM matrix from pure algebra.
+
+---
+
+### Q549: Can QCD running connect alpha/4 to quark Y_0?
+**Status**: Open
+**Priority**: HIGH
+**Tractability**: HIGH
+**Opened by**: Phase 121
+
+At different scales:
+- alpha(0) = 1/137
+- alpha_s(M_Z) = 0.118
+Perhaps Y_0_quark = g(alpha, alpha_s) at appropriate renormalization scale.
+Running effects may explain the quark-lepton mass difference.
+
+---
+
+### Q550: Is there a "Generalized Koide" for all 9 fermions?
+**Status**: Open
+**Priority**: HIGH
+**Tractability**: MEDIUM
+**Opened by**: Phase 121
+
+Consider all 9 charged fermions together:
+```
+Q_9 = (sum sqrt(m_i))^2 / (9 * sum m_i) = ???
+```
+Does this equal an algebraically significant value?
+Could unify leptons and quarks in a single formula.
+
+---
+
+### Q551: Do neutrino masses follow Koide?
+**Status**: Open
+**Priority**: HIGH
+**Tractability**: LOW
+**Opened by**: Phase 121
+
+Normal hierarchy suggests: m_1 < m_2 << m_3
+Testing Q_neutrino requires knowing absolute neutrino masses.
+From oscillation data, preliminary estimate suggests Q ~ 0.5-0.7.
+Would extend the Koide analysis to the entire lepton sector.
+
+---
+
+### Q552: Why is down-type closer to 2/3 than up-type?
+**Status**: Open
+**Priority**: MEDIUM
+**Tractability**: MEDIUM
+**Opened by**: Phase 121
+
+Deviation magnitudes:
+```
+|Q_up - 2/3| = 0.182
+|Q_down - 2/3| = 0.065
+```
+Down-type is 3x closer to ideal Koide value. Why?
+May relate to d-quark being in SU(2)_L doublet with u-quark.
+Or different QCD running for up vs down sectors.
 
 ---
 
