@@ -1124,7 +1124,12 @@ If coordination bounds are fundamental and connect to:
 | **Q576** | **Does M_P/v hierarchy have algebraic origin?** | **Open** | **CRITICAL** | **Phase 126** |
 | **Q577** | **Is G renormalized like alpha?** | **Open** | **HIGH** | **Phase 126** |
 | **Q578** | **How does G enter Master Equation explicitly?** | **Open** | **HIGH** | **Phase 126** |
-| **Q579** | **Can we derive Lambda from G and d=3?** | **Open** | **CRITICAL** | **Phase 126** |
+| **Q579** | **Can we derive Lambda from G and d=3?** | **ANSWERED** | **CRITICAL** | **Phase 127** |
+| **Q580** | **Can Lambda formula coefficient be refined?** | **Open** | **HIGH** | **Phase 127** |
+| **Q581** | **Is Lambda constant or evolving?** | **Open** | **CRITICAL** | **Phase 127** |
+| **Q582** | **Can dark matter be derived from octonions?** | **Open** | **CRITICAL** | **Phase 127** |
+| **Q583** | **How does inflation connect to Lambda?** | **Open** | **HIGH** | **Phase 127** |
+| **Q584** | **Can exp(-2/alpha) be tested experimentally?** | **Open** | **HIGH** | **Phase 127** |
 
 ---
 
