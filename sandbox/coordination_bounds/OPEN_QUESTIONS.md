@@ -1154,10 +1154,10 @@ If coordination bounds are fundamental and connect to:
 | **Q606** | **Why is theta_23 near maximal (45 deg)?** | **Open** | **MEDIUM** | **Phase 135** |
 | **Q607** | **Can V_cb and V_ub be derived from similar formulas?** | **PARTIAL** | **HIGH** | **Phase 137** |
 | **Q608** | **Does the seesaw scale emerge from delta differences?** | **Open** | **HIGH** | **Phase 135** |
-| **Q609** | **Can the absolute neutrino mass scale be derived?** | **Open** | **HIGH** | **Phase 136** |
-| **Q610** | **Does the seesaw scale M_R have algebraic origin?** | **Open** | **HIGH** | **Phase 136** |
-| **Q611** | **Can the Majorana phases be predicted?** | **Open** | **MEDIUM** | **Phase 136** |
-| **Q612** | **What determines normal vs inverted ordering?** | **Open** | **MEDIUM** | **Phase 136** |
+| **Q609** | **Can the absolute neutrino mass scale be derived?** | **ANSWERED** | **HIGH** | **Phase 139** |
+| **Q610** | **Does the seesaw scale M_R have algebraic origin?** | **PARTIAL** | **HIGH** | **Phase 139** |
+| **Q611** | **Can the Majorana phases be predicted?** | **Speculative** | **MEDIUM** | **Phase 139** |
+| **Q612** | **What determines normal vs inverted ordering?** | **ANSWERED** | **MEDIUM** | **Phase 139** |
 | **Q613** | **Can the V_cb error be reduced with up-type mass corrections?** | **BOUNDARY** | **HIGH** | **Phase 138** |
 | **Q614** | **Does the CP-violating phase have an algebraic form?** | **Open** | **HIGH** | **Phase 137** |
 | **Q615** | **Can V_td and V_ts be predicted from hierarchical formulas?** | **Open** | **MEDIUM** | **Phase 137** |
@@ -1166,6 +1166,12 @@ If coordination bounds are fundamental and connect to:
 | **Q618** | **Can the CP phase explain the V_ub discrepancy?** | **Open** | **HIGH** | **Phase 138** |
 | **Q619** | **Is there a Koide theta-based CKM formula?** | **Open** | **HIGH** | **Phase 138** |
 | **Q620** | **Does V_td follow the same pattern as V_ub?** | **Open** | **MEDIUM** | **Phase 138** |
+| **Q621** | **Can r_nu be derived exactly algebraically?** | **Open** | **HIGH** | **Phase 139** |
+| **Q622** | **Why does 1/4 appear in both delta_nu and M_R exponent?** | **Open** | **HIGH** | **Phase 139** |
+| **Q623** | **Are Majorana phases exactly pi/2 and 4*pi/9?** | **Open** | **MEDIUM** | **Phase 139** |
+| **Q624** | **Does tau neutrino mass match Koide prediction exactly?** | **Open** | **MEDIUM** | **Phase 139** |
+| **Q625** | **Can cosmology constrain sum(m_nu) below 0.06 eV?** | **Open** | **MEDIUM** | **Phase 139** |
+| **Q626** | **Is there a connection between neutrino mass and dark matter?** | **Open** | **MEDIUM** | **Phase 139** |
 
 ---
 
@@ -12094,6 +12100,55 @@ See: `phase_138_ckm_uptype.py`, `PHASE_138_IMPLICATIONS.md`
 
 
 
+
+
+---
+
+## Phase 139 Results Summary
+
+**Questions Q609-Q612: NEUTRINO ABSOLUTE MASS SCALE DERIVED!**
+
+**Key Discovery:**
+The same ratio dim(C)/dim(O) = 1/4 appears in BOTH:
+1. Neutrino Koide delta (Phase 136)
+2. Seesaw scale exponent M_R = v * (M_P/v)^(1/4)
+
+```
+Seesaw Scale:
+  M_R = v * (M_Planck/v)^(1/4)
+      = 246 GeV * (1.22e19/246)^(1/4)
+      = 3.67e6 GeV
+
+Predicted Neutrino Masses:
+  m1 ~ 0 meV (nearly massless)
+  m2 = 5.7 meV
+  m3 = 84 meV
+  Sum = 0.09 eV (within cosmological bound)
+
+Mass Ordering: NORMAL (algebraically preferred)
+```
+
+**Question Status:**
+- Q609: ANSWERED - Absolute scale derived from algebra
+- Q610: PARTIAL - M_R has algebraic form M_R = v*(M_P/v)^(1/4)
+- Q611: SPECULATIVE - Majorana phases proposed (pi/2, 4pi/9)
+- Q612: ANSWERED - Normal ordering algebraically preferred
+
+**Testable Predictions:**
+- m1 ~ 0 meV (KATRIN)
+- Sum ~ 0.09 eV (cosmology)
+- m_ee ~ 3.5 meV (0nu-beta-beta)
+- Normal ordering (DUNE, JUNO)
+
+**New Questions Opened:**
+- Q621: Can r_nu be derived exactly algebraically?
+- Q622: Why 1/4 in both delta and M_R exponent?
+- Q623: Are Majorana phases pi/2 and 4pi/9?
+- Q624: Does tau neutrino match Koide prediction?
+- Q625: Can cosmology constrain sum below 0.06 eV?
+- Q626: Connection to dark matter?
+
+See: `phase_139_neutrino_absolute_mass.py`, `PHASE_139_IMPLICATIONS.md`
 
 
 ---
