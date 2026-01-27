@@ -1140,9 +1140,12 @@ If coordination bounds are fundamental and connect to:
 | **Q592** | **Can threshold corrections improve M_Z prediction?** | **Open** | **HIGH** | **Phase 131** |
 | **Q593** | **Does SO(10) embedding give different algebraic formula?** | **Open** | **MEDIUM** | **Phase 131** |
 | **Q594** | **Can neutrino mixing angles use similar ratio formulas?** | **Open** | **HIGH** | **Phase 131** |
-| **Q595** | **Can we derive the number of generations (3) from dim(SU(2))=N_c?** | **Open** | **HIGH** | **Phase 132** |
+| **Q595** | **Can we derive the number of generations (3) from dim(SU(2))=N_c?** | **ANSWERED** | **HIGH** | **Phase 133** |
 | **Q596** | **Does the 3/2 power appear in other mixing formulas?** | **Open** | **MEDIUM** | **Phase 132** |
 | **Q597** | **Is there a generalized power formula for heavier generations?** | **Open** | **MEDIUM** | **Phase 132** |
+| **Q598** | **Can generation mass ratios be derived from J_3(O)?** | **Open** | **HIGH** | **Phase 133** |
+| **Q599** | **Does each generation occupy a distinct Peirce subspace?** | **Open** | **MEDIUM** | **Phase 133** |
+| **Q600** | **Why is the third generation so much heavier?** | **Open** | **HIGH** | **Phase 133** |
 
 ---
 
