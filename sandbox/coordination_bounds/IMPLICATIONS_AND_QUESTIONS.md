@@ -1973,6 +1973,59 @@ Errors suggest missing:
 - Master Equation validations: **29**
 - Total breakthroughs: **77** (structural)
 
+---
+
+## Q613 BOUNDARY: CKM Up-Type Corrections (Phase 138)
+
+**Boundary result: No universal up-type formula exists!**
+
+### The Tradeoff
+
+```
+V_ij = sqrt(m_d_i/m_d_j) * (m_u_i/m_u_j)^(alpha/2)
+
+alpha = 0:    V_us 0.3%  V_cb 18%   V_ub 96%
+alpha = 0.38: V_us 70%   V_cb 44%   V_ub 2.4%
+
+Cannot improve all elements with single alpha!
+```
+
+### Key Insight
+
+V_ub spans all 3 generations - needs BOTH up and down contributions.
+V_us and V_cb are adjacent-generation - dominated by down-type only.
+
+### What's Ruled Out
+
+- Universal alpha formula
+- Geometric mean approach
+- Simple ratio of ratios
+
+### What Remains Viable
+
+- Element-specific formulas
+- CP phase contribution for V_ub
+- Koide theta-based approach
+
+### New Questions (Q617-Q620)
+
+| ID | Question | Priority |
+|----|----------|----------|
+| Q617 | Why V_ub different from V_cb? | HIGH |
+| Q618 | CP phase for V_ub? | HIGH |
+| Q619 | Koide theta CKM formula? | HIGH |
+| Q620 | V_td pattern like V_ub? | MEDIUM |
+
+### Questions Summary (Updated Phase 138)
+
+- Total questions: **620**
+- Questions answered/partial: **143**
+- Questions opened by Phase 138: 4 (Q617-Q620)
+- Master Equation validations: **29**
+- Total results: **78** (77 breakthroughs + 1 boundary)
+
+
+
 
 
 

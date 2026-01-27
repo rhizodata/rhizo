@@ -1158,10 +1158,14 @@ If coordination bounds are fundamental and connect to:
 | **Q610** | **Does the seesaw scale M_R have algebraic origin?** | **Open** | **HIGH** | **Phase 136** |
 | **Q611** | **Can the Majorana phases be predicted?** | **Open** | **MEDIUM** | **Phase 136** |
 | **Q612** | **What determines normal vs inverted ordering?** | **Open** | **MEDIUM** | **Phase 136** |
-| **Q613** | **Can the V_cb error be reduced with up-type mass corrections?** | **Open** | **HIGH** | **Phase 137** |
+| **Q613** | **Can the V_cb error be reduced with up-type mass corrections?** | **BOUNDARY** | **HIGH** | **Phase 138** |
 | **Q614** | **Does the CP-violating phase have an algebraic form?** | **Open** | **HIGH** | **Phase 137** |
 | **Q615** | **Can V_td and V_ts be predicted from hierarchical formulas?** | **Open** | **MEDIUM** | **Phase 137** |
 | **Q616** | **Is there a unified CKM formula using BOTH up and down mass ratios?** | **Open** | **HIGH** | **Phase 137** |
+| **Q617** | **Why does V_ub need up-type contribution but V_cb doesn't?** | **Open** | **HIGH** | **Phase 138** |
+| **Q618** | **Can the CP phase explain the V_ub discrepancy?** | **Open** | **HIGH** | **Phase 138** |
+| **Q619** | **Is there a Koide theta-based CKM formula?** | **Open** | **HIGH** | **Phase 138** |
+| **Q620** | **Does V_td follow the same pattern as V_ub?** | **Open** | **MEDIUM** | **Phase 138** |
 
 ---
 
@@ -12042,6 +12046,51 @@ Each generation crossing involves a PRODUCT of intermediate mixings.
 - Q616: Unified CKM formula?
 
 See: `phase_137_extended_ckm.py`, `PHASE_137_IMPLICATIONS.md`
+
+---
+
+## Phase 138 Results Summary
+
+**Question Q613: BOUNDARY RESULT - No universal up-type formula!**
+
+**Key Discovery:**
+There is NO single alpha value that improves ALL CKM elements.
+
+```
+Testing: V_ij = sqrt(m_d_i/m_d_j) * (m_u_i/m_u_j)^(alpha/2)
+
+alpha = 0 (Phase 137):  V_us: 0.3%  V_cb: 18%  V_ub: 96%
+alpha = 0.38:           V_us: 70%   V_cb: 44%  V_ub: 2.4%
+
+Improving V_ub WORSENS V_us!
+```
+
+**What This Tells Us:**
+- CKM is NOT a simple function of mass ratios
+- Different elements need different treatment
+- V_ub specifically benefits from up-type (2.4% error!)
+- V_us and V_cb still best with Phase 137 (down-only)
+- CP phase likely the missing ingredient for V_ub
+
+**Ruled Out:**
+- Universal alpha formula
+- Geometric mean approach
+- Simple ratio of ratios
+
+**Still Viable:**
+- Element-specific formulas
+- CP phase contribution (Q618)
+- Koide theta differences (Q619)
+
+**New Questions Opened:**
+- Q617: Why V_ub different from V_cb?
+- Q618: CP phase for V_ub?
+- Q619: Koide theta CKM formula?
+- Q620: V_td pattern?
+
+See: `phase_138_ckm_uptype.py`, `PHASE_138_IMPLICATIONS.md`
+
+
 
 
 
