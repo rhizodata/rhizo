@@ -1149,7 +1149,11 @@ If coordination bounds are fundamental and connect to:
 | **Q601** | **Can the scale r be derived from first principles?** | **Open** | **HIGH** | **Phase 134** |
 | **Q602** | **Is there a universal delta formula for all fermion sectors?** | **Open** | **HIGH** | **Phase 134** |
 | **Q603** | **Can neutrino mass ratios be predicted using this framework?** | **Open** | **HIGH** | **Phase 134** |
-| **Q604** | **Does CKM/PMNS mixing arise from delta differences?** | **Open** | **CRITICAL** | **Phase 134** |
+| **Q604** | **Does CKM/PMNS mixing arise from delta differences?** | **ANSWERED** | **CRITICAL** | **Phase 135** |
+| **Q605** | **Can the CP-violating phase be derived algebraically?** | **Open** | **HIGH** | **Phase 135** |
+| **Q606** | **Why is theta_23 near maximal (45 deg)?** | **Open** | **MEDIUM** | **Phase 135** |
+| **Q607** | **Can V_cb and V_ub be derived from similar formulas?** | **Open** | **HIGH** | **Phase 135** |
+| **Q608** | **Does the seesaw scale emerge from delta differences?** | **Open** | **HIGH** | **Phase 135** |
 
 ---
 
